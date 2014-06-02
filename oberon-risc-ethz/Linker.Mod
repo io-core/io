@@ -254,6 +254,7 @@ PROCEDURE ThisBinFile(name: ARRAY OF CHAR): Files.File;
           i:=0; WHILE (S.s[i] #0X ) & (i < LEN(Lname)) &( i < LEN(S.s)) DO Lname[i]:=S.s[i] ; INC(i) END;
           LinkOne( Lname , M );
           SYSTEM.PUT(binStart + 20,SYSTEM.VAL(INTEGER,binroot) - binStart );
+          SYSTEM.PUT(binStart + 252, 12345678H );           (* A fingerprint *)
           p:=SYSTEM.VAL(Modules.Module,binroot);
           F:=ThisBinFile(p.name);
 
