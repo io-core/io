@@ -12,12 +12,15 @@ track.
 Using Linker.Mod
 ----------------
 
-* Retrieve, compile, and execute Peter De Wachter's Oberon Risc Emulator
-  from https://github.com/pdewacht/oberon-risc-emu
+* Retrieve and compile Peter De Wachter's Oberon Risc Emulator
+  (https://github.com/pdewacht/oberon-risc-emu)
+* Retrieve a disk image from http://projectoberon.com (in S3RISCinstall.zip)
+* Run the emulator: ./risc RISC.img
 * From within the emulator execute the `PCLink1.Run` command
 * Retrieve Linker.Mod and from another command prompt on the host and then
   issue the command `./pcreceive.sh Linker.Mod`
-* Add a trailing /s to the Compile command (e.g. `ORP.Compile ^/s`)
+* In the RISC emulator add a trailing /s to the Compile command 
+  (e.g. `ORP.Compile ^/s`)
 * Type and then highlight the text 'Linker.Mod'
 * Execute the `ORP.Compile ^/s` command.
 * Type and then execute the command `Linker.Link Modules`
@@ -27,6 +30,7 @@ Using Linker.Mod
 You can apply the newly compiled boot track to an existing floppy image
 using the dd command, for example:
 
+`cp RISC.img RISC-INSTALLTEST.img`
 `dd if=Modules.bin of=RISC-INSTALLTEST.img bs=512 seek=524292 conv=notrunc`
 
 Copyright
