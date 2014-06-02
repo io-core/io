@@ -30,8 +30,8 @@ Using Linker.Mod
 You can apply the newly compiled boot track to an existing floppy image
 using the dd command, for example:
 
-`cp RISC.img RISC-INSTALLTEST.img`
-`dd if=Modules.bin of=RISC-INSTALLTEST.img bs=512 seek=524292 conv=notrunc`
+* `cp RISC.img RISC-INSTALLTEST.img`
+* `dd if=Modules.bin of=RISC-INSTALLTEST.img bs=512 seek=524292 conv=notrunc`
 
 Copyright
 ---------
