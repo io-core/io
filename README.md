@@ -1,4 +1,4 @@
-Integraged Oberon
+Integrated Oberon
 =================
 
 This project may eventually integrate modern capabilities into Oberon, a classic
@@ -6,7 +6,8 @@ operating system and language.
 
 Meanwhile Linker.Mod (in oberon-risc-ethz) allows OberonV5 (2013) for RISC
 to compile its own boot track from source code to a binary file, making the
-system almost self-hosted. An additional tool is required to install the boot
+system almost self-hosted. An additional tool (such as 'dd' on the host) is 
+required to install the boot
 track.
 
 Using Linker.Mod
