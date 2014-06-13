@@ -1,0 +1,100 @@
+--- osrc/sdl-main.c	2014-05-12 13:21:33.000000000 -0700
++++ src/sdl-main.c	2014-06-13 10:55:31.000000000 -0700
+@@ -22,7 +22,7 @@
+ //static uint32_t BLACK = 0x000000, WHITE = 0x00FF00;
+ 
+ 
+-static void update_texture(struct RISC *risc, SDL_Texture *texture);
++static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect);
+ static double scale_display(SDL_Window *window, const SDL_Rect *risc_rect, SDL_Rect *display_rect);
+ static int clamp(int x, int min, int max);
+ 
+@@ -84,9 +84,13 @@
+         if (sscanf(optarg, "%dx%d", &w, &h) != 2) {
+           usage();
+         }
+-        risc_rect.w = clamp(w, 32, RISC_FRAMEBUFFER_WIDTH) & ~31;
+-        risc_rect.h = clamp(h, 32, RISC_FRAMEBUFFER_HEIGHT);
+-        risc_rect.y = RISC_FRAMEBUFFER_HEIGHT - risc_rect.h;
++        risc_rect.w = clamp(w, 32, 2048) & ~31;
++        risc_rect.h = clamp(h, 32, 2048);
++        if (risc_rect.h < 768){
++          risc_rect.y = RISC_FRAMEBUFFER_HEIGHT - risc_rect.h;
++        }else{
++          risc_rect.y = 0;
++        }
+         risc_screen_size_hack(risc, risc_rect.w, risc_rect.h);
+         break;
+       }
+@@ -125,16 +129,22 @@
+   SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+   sdl_error_if(renderer == NULL, "Could not create renderer");
+ 
++  int twidth = RISC_FRAMEBUFFER_WIDTH;
++  int theight = RISC_FRAMEBUFFER_HEIGHT;
++  if ( (risc_rect.h > 768)||(risc_rect.w>1024)){
++    twidth = risc_rect.w;
++    theight = risc_rect.h;
++  } 
+   SDL_Texture *texture = SDL_CreateTexture(renderer,
+                                            SDL_PIXELFORMAT_ARGB8888,
+                                            SDL_TEXTUREACCESS_STREAMING,
+-                                           RISC_FRAMEBUFFER_WIDTH,
+-                                           RISC_FRAMEBUFFER_HEIGHT);
++                                           twidth,
++                                           theight);
+   sdl_error_if(texture == NULL, "Could not create texture");
+ 
+   SDL_Rect display_rect;
+   double display_scale = scale_display(window, &risc_rect, &display_rect);
+-  update_texture(risc, texture);
++  update_texture(risc, texture, &risc_rect);
+   SDL_ShowWindow(window);
+   SDL_RenderClear(renderer);
+   SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
+@@ -222,7 +232,7 @@
+     risc_set_time(risc, frame_start);
+     risc_run(risc, CPU_HZ / FPS);
+ 
+-    update_texture(risc, texture);
++    update_texture(risc, texture, &risc_rect);
+     SDL_RenderClear(renderer);
+     SDL_RenderCopy(renderer, texture, &risc_rect, &display_rect);
+     SDL_RenderPresent(renderer);
+@@ -268,16 +278,24 @@
+ 
+ // Only used in update_texture(), but some systems complain if you
+ // allocate three megabyte on the stack.
+-static uint32_t pixel_buf[RISC_FRAMEBUFFER_WIDTH * RISC_FRAMEBUFFER_HEIGHT];
++//static uint32_t pixel_buf[RISC_FRAMEBUFFER_WIDTH * RISC_FRAMEBUFFER_HEIGHT];
++static uint32_t pixel_buf[2048*2048];
+ 
+-static void update_texture(struct RISC *risc, SDL_Texture *texture) {
++static void update_texture(struct RISC *risc, SDL_Texture *texture, const SDL_Rect *risc_rect) {
+   struct Damage damage = risc_get_framebuffer_damage(risc);
+   if (damage.y1 <= damage.y2) {
+     uint32_t *in = risc_get_framebuffer_ptr(risc);
+     uint32_t out_idx = 0;
+ 
++    int twidth = RISC_FRAMEBUFFER_WIDTH;
++    int theight = RISC_FRAMEBUFFER_HEIGHT;
++    if ( (risc_rect->h > 768)||(risc_rect->w>1024)){
++      twidth = risc_rect->w;
++      theight = risc_rect->h;
++    } 
++
+     for (int line = damage.y2; line >= damage.y1; line--) {
+-      int line_start = line * (RISC_FRAMEBUFFER_WIDTH / 32);
++      int line_start = line * (twidth / 32);
+       for (int col = damage.x1; col <= damage.x2; col++) {
+         uint32_t pixels = in[line_start + col];
+         for (int b = 0; b < 32; b++) {
+@@ -290,7 +308,7 @@
+ 
+     SDL_Rect rect = {
+       .x = damage.x1 * 32,
+-      .y = RISC_FRAMEBUFFER_HEIGHT - damage.y2 - 1,
++      .y = theight - damage.y2 - 1,
+       .w = (damage.x2 - damage.x1 + 1) * 32,
+       .h = (damage.y2 - damage.y1 + 1)
+     };

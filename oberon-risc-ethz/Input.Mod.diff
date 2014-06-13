@@ -1,0 +1,11 @@
+--- Input-Original.Mod	2014-06-13 15:11:06.000000000 -0700
++++ Input-Fixed.Mod	2014-06-13 15:11:26.000000000 -0700
+@@ -46,7 +46,7 @@
+     VAR w: INTEGER;
+   BEGIN SYSTEM.GET(msAdr, w);
+     keys := SYSTEM.VAL(SET, w DIV 1000000H MOD 8);
+-    x := w MOD 400H; y := (w DIV 1000H) MOD 400H;
++    x := w MOD 1000H; y := (w DIV 1000H) MOD 1000H;
+     IF y >= MH THEN y := MH-1 END
+   END Mouse;
+ 

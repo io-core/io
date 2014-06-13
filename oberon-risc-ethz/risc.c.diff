@@ -1,0 +1,119 @@
+--- osrc/risc.c	2014-05-12 09:02:57.000000000 -0700
++++ src/risc.c	2014-06-13 14:42:29.000000000 -0700
+@@ -11,6 +11,7 @@
+ #define ROMStart     0x0FE000
+ #define ROMWords     512
+ #define DisplayStart 0x0E7F00
++#define AltDisplayStart 0x100000
+ #define IOStart      0x0FFFC0
+ 
+ struct RISC {
+@@ -32,8 +33,10 @@
+   const struct RISC_Clipboard *clipboard;
+ 
+   struct Damage damage;
++  int fbwidth;
++  int fbheight;
+ 
+-  uint32_t RAM[MemWords];
++  uint32_t RAM[MemWords*2];
+   uint32_t ROM[ROMWords];
+ };
+ 
+@@ -66,6 +69,9 @@
+     .x2 = RISC_FRAMEBUFFER_WIDTH/32 - 1,
+     .y2 = RISC_FRAMEBUFFER_HEIGHT - 1
+   };
++  risc->fbwidth = RISC_FRAMEBUFFER_WIDTH;
++  risc->fbheight = RISC_FRAMEBUFFER_HEIGHT;
++
+   risc_reset(risc);
+   return risc;
+ }
+@@ -88,6 +94,10 @@
+   risc->RAM[DisplayStart/4] = 0x53697A65; // magic value SIZE
+   risc->RAM[DisplayStart/4+1] = width;
+   risc->RAM[DisplayStart/4+2] = height;
++  if( width > 1024 || height > 768){
++    risc->fbwidth = width;
++    risc->fbheight = height;
++  }
+ }
+ 
+ void risc_reset(struct RISC *risc) {
+@@ -254,7 +264,8 @@
+     uint32_t b = (ir & 0x00F00000) >> 20;
+     uint32_t off = ir & 0x000FFFFF;
+ 
+-    uint32_t address = (risc->R[b] + off) % MemSize;
++    uint32_t address = (risc->R[b] + off); 
++    if (address > 0x180000) address = address % MemSize; // Oberon high addresses (rom?) appear to be aliased
+     if ((ir & ubit) == 0) {
+       uint32_t a_val;
+       if ((ir & vbit) == 0) {
+@@ -318,7 +329,11 @@
+   if (address < IOStart) {
+     return risc->RAM[address/4];
+   } else {
+-    return risc_load_io(risc, address);
++    if (address < MemSize) {
++      return risc_load_io(risc, address);
++    }else{
++      return risc->RAM[address/4];
++    }
+   }
+ }
+ 
+@@ -328,8 +343,8 @@
+ }
+ 
+ static void risc_update_damage(struct RISC *risc, int w) {
+-  int row = w / (RISC_FRAMEBUFFER_WIDTH / 32);
+-  int col = w % (RISC_FRAMEBUFFER_WIDTH / 32);
++  int row = w / (risc->fbwidth / 32);
++  int col = w % (risc->fbwidth / 32);
+   if (col < risc->damage.x1) {
+     risc->damage.x1 = col;
+   }
+@@ -350,13 +365,16 @@
+   } else if (address < IOStart) {
+     risc->RAM[address/4] = value;
+     risc_update_damage(risc, address/4 - DisplayStart/4);
+-  } else {
++  } else if (address < MemSize) {
+     risc_store_io(risc, address, value);
++  } else {
++    risc->RAM[address/4] = value;
++    risc_update_damage(risc, address/4 - MemSize/4);
+   }
+ }
+ 
+ static void risc_store_byte(struct RISC *risc, uint32_t address, uint8_t value) {
+-  if (address < IOStart) {
++  if ((address < IOStart) | (address >= MemSize)) {
+     uint32_t w = risc_load_word(risc, address);
+     uint32_t shift = (address & 3) * 8;
+     w &= ~(0xFFu << shift);
+@@ -536,15 +554,19 @@
+ }
+ 
+ uint32_t *risc_get_framebuffer_ptr(struct RISC *risc) {
+-  return &risc->RAM[DisplayStart/4];
++  if ( (risc->fbwidth > 1024) || (risc->fbheight > 768) ){
++    return &risc->RAM[AltDisplayStart/4];
++  }else{ 
++    return &risc->RAM[DisplayStart/4];
++  }
+ }
+ 
+ struct Damage risc_get_framebuffer_damage(struct RISC *risc) {
+   struct Damage dmg = risc->damage;
+   risc->damage = (struct Damage){
+-    .x1 = RISC_FRAMEBUFFER_WIDTH/32,
++    .x1 = risc->fbwidth/32,
+     .x2 = 0,
+-    .y1 = RISC_FRAMEBUFFER_HEIGHT,
++    .y1 = risc->fbheight,
+     .y2 = 0
+   };
+   return dmg;
