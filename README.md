@@ -1,7 +1,7 @@
 Integrated Oberon
 =================
 
-http://kuracali.com/OberonScreenSmall.JPG
+<img src="http://kuracali.com/OberonScreenSmall.JPG">
 
 This project may eventually integrate modern capabilities into Oberon, a classic
 operating system and language.
