@@ -21,7 +21,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 6.3.2014 RISC code generator in Oberon-07*)
 
   PROCEDURE Put1a(target: O7X.Target; op, a, b, im: LONGINT);
   BEGIN (*same as Pu1, but with range test  -10000H <= im < 10000H*)
-    IF (im >= -10000H) & (im <= 0FFFFH) THEN Put1(target, op, a, b, im)
+    IF (im >= -10000H) & (im <= 0FFFFH) THEN Put1(target, 0, op, a, b, im)
     ELSE Put1(target, U, Mov, target.RH, 0, im DIV 10000H);
       IF im MOD 10000H # 0 THEN Put1(target, 0, target.opmap[Ior], target.RH, target.RH, im MOD 10000H) END ;
       Put0(target, 0, op, a, b, target.RH)
