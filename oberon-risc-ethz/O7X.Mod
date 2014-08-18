@@ -1,6 +1,6 @@
 MODULE O7X; (* NW  10.10.2013 CP 6.3.2014 common code generator resources*)
 
-  IMPORT O7B;
+  IMPORT O7S, O7B;
     CONST maxCode* = 8000; maxStrx* = 2400; maxTD* = 120; 
     TYPE 
 
@@ -33,5 +33,5 @@ MODULE O7X; (* NW  10.10.2013 CP 6.3.2014 common code generator resources*)
     relmap*: ARRAY 6 OF INTEGER;  (*condition codes for relations*) 
     code*: ARRAY maxCode OF LONGINT; 
     data*: ARRAY maxTD OF LONGINT;  (*type descriptors*)
-     str*: ARRAY maxStrx OF CHAR;     Put0* : PROCEDURE(target: Target; u, op, a, b, c: LONGINT);     Put1* : PROCEDURE(target: Target; u, op, a, b, im: LONGINT);     Put1a* : PROCEDURE(target: Target; op, a, b, im: LONGINT);     Put2* : PROCEDURE(target: Target; op, a, b, off: LONGINT);     Put3* : PROCEDURE(target: Target; op, cond, off: LONGINT);   END;
+     str*: ARRAY maxStrx OF CHAR;     Put0* : PROCEDURE(target: Target; u, op, a, b, c: LONGINT);     Put1* : PROCEDURE(target: Target; u, op, a, b, im: LONGINT);     Put1a* : PROCEDURE(target: Target; op, a, b, im: LONGINT);     Put2* : PROCEDURE(target: Target; op, a, b, off: LONGINT);     Put3* : PROCEDURE(target: Target; op, cond, off: LONGINT);     Close* : PROCEDURE(VAR target: Target; modid: O7S.Ident; key, nofent: LONGINT);   END;
 END O7X.

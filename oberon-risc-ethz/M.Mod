@@ -1,0 +1,1 @@
+MODULE M;VAR a, b: INTEGER; PROCEDURE P(x, y: INTEGER);  VAR z: INTEGER;   BEGIN     z := x + a END P;BEGIN   P(5, 256); P(-10, 53248) END M.
