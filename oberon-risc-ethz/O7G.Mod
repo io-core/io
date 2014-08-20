@@ -14,9 +14,9 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3; And = 4; Ann = 5; Ior = 6; Xor = 7; 
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11; 
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15; 
-    Ldr = 8; Str = 10; 
+    Ldr = 0; Str = 1; 
     BR = 0; BLR = 1; BC = 2; BL = 3; 
-    MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14; 
+    MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14; AL = 7;
  
  
   (* Item forms and meaning of fields: 
@@ -173,7 +173,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
       ELSIF x.mode = O7B.Const THEN 
         IF x.type.form = O7B.Proc THEN 
           IF x.r > 0 THEN O7S.Mark("not allowed") 
-          ELSIF x.r = 0 THEN T.PutOpBR(T, BL, 7, 0); T.PutOpRRIa(T, Sub, T.RH, LNK, T.pc*4 - x.a) 
+          ELSIF x.r = 0 THEN T.PutOpBR(T, BL, AL, 0); T.PutOpRRIa(T, Sub, T.RH, LNK, T.pc*4 - x.a) 
           ELSE GetSB(x.r); T.PutOpRRI(T, 0, Add, T.RH, SB, x.a + 100H) (*mark as progbase-relative*) 
           END 
         ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, x.a) 
@@ -184,7 +184,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
       ELSIF x.mode = RegI THEN T.PutOpLS(T, op, x.r, x.r, x.a) 
       ELSIF x.mode = Cond THEN         ng := negated(x.r); 
         T.PutOpBR(T, BC, ng, 2); 
-        FixLink(x.b); T.PutOpRRI(T, 0, Mov, T.RH, 0, 1); T.PutOpBR(T, BC, 7, 1); 
+        FixLink(x.b); T.PutOpRRI(T, 0, Mov, T.RH, 0, 1); T.PutOpBR(T, BC, AL, 1); 
         FixLink(x.a); T.PutOpRRI(T, 0, Mov, T.RH, 0, 0); x.r := T.RH; incR 
       END ; 
       x.mode := Reg 
@@ -726,7 +726,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END Here; 
  
   PROCEDURE FJump*(VAR L: LONGINT); 
-  BEGIN T.PutOpBR(T, BC, 7, L); L := T.pc-1 
+  BEGIN T.PutOpBR(T, BC, AL, L); L := T.pc-1 
   END FJump; 
  
   PROCEDURE CFJump*(VAR x: O7X.Item);   VAR ng : LONGINT; 
@@ -736,7 +736,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END CFJump; 
  
   PROCEDURE BJump*(L: LONGINT); 
-  BEGIN T.PutOpBR(T, BC, 7, L-T.pc-1) 
+  BEGIN T.PutOpBR(T, BC, AL, L-T.pc-1) 
   END BJump; 
  
   PROCEDURE CBJump*(VAR x: O7X.Item; L: LONGINT);   VAR ng : LONGINT; 
@@ -767,14 +767,14 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF r > 0 THEN SaveRegs(r) END ; 
     IF x.type.form = O7B.Proc THEN 
       IF x.mode = O7B.Const THEN 
-        IF x.r >= 0 THEN T.PutOpBR(T, BL, 7, (x.a DIV 4)-T.pc-1) 
+        IF x.r >= 0 THEN T.PutOpBR(T, BL, AL, (x.a DIV 4)-T.pc-1) 
         ELSE (*imported*) 
           IF T.pc - T.fixorgP < 1000H THEN 
-            T.PutOpBR(T, BL, 7, ((-x.r) * 100H + x.a) * 1000H + T.pc-T.fixorgP); T.fixorgP := T.pc-1 
+            T.PutOpBR(T, BL, AL, ((-x.r) * 100H + x.a) * 1000H + T.pc-T.fixorgP); T.fixorgP := T.pc-1 
           ELSE O7S.Mark("fixup impossible") 
           END 
         END 
-      ELSE T.PutOpBR(T, BLR, 7, x.r) 
+      ELSE T.PutOpBR(T, BLR, AL, x.r) 
       END 
     ELSE O7S.Mark("not a procedure") 
     END ; 
@@ -803,9 +803,9 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF form # O7B.NoTyp THEN load(x) END ; 
     IF ~int THEN (*procedure epilog*) 
-      T.PutOpLS(T, Ldr, LNK, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, size); T.PutOpBR(T, BR, 7, LNK) 
+      T.PutOpLS(T, Ldr, LNK, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, size); T.PutOpBR(T, BR, AL, LNK) 
     ELSE (*interrupt*) 
-      T.PutOpLS(T, Ldr, 1, SP, 4); T.PutOpLS(T, Ldr, 0, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, 8); T.PutOpBR(T, BR, 7, 10H) 
+      T.PutOpLS(T, Ldr, 1, SP, 4); T.PutOpLS(T, Ldr, 0, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, 8); T.PutOpBR(T, BR, AL, 10H) 
     END ; 
     T.RH := 0 
   END Return; 
@@ -854,7 +854,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END Assert;  
  
   PROCEDURE New*(VAR x: O7X.Item); 
-  BEGIN loadAdr(x); loadTypTagAdr(x.type.base); T.PutOpBR(T, BLR, 7, MT); T.RH := 0; invalSB 
+  BEGIN loadAdr(x); loadTypTagAdr(x.type.base); T.PutOpBR(T, BLR, AL, MT); T.RH := 0; invalSB 
   END New; 
  
   PROCEDURE Pack*(VAR x, y: O7X.Item); 
