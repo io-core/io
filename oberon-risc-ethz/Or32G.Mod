@@ -1,11 +1,11 @@
-MODULE Or32G; (* NW  10.10.2013 CP 6.3.2014 RISC code generator in Oberon-07*)
+MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   IMPORT SYSTEM, Files, O7S, O7B, O7X;
   (*Code generator for Oberon compiler for RISC processor.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)  CONST
     MT = 12; SB = 13; SP = 14; LNK = 15;   (*dedicated registers*)
   (*frequently used opcodes -- abstract not machine values except for risc*)      U = 2000H;
-    Mov = 0; Lsl = 1; Asr = 2; Ror= 3; And = 4; Ann = 5; Ior = 6; Xor = 7;
+    Mov = 0; Lsl = 1; Asr = 2; Ror= 3;    And = 4; Ann = 5; Ior = 6; Xor = 7;
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11;
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15;
     Ldr = 8; Str = 10;
@@ -78,7 +78,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 6.3.2014 RISC code generator in Oberon-07*)
       obj := obj.next
     END ;
     size := target.varsize + target.strx + comsize + (target.pc + nofimps + nofent + nofptrs + 1)*4;  (*varsize includes type descriptors*)
-    O7B.MakeFileName(name, modid, ".rsc"); (*write code file*)
+    O7B.MakeFileName(name, modid, ".r32"); (*write code file*)
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.WriteByte(R, target.version);
     Files.WriteInt(R, size);
     obj := O7B.topScope.next;

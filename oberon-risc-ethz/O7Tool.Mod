@@ -1,5 +1,5 @@
 MODULE O7Tool;  (*NW 18.2.2013*)
-  IMPORT SYSTEM, Fonts, Files, Texts,  Viewers, MenuViewers, TextFrames, Oberon, O7B, Or32G;
+  IMPORT SYSTEM, Fonts, Files, Texts,  Viewers, MenuViewers, TextFrames, Oberon, O7B, Or32G, Oa32G;
   CONST r32 = 0; r64 = 1; a32 = 2; a64 = 3; i32 = 4; i64 = 5;
 
   VAR W: Texts.Writer;
@@ -189,13 +189,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
    SDTfmt = 7; UNDfmt = 8; BDTfmt = 9; BRfmt = 10; CDTfmt = 11; CDOfmt = 12; CRTfmt = 13; SWIfmt = 14;
 		VAR cc, a, b, c, d, e, f, g, i, fmt: LONGINT; regset: SET; sign : LONGINT;
 	BEGIN
-(*
-        fmt := Oa32G.opFormat( w );
-*)
-       fmt := DPfmt ;
 
-   (*     Texts.WriteString(W," ");
-        Texts.WriteInt(W,fmt,0);  *)
+        fmt := Oa32G.opFormat( w );
+
         IF   fmt=DPfmt THEN
                     i := w DIV 200000H MOD 10H;
                    Texts.WriteString(W, a32mnemo0[i]);
@@ -261,7 +257,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)
           ELSE
                      Texts.WriteString(W, "B ")
           END;
-          Texts.WriteString(W, a32cc[ w DIV 10000000H ] );
+          Texts.WriteString(W, a32cc[ w DIV 10000000H  MOD 10H ]);
           Texts.WriteInt(W,  w  DIV 10H MOD 1000000H ,0);
         ELSIF  fmt=CDTfmt THEN
                      Texts.WriteString(W, " CDT ");
@@ -281,9 +277,10 @@ MODULE O7Tool;  (*NW 18.2.2013*)
   PROCEDURE opcode(w: LONGINT; arch: INTEGER);
   BEGIN 
     IF arch = a32 THEN
-      a32opcode( w )
+      a32opcode( w )    ELSIF arch = r32 THEN
+      r32opcode( w ) 
     ELSE
-      r32opcode( w )
+      r32opcode( w ) 
     END
   END opcode;
 
@@ -295,7 +292,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)
   
   PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
   BEGIN Files.WriteByte(R, x)  (* -128 <= x < 128 *)
-  END Write;  PROCEDURE getArch( s: ARRAY OF CHAR; VAR ext: ARRAY OF CHAR; arch: INTEGER);  VAR i: INTEGER;  BEGIN        arch := r32;
+  END Write;  PROCEDURE getArch( s: ARRAY OF CHAR; VAR ext: ARRAY OF CHAR; VAR arch: INTEGER);  VAR i: INTEGER;  BEGIN        arch := r32;
         i:= 0; WHILE s[i] # 0X DO INC(i) END; ext[3]:=s[i]; ext[3]:=s[i]; ext[2]:=s[i-1]; ext[1]:=s[i-2]; ext[0]:=s[i-3];
         IF ext = "r64" THEN arch := r64; Texts.WriteString(W, " (r64) ") END;
         IF ext = "a32" THEN arch := a32; Texts.WriteString(W, " (a32) ") END;

@@ -1,5 +1,5 @@
 MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon-07*)
-  IMPORT SYSTEM, Files, O7S, O7B, O7X, Or32G; 
+  IMPORT SYSTEM, Files, O7S, O7B, O7X, Or32G, Oa32G;
   (*Code generator for Oberon compiler for a generic processor. 
      Procedural interface to Parser O7P; result in array "code". 
      Procedure Close writes code-files*) 
@@ -31,9 +31,8 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
  
   VAR      arch: CHAR;     T: O7X.Target;    PROCEDURE SetArch*( a : CHAR );
    BEGIN
-     arch:=a
-;     IF arch = 0X THEN Or32G.SetArch(T); END (*    IF arch = 1X THEN Oa32G.SetArch(T); END;
-     IF arch = 2X THEN Oi32G.SetArch(T); END *)   END SetArch;    (*instruction assemblers according to formats*) 
+     arch:=a;     IF arch = 0X THEN Or32G.SetArch(T); END ;     IF arch = 1X THEN Oa32G.SetArch(T); END; (*
+     IF arch = 2X THEN Oi32G.SetArch(T); END *)   END SetArch;    (*instruction assemblers according to formats*) 
  
   PROCEDURE GetPC*(): LONGINT;
   BEGIN
