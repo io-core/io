@@ -3,8 +3,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   (*Code generator for Oberon compiler for RISC processor.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)  CONST
-    StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
-    MT = 28; SB = 29; SP = 30; LNK = 31;   (*abstract dedicated registers*)
+    MT = 12; SB = 13; SP = 14; LNK = 15;   (*dedicated registers*)
   (*frequently used opcodes -- abstract not machine values except for risc*)      U = 2000H;
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3;    And = 4; Ann = 5; Ior = 6; Xor = 7;
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11;
@@ -59,35 +58,14 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       s := typ.base.size;
       FOR i := 0 TO typ.len-1 DO FindPtrs(R, typ.base, i*s + adr) END
     END
-  END FindPtrs;  PROCEDURE invalSB (VAR target: O7X.Target); 
-  BEGIN target.curSB := 1 
-  END invalSB; 
-  PROCEDURE Header* (VAR target: O7X.Target); 
-  BEGIN target.entry := target.pc*4; 
-    IF target.version = 0 THEN
-      target.code[0] := 0E7000000H-1 + target.pc;
-      target.PutOpRRI(target, 0, Mov, target.regmap[SB], 0, 16);
-      target.PutOpRRI(target, 0, Mov, target.regmap[SP], 0, StkOrg0)  (*RISC-0*) 
-    ELSE 
-     target.PutOpRRI(target, 0, Sub, target.regmap[SP], target.regmap[SP], 4);
-     target.PutOpLS(target, Str, target.regmap[LNK], target.regmap[SP], 0);
-     invalSB(target) 
-    END 
-  END Header;
-  PROCEDURE Open(VAR target: O7X.Target; v: INTEGER); 
-  BEGIN target.pc := 0; target.tdx := 0; target.strx := 0; target.RH := 0; 
-    target.fixorgP := 0; target.fixorgD := 0; target.fixorgT := 0; 
-    target.check := v # 0; target.version := v; target.inhibitCalls := FALSE; 
-    IF v = 0 THEN target.pc := 8 END 
-  END Open; 
-  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
+  END FindPtrs;  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
     VAR obj: O7B.Object;
       i, comsize, nofimps, nofptrs, size: LONGINT;
       name: O7S.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
     IF target.version = 0 THEN target.PutOpRRI(target, 0, Mov, 0, 0, 0); target.PutOpBR(target, BR, AL, 0)  (*RISC-0*)
-    ELSE target.PutOpLS(target, Ldr, target.regmap[LNK], target.regmap[SP], 0); target.PutOpRRI(target, 0, Add, target.regmap[SP], target.regmap[SP], 4); target.PutOpBR(target, BR, AL, target.regmap[LNK])
+    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBR(target, BR, AL, LNK)
     END ;
     obj := O7B.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO
@@ -154,11 +132,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE SetArch*(VAR target: O7X.Target);
   VAR i : INTEGER;  BEGIN    target.arch := 0X;
     i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; 
-    target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;
-    (*actual dedicated registers*)
-    target.regmap[MT] := 12; target.regmap[SB] := 13; target.regmap[SP] := 14; target.regmap[LNK] := 15;    i:=0; WHILE i < target.regmap[MT] DO target.regmap[i]:= i; INC(i) END; (* abstract registers 0 to actual MT -1 are identity mapped *)
-    i:=target.regmap[MT]; WHILE i < MT DO target.regmap[i]:= -1; INC(i) END; (* abstract registers 12 to abstract MT -1 are not available *)
-    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBR := PutOpBR;    target.invalSB := invalSB;    target.Header := Header;    target.Open := Open;    target.Close := Close;  END SetArch;
+    target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBR := PutOpBR;    target.Close := Close;  END SetArch;
 BEGIN
 END Or32G.
 

@@ -2,9 +2,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   IMPORT SYSTEM, Files, O7S, O7B, O7X;
   (*Code generator for Oberon compiler for ARM 32-bit processor.
      Procedural interface to Parser O7P; result in array "code".
-     Procedure Close writes code-files*)  CONST    StkOrg0 = -64; VarOrg0 = 0;      MT = 28; SB = 29; SP = 30; LNK = 31;   (*abstract dedicated registers*)
-    PC = 15; (* Real registers *)
-
+     Procedure Close writes code-files*)  CONST    StkOrg0 = -64; VarOrg0 = 0;      MT = 10; SB = 11; (*SP = 13; *) LNK = 14;   (*dedicated registers*)		(* Register Numbers *)		PC* = 15; LR* = 14; SP* = 13; FP* = 12; FirstUniversalReg = 9;
   (*frequently used opcodes -- abstract not machine values except for risc*)      U = 2000H;
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3;    And = 4; Ann = 5; Ior = 6; Xor = 7;
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11;
@@ -44,7 +42,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   END PutOpLS;
 
   PROCEDURE PutOpBR(target: O7X.Target; op, cond, off: LONGINT);
-  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN         PutOpRRR(target,0,Mov,PC,0,target.regmap[LNK]);         DEC(target.pc)      ELSE        target.code[target.pc] := 0E0000000H;      END(* 
+  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN         PutOpRRR(target,0,Mov,PC,0,LR);         DEC(target.pc)      ELSE        target.code[target.pc] := 0E0000000H;      END(* 
     code[pc] := ( AL * 10000000H ) + (5 * 2000000H) + (off MOD 1000000H); *)    ELSIF op = BLR THEN     target.code[target.pc] := 0E0000001H;    ELSIF op = BC THEN     target.code[target.pc] := 0E0000002H; (* 
     code[pc] := ( cond * 10000000H ) + (5 * 2000000H) + (off MOD 1000000H);*)    ELSIF op = BL THEN     target.code[target.pc] := 0E0000003H;    ELSE      O7S.Mark("unknown branch opcode")    END;(*    code[pc] := cond * 10000000H + 0A000000H + off;*)(*
     code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H);*)    INC(target.pc)
@@ -75,34 +73,14 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       s := typ.base.size;
       FOR i := 0 TO typ.len-1 DO FindPtrs(R, typ.base, i*s + adr) END
     END
-  END FindPtrs;  PROCEDURE invalSB* (VAR target: O7X.Target); 
-  BEGIN target.curSB := 1 
-  END invalSB; 
-  PROCEDURE Header* (VAR target: O7X.Target); 
-  BEGIN target.entry := target.pc*4; 
-    IF target.version = 0 THEN
-      target.code[0] := 0E7000000H-1 + target.pc;
-      target.PutOpRRI(target, 0, Mov, target.regmap[SB], 0, 16);
-      target.PutOpRRI(target, 0, Mov, target.regmap[SP], 0, StkOrg0)  (*RISC-0*) 
-    ELSE 
-     target.PutOpRRI(target, 0, Sub, target.regmap[SP], target.regmap[SP], 4);
-     target.PutOpLS(target, Str, target.regmap[LNK], target.regmap[SP], 0);
-     invalSB(target) 
-    END 
-  END Header;
-  PROCEDURE Open(VAR target: O7X.Target; v: INTEGER); 
-  BEGIN target.pc := 0; target.tdx := 0; target.strx := 0; target.RH := 0; 
-    target.fixorgP := 0; target.fixorgD := 0; target.fixorgT := 0; 
-    target.check := v # 0; target.version := v; target.inhibitCalls := FALSE; 
-    IF v = 0 THEN target.pc := 8 END 
-  END Open;   PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
+  END FindPtrs;  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
     VAR obj: O7B.Object;
       i, comsize, nofimps, nofptrs, size: LONGINT;
       name: O7S.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
     IF target.version = 0 THEN target.PutOpRRI(target, 0, Mov, 0, 0, 0); target.PutOpBR(target, BR, AL, 0)  (*RISC-0*)
-    ELSE target.PutOpLS(target, Ldr, target.regmap[LNK], target.regmap[SP], 0); target.PutOpRRI(target, 0, Add, target.regmap[SP], target.regmap[SP], 4); target.PutOpBR(target, BR, AL, target.regmap[LNK])
+    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBR(target, BR, AL, LNK)
     END ;
     obj := O7B.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO
@@ -128,8 +106,4 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     Files.WriteInt(R, target.tdx*4);
     i := 0;
     WHILE i < target.tdx DO Files.WriteInt(R, target.data[i]); INC(i) END ; (*type descriptors*)
-    Files.WriteInt(R, target.varsize - target.tdx*4);  (*data*)    Files.WriteInt(R, target.strx);    FOR i := 0 TO target.strx-1 DO Files.Write(R, target.str[i]) END ;  (*strings*)    Files.WriteInt(R, target.pc);  (*code len*)    FOR i := 0 TO target.pc-1 DO Files.WriteInt(R, target.code[i]) END ;  (*program*)    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*commands*)      IF (obj.exno # 0) & (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) &          (obj.type.nofpar = 0) & (obj.type.base = O7B.noType) THEN        Files.WriteString(R, obj.name); Files.WriteInt(R, obj.val)      END ;      obj := obj.next    END ;    Files.Write(R, 0X);    Files.WriteInt(R, nofent); Files.WriteInt(R, target.entry);    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*entries*)      IF obj.exno # 0 THEN        IF (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) OR (obj.class = O7B.Var) THEN          Files.WriteInt(R, obj.val)        ELSIF obj.class = O7B.Typ THEN          IF obj.type.form = O7B.Record THEN Files.WriteInt(R,  obj.type.len MOD 10000H)          ELSIF (obj.type.form = O7B.Pointer) & ((obj.type.base.typobj = NIL) OR (obj.type.base.typobj.exno = 0)) THEN            Files.WriteInt(R, obj.type.base.len MOD 10000H)          END        END      END;      obj := obj.next    END ;    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*pointer variables*)      IF obj.class = O7B.Var THEN FindPtrs(R, obj.type, obj.val) END ;      obj := obj.next    END ;    Files.WriteInt(R, -1);    Files.WriteInt(R, target.fixorgP); Files.WriteInt(R, target.fixorgD); Files.WriteInt(R, target.fixorgT); Files.WriteInt(R, target.entry);    Files.Write(R, "O"); Files.Register(F)  END Close;  PROCEDURE SetArch*(VAR target: O7X.Target);
-  VAR i : INTEGER;  BEGIN    target.arch := 0X;    target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := -1; target.opRRmap[Xor] := -1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    (*actual dedicated registers*)
-    target.regmap[MT] := 11; target.regmap[SB] := 12; target.regmap[SP] := 13; target.regmap[LNK] := 14;    i:=0; WHILE i < target.regmap[MT] DO target.regmap[i]:= i; INC(i) END; (* abstract registers 0 to actual MT -1 are identity mapped *)
-    i:=target.regmap[MT]; WHILE i < MT DO target.regmap[i]:= -1; INC(i) END; (* abstract registers 12 to abstract MT -1 are not available *)
-    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBR := PutOpBR;    target.invalSB := invalSB;    target.Header := Header;    target.Open := Open;    target.Close := Close;  END SetArch;BEGINEND Oa32G.
+    Files.WriteInt(R, target.varsize - target.tdx*4);  (*data*)    Files.WriteInt(R, target.strx);    FOR i := 0 TO target.strx-1 DO Files.Write(R, target.str[i]) END ;  (*strings*)    Files.WriteInt(R, target.pc);  (*code len*)    FOR i := 0 TO target.pc-1 DO Files.WriteInt(R, target.code[i]) END ;  (*program*)    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*commands*)      IF (obj.exno # 0) & (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) &          (obj.type.nofpar = 0) & (obj.type.base = O7B.noType) THEN        Files.WriteString(R, obj.name); Files.WriteInt(R, obj.val)      END ;      obj := obj.next    END ;    Files.Write(R, 0X);    Files.WriteInt(R, nofent); Files.WriteInt(R, target.entry);    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*entries*)      IF obj.exno # 0 THEN        IF (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) OR (obj.class = O7B.Var) THEN          Files.WriteInt(R, obj.val)        ELSIF obj.class = O7B.Typ THEN          IF obj.type.form = O7B.Record THEN Files.WriteInt(R,  obj.type.len MOD 10000H)          ELSIF (obj.type.form = O7B.Pointer) & ((obj.type.base.typobj = NIL) OR (obj.type.base.typobj.exno = 0)) THEN            Files.WriteInt(R, obj.type.base.len MOD 10000H)          END        END      END;      obj := obj.next    END ;    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*pointer variables*)      IF obj.class = O7B.Var THEN FindPtrs(R, obj.type, obj.val) END ;      obj := obj.next    END ;    Files.WriteInt(R, -1);    Files.WriteInt(R, target.fixorgP); Files.WriteInt(R, target.fixorgD); Files.WriteInt(R, target.fixorgT); Files.WriteInt(R, target.entry);    Files.Write(R, "O"); Files.Register(F)  END Close;  PROCEDURE SetArch*(VAR target: O7X.Target);  BEGIN    target.arch := 0X;    target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := -1; target.opRRmap[Xor] := -1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBR := PutOpBR;    target.Close := Close;  END SetArch;BEGINEND Oa32G.
