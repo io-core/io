@@ -44,7 +44,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     IF (off >= -1000H) & (off <= 0FFFH) THEN      IF ((op = Ldr) OR (op = Str)) THEN        IF off < 0 THEN          target.code[target.pc] := (AL * 10000000H) + (target.opLSmap[op] * 100000H) + (b *  10000H) + (a * 1000H) + (0- off )        ELSE          target.code[target.pc] := (AL * 10000000H) + (target.opLSmap[op] * 100000H) + 800000H + (b *  10000H) + (a * 1000H) + off        END      ELSE        O7S.Mark("load/store was not load or store")      END    ELSE      O7S.Mark("offset in ARM opcode too large")    END;    INC(target.pc)
   END PutOpLS;
 
-  PROCEDURE PutOpBRR(target: O7X.Target; op, cond, a: LONGINT);
+  PROCEDURE PutOpBRR(target: O7X.Target; op, cond, imm, a: LONGINT);
   BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN         PutOpRRR(target,0,Mov,PC,0,LNK);         DEC(target.pc)      ELSE        target.code[target.pc] := 0E0000000H;      END    ELSIF op = BLR THEN     target.code[target.pc] := 0E0000001H;    ELSIF op = BC THEN     target.code[target.pc] := 0E0000002H;    ELSIF op = BL THEN     target.code[target.pc] := 0E0000003H;    ELSE      O7S.Mark("unknown branch opcode")    END;    INC(target.pc)
   END PutOpBRR;
 
@@ -84,7 +84,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
     IF target.version = 0 THEN target.PutOpRRI(target, 0, Mov, 0, 0, 0); target.PutOpBRI(target, BR, AL, 0)  (*RISC-0*)
-    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, LNK)
+    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, 0, LNK)
     END ;
     obj := O7B.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO

@@ -71,7 +71,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END SetCC; 
  
   PROCEDURE Trap(cond, num: LONGINT);   VAR pos : LONGINT; 
-  BEGIN pos := O7S.Pos();     T.PutOpBRI(T, BLR, cond, pos*100H + num*10H + MT) 
+  BEGIN pos := O7S.Pos();     T.PutOpBRR(T, BLR, cond, pos*100H + num*10H , MT) 
   END Trap; 
  
   (*handling of forward reference, fixups of branch addresses and constant tables*) 
@@ -743,7 +743,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
           ELSE O7S.Mark("fixup impossible") 
           END 
         END 
-      ELSE T.PutOpBRR(T, BLR, AL, x.r) 
+      ELSE T.PutOpBRR(T, BLR, AL, 0, x.r) 
       END 
     ELSE O7S.Mark("not a procedure") 
     END ; 
@@ -772,7 +772,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF form # O7B.NoTyp THEN load(x) END ; 
     IF ~int THEN (*procedure epilog*) 
-      T.PutOpLS(T, Ldr, LNK, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, size); T.PutOpBRR(T, BR, AL, LNK) 
+      T.PutOpLS(T, Ldr, LNK, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, size); T.PutOpBRR(T, BR, AL, 0, LNK) 
     ELSE (*interrupt*) 
       T.PutOpLS(T, Ldr, 1, SP, 4); T.PutOpLS(T, Ldr, 0, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, 8); T.PutOpBRI(T, BR, AL, 10H) 
     END ; 
@@ -823,7 +823,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END Assert;  
  
   PROCEDURE New*(VAR x: O7X.Item); 
-  BEGIN loadAdr(x); loadTypTagAdr(x.type.base); T.PutOpBRR(T, BLR, AL, MT); T.RH := 0; invalSB 
+  BEGIN loadAdr(x); loadTypTagAdr(x.type.base); T.PutOpBRR(T, BLR, AL, 0, MT); T.RH := 0; invalSB 
   END New; 
  
   PROCEDURE Pack*(VAR x, y: O7X.Item); 

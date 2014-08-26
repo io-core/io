@@ -32,9 +32,9 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE PutOpLS(target: O7X.Target; op, a, b, off: LONGINT);
   BEGIN (*emit load/store instruction*)
     target.code[target.pc] := ((target.opLSmap[op] * 10H + target.regmap[a]) * 10H + target.regmap[b]) * 100000H + (off MOD 100000H); INC(target.pc)
-  END PutOpLS;  PROCEDURE PutOpBRR(target: O7X.Target; op, cond, a: LONGINT);
+  END PutOpLS;  PROCEDURE PutOpBRR(target: O7X.Target; op, cond, imm, a: LONGINT);
   BEGIN (*emit branch instruction*)
-    target.code[target.pc] := ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + (target.regmap[a] MOD 10H); INC(target.pc)
+    target.code[target.pc] := ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + imm + (target.regmap[a] MOD 10H); INC(target.pc)
   END PutOpBRR;  PROCEDURE PutOpBRI(target: O7X.Target; op, cond, off: LONGINT);
   BEGIN (*emit branch instruction*)
     target.code[target.pc] := ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + (off MOD 1000000H); INC(target.pc)
@@ -69,7 +69,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
     IF target.version = 0 THEN target.PutOpRRI(target, 0, Mov, 0, 0, 0); target.PutOpBRI(target, BR, AL, 0)  (*RISC-0*)
-    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, LNK)
+    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, 0, LNK)
     END ;
     obj := O7B.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO
@@ -138,7 +138,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     target.RX := 12;
     i:= 0; WHILE i < 12 DO target.regmap[i] := i; INC(i) END;  (* identity map RISC lower registers *)
     i:= 12; WHILE i < 28 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
-    i:= 28; WHILE i < 32 DO target.regmap[i] := i-15; INC(i) END;  (* MT SB SP LNK, no PC in lower 16 registers*)
+    i:= 27; WHILE i < 32 DO target.regmap[i] := i-15; INC(i) END;  (* MT SB SP LNK, no PC in lower 16 registers*)
     i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; target.opLSmap[Ldrb] := 9; target.opLSmap[Strb] := 11;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.Close := Close;  END SetArch;
 BEGIN
 END Or32G.
