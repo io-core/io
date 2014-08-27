@@ -161,7 +161,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
         IF ODD(w DIV 10000000H) THEN Texts.Write(W, "L") END ;
         Texts.WriteString(W, r32mnemo1[a]);
         IF ~ODD(w DIV 10000000H) THEN Texts.Write(W, " ") END ;
-        IF u = 0 THEN          Texts.WriteString(W, "          "); r32WriteReg(w MOD 10H)         ELSE
+        IF u = 0 THEN 
+         Texts.WriteString(W, "          "); r32WriteReg(w MOD 10H) 
+        ELSE
           w := w MOD 100000H;
           IF w >= 80000H THEN w := w - 100000H END ;
           Texts.WriteInt(W, w, 14)
@@ -277,7 +279,8 @@ MODULE O7Tool;  (*NW 18.2.2013*)
   PROCEDURE opcode(w: LONGINT; arch: INTEGER);
   BEGIN 
     IF arch = a32 THEN
-      a32opcode( w )    ELSIF arch = r32 THEN
+      a32opcode( w )
+    ELSIF arch = r32 THEN
       r32opcode( w ) 
     ELSE
       r32opcode( w ) 
@@ -292,7 +295,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
   
   PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
   BEGIN Files.WriteByte(R, x)  (* -128 <= x < 128 *)
-  END Write;  PROCEDURE getArch( s: ARRAY OF CHAR; VAR ext: ARRAY OF CHAR; VAR arch: INTEGER);  VAR i: INTEGER;  BEGIN        arch := r32;
+  END Write;
+
+  PROCEDURE getArch( s: ARRAY OF CHAR; VAR ext: ARRAY OF CHAR; VAR arch: INTEGER);  VAR i: INTEGER;  BEGIN        arch := r32;
         i:= 0; WHILE s[i] # 0X DO INC(i) END; ext[3]:=s[i]; ext[3]:=s[i]; ext[2]:=s[i-1]; ext[1]:=s[i-2]; ext[0]:=s[i-3];
         IF ext = "r64" THEN arch := r64; Texts.WriteString(W, " (r64) ") END;
         IF ext = "a32" THEN arch := a32; Texts.WriteString(W, " (a32) ") END;
@@ -429,7 +434,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)
             Texts.Write(W, 9X); Texts.WriteHex(W, data);
             Texts.Write(W, 9X); opcode(data,arch)          ELSE Texts.WriteString(W, "                                                     ") END;          IF i < n2 THEN            Files.ReadInt(R2, data2); 
             Texts.Write(W, 9X); Texts.WriteHex(W, data2);
-            Texts.Write(W, 9X); opcode(data2,arch2);           END;          IF data # data2 THEN Texts.Write(W,9X);Texts.Write(W,"*") END;          Texts.WriteLn(W);           INC(i)
+            Texts.Write(W, 9X); opcode(data2,arch2);           END;          IF data # data2 THEN IF arch = arch2 THEN Texts.Write(W,9X);Texts.Write(W,"*") END END;          Texts.WriteLn(W);           INC(i)
         END ;      (* Sync(R); *)
         Texts.WriteString(W, "(1)commands:"); Texts.WriteLn(W);
         Files.ReadString(R, name);
@@ -503,7 +508,12 @@ BEGIN Texts.OpenWriter(W); T := TextFrames.Text(""); OpenViewer(T, "Tools.Text")
   r32mnemo0[13] := "FSB";
   r32mnemo0[14] := "FML";
   r32mnemo0[15] := "FDV";
-  r32mnemo1[3] := "   ";  r32mnemo1[4] := "   ";  r32mnemo1[7] := "   ";  r32mnemo1[11] := "   ";  r32mnemo1[13] := "   ";  r32mnemo1[0] := "MI ";
+  r32mnemo1[3] := "   ";
+  r32mnemo1[4] := "   ";
+  r32mnemo1[7] := "   ";
+  r32mnemo1[11] := "   ";
+  r32mnemo1[13] := "   ";
+  r32mnemo1[0] := "MI ";
   r32mnemo1[8] := "PL ";
   r32mnemo1[1] := "EQ ";
   r32mnemo1[9] := "NE ";
