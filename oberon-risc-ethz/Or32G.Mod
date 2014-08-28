@@ -135,6 +135,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   END Close;
   PROCEDURE SetArch*(VAR target: O7X.Target);
   VAR i : INTEGER;  BEGIN    target.arch := 0X;
+    target.WordSize := 4;
     target.RX := 12;
     i:= 0; WHILE i < 12 DO target.regmap[i] := i; INC(i) END;  (* identity map RISC lower registers *)
     i:= 12; WHILE i < 28 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)

@@ -880,7 +880,7 @@ MODULE O7P; (*N. Wirth 1.7.97 / 15.12.2013 / CP 6.3.2014 Oberon compiler for Obe
     VAR key,pc: LONGINT;
       obj: O7B.Object;
       impid, impid1: O7S.Ident;
-  BEGIN Texts.WriteString(W, "  compiling "); O7G.SetArch(arch); 
+  BEGIN Texts.WriteString(W, "  compiling ");     O7G.SetArch(arch);    Texts.WriteString(W, " (moo) "); Texts.Append(Oberon.Log, W.buf);
     IF arch = 0X THEN Texts.WriteString(W, "risc32 ") END;
     IF arch = 1X THEN Texts.WriteString(W, "arm32 ") END;
     IF arch = 2X THEN Texts.WriteString(W, "intel32 ") END;
