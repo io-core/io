@@ -83,7 +83,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END negated; 
  
   PROCEDURE invalSB; 
-  BEGIN T.curSB := 1 
+  BEGIN T.invalSB(T) 
   END invalSB; 
  
   PROCEDURE fix(at, with: LONGINT); 
@@ -964,9 +964,8 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END Condition; 
  
   PROCEDURE Open*(v: INTEGER); 
-  BEGIN T.pc := 0; T.tdx := 0; T.strx := 0; T.RH := 0; T.fixorgP := 0; T.fixorgD := 0; T.fixorgT := 0; 
-    T.check := v # 0; T.version := v; T.inhibitCalls := FALSE; 
-    IF v = 0 THEN T.pc := 8 END 
+  BEGIN
+    T.Open(T,v)
   END Open; 
  
   PROCEDURE SetDataSize*(dc: LONGINT); 
@@ -974,11 +973,14 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END SetDataSize; 
  
   PROCEDURE Header*; 
-  BEGIN T.entry := T.pc*4; 
-    IF T.version = 0 THEN T.code[0] := 0E7000000H-1 + T.pc; T.PutOpRRI(T, 0, Mov, SB, 0, 16); T.PutOpRRI(T, 0, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
-    ELSE T.PutOpRRI(T, 0, Sub, SP, SP, 4); T.PutOpLS(T, Str, LNK, SP, 0); invalSB 
-    END 
-  END Header;     PROCEDURE Close * (VAR modid: O7S.Ident; key, nofent: LONGINT);   BEGIN     T.Close( T, modid, key, nofent );   END Close; 
+  BEGIN
+    T.Header(T) 
+  END Header;
+
+  PROCEDURE Close * (VAR modid: O7S.Ident; key, nofent: LONGINT);
+  BEGIN
+    T.Close( T, modid, key, nofent );
+  END Close; 
  
 BEGIN   NEW(T);   
   T.relmap[0] := 1; T.relmap[1] := 9; T.relmap[2] := 5; T.relmap[3] := 6; T.relmap[4] := 14; T.relmap[5] := 13 

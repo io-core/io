@@ -173,13 +173,13 @@ MODULE O7Tool;  (*NW 18.2.2013*)
 
   PROCEDURE a32WriteReg(r: LONGINT);
   BEGIN Texts.Write(W, " ");
-    IF r < 10 THEN Texts.WriteString(W, "R"); Texts.WriteInt(W, r MOD 10H, 1)
-    ELSIF r = 10 THEN Texts.WriteString(W, "MT")
-    ELSIF r = 11 THEN Texts.WriteString(W, "SB")
-    ELSIF r = 12 THEN Texts.WriteString(W, "FP")
-    ELSIF r = 13 THEN Texts.WriteString(W, "SP")
-    ELSIF r = 14 THEN Texts.WriteString(W, "LR")
-    ELSE Texts.WriteString(W, "PC")
+    IF r < 10 THEN Texts.WriteString(W, "r"); Texts.WriteInt(W, r MOD 10H, 1)
+    ELSIF r = 10 THEN Texts.WriteString(W, "mt")
+    ELSIF r = 11 THEN Texts.WriteString(W, "sb")
+    ELSIF r = 12 THEN Texts.WriteString(W, "fp")
+    ELSIF r = 13 THEN Texts.WriteString(W, "sp")
+    ELSIF r = 14 THEN Texts.WriteString(W, "lr")
+    ELSE Texts.WriteString(W, "pc")
     END
   END a32WriteReg;
 
@@ -237,9 +237,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
                       Texts.WriteString(W, " HDTI ");
         ELSIF  fmt=SDTfmt THEN
           IF ODD( w DIV 100000H ) THEN
-                      Texts.WriteString(W, "LDR");
+                      Texts.WriteString(W, "ldr");
           ELSE
-                      Texts.WriteString(W, "STR");
+                      Texts.WriteString(W, "str");
           END;
                    a32WriteReg( w DIV 1000H MOD 10H);
                    a32WriteReg( w DIV 10000H MOD 10H);
@@ -524,38 +524,38 @@ BEGIN Texts.OpenWriter(W); T := TextFrames.Text(""); OpenViewer(T, "Tools.Text")
   r32mnemo1[6] := "LE ";
   r32mnemo1[14] := "GT ";
   r32mnemo1[15] := "NO ";
-  a32mnemo0[0] := "AND";
-  a32mnemo0[1] := "EOR";
-  a32mnemo0[2] := "SUB";
-  a32mnemo0[3] := "RSB";
-  a32mnemo0[4] := "ADD";
-  a32mnemo0[5] := "ADC";
-  a32mnemo0[6] := "SBC";
-  a32mnemo0[7] := "RSC";
-  a32mnemo0[8] := "TST";
-  a32mnemo0[9] := "TEQ";
-  a32mnemo0[10] := "CMP";
-  a32mnemo0[11] := "CMN";
-  a32mnemo0[12] := "ORR";
-  a32mnemo0[13] := "MOV";
-  a32mnemo0[14] := "BIC";
-  a32mnemo0[15] := "MVN";
-  a32cc[0] := "EQ ";
-  a32cc[1] := "NE ";
-  a32cc[2] := "CS ";
-  a32cc[3] := "CC ";
-  a32cc[4] := "MI ";
-  a32cc[5] := "PL ";
-  a32cc[6] := "VS ";
-  a32cc[7] := "VC ";
-  a32cc[8] := "HI ";
-  a32cc[9] := "LS ";
-  a32cc[10] := "GE ";
-  a32cc[11] := "LT ";
-  a32cc[12] := "GT ";
-  a32cc[13] := "LE ";
-  a32cc[14] := "AL ";
-  a32cc[15] := "XX ";
+  a32mnemo0[0] := "and";
+  a32mnemo0[1] := "eor";
+  a32mnemo0[2] := "sub";
+  a32mnemo0[3] := "rsb";
+  a32mnemo0[4] := "add";
+  a32mnemo0[5] := "adc";
+  a32mnemo0[6] := "sbc";
+  a32mnemo0[7] := "rsc";
+  a32mnemo0[8] := "tst";
+  a32mnemo0[9] := "teq";
+  a32mnemo0[10] := "cmp";
+  a32mnemo0[11] := "cmn";
+  a32mnemo0[12] := "orr";
+  a32mnemo0[13] := "mov";
+  a32mnemo0[14] := "bic";
+  a32mnemo0[15] := "mvn";
+  a32cc[0] := "eq ";
+  a32cc[1] := "ne ";
+  a32cc[2] := "cs ";
+  a32cc[3] := "cc ";
+  a32cc[4] := "mi ";
+  a32cc[5] := "pl ";
+  a32cc[6] := "vs ";
+  a32cc[7] := "vc ";
+  a32cc[8] := "hi ";
+  a32cc[9] := "ls ";
+  a32cc[10] := "ge ";
+  a32cc[11] := "lt ";
+  a32cc[12] := "gt ";
+  a32cc[13] := "le ";
+  a32cc[14] := "al ";
+  a32cc[15] := "xx ";
 
 END O7Tool.
 

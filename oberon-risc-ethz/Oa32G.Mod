@@ -80,7 +80,29 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       s := typ.base.size;
       FOR i := 0 TO typ.len-1 DO FindPtrs(R, typ.base, i*s + adr) END
     END
-  END FindPtrs;  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
+  END FindPtrs;  PROCEDURE invalSB(VAR target: O7X.Target); 
+  BEGIN target.curSB := 1 
+  END invalSB; 
+  PROCEDURE Open*(VAR target: O7X.Target; v: INTEGER); 
+  BEGIN target.pc := 0; target.tdx := 0; target.strx := 0; target.RH := 0; target.fixorgP := 0; target.fixorgD := 0; target.fixorgT := 0; 
+    target.check := v # 0; target.version := v; target.inhibitCalls := FALSE; 
+    IF v = 0 THEN target.pc := 8 END 
+  END Open; 
+ 
+  PROCEDURE Header*(VAR target: O7X.Target); 
+  BEGIN target.entry := target.pc*4; 
+    IF target.version = 0 THEN 
+      target.code[0] := 0E7000000H-1 + target.pc; 
+      target.PutOpRRI(target, 0, Mov, SB, 0, 16); 
+      target.PutOpRRI(target, 0, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
+    ELSE 
+      target.PutOpRRI(target, 0, Sub, SP, SP, 4); 
+      target.PutOpLS(target, Str, LNK, SP, 0); 
+      target.invalSB(target) 
+    END 
+  END Header;
+
+  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
     VAR obj: O7B.Object;
       i, comsize, nofimps, nofptrs, size: LONGINT;
       name: O7S.Ident;
@@ -122,4 +144,4 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     target.condmap[MI] := -1; target.condmap[PL] := 5; target.condmap[EQ] := 0; target.condmap[NE] := 1; target.condmap[LT] := 11;    target.condmap[GT] := 12; target.condmap[AL] := 14;    i:= 0; WHILE i < 11 DO target.regmap[i] := i; INC(i) END;  (* identity map RISC lower registers *)
     i:= 11; WHILE i < 27 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-16; INC(i) END;  (* MT SB SP LNK PC*)
-    target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := -1; target.opRRmap[Xor] := -1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 51H; target.opLSmap[Str] := 50H; target.opLSmap[Ldrb] := 59H; target.opLSmap[Strb] := 58H;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.Close := Close;  END SetArch;BEGINEND Oa32G.
+    target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := -1; target.opRRmap[Xor] := -1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 51H; target.opLSmap[Str] := 50H; target.opLSmap[Ldrb] := 59H; target.opLSmap[Strb] := 58H;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;BEGINEND Oa32G.

@@ -3,6 +3,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   (*Code generator for Oberon compiler for RISC processor.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)  CONST
+    StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*) 
     MT = 27; SB = 28; SP = 29; LNK = 30; PC* = 31;   (*dedicated registers*)
   (*  MT = 12; SB = 13; SP = 14; LNK = 15; *)  (*dedicated registers*)
   (*frequently used opcodes -- abstract not machine values except for risc*)      U = 2000H;
@@ -62,7 +63,29 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       s := typ.base.size;
       FOR i := 0 TO typ.len-1 DO FindPtrs(R, typ.base, i*s + adr) END
     END
-  END FindPtrs;  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
+  END FindPtrs;  PROCEDURE invalSB(VAR target: O7X.Target); 
+  BEGIN target.curSB := 1 
+  END invalSB; 
+  PROCEDURE Open*(VAR target: O7X.Target; v: INTEGER); 
+  BEGIN target.pc := 0; target.tdx := 0; target.strx := 0; target.RH := 0; target.fixorgP := 0; target.fixorgD := 0; target.fixorgT := 0; 
+    target.check := v # 0; target.version := v; target.inhibitCalls := FALSE; 
+    IF v = 0 THEN target.pc := 8 END 
+  END Open; 
+ 
+  PROCEDURE Header*(VAR target: O7X.Target); 
+  BEGIN target.entry := target.pc*4; 
+    IF target.version = 0 THEN 
+      target.code[0] := 0E7000000H-1 + target.pc; 
+      target.PutOpRRI(target, 0, Mov, SB, 0, 16); 
+      target.PutOpRRI(target, 0, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
+    ELSE 
+      target.PutOpRRI(target, 0, Sub, SP, SP, 4); 
+      target.PutOpLS(target, Str, LNK, SP, 0); 
+      target.invalSB(target) 
+    END 
+  END Header;
+
+  PROCEDURE Close (VAR target: O7X.Target; modid: O7S.Ident; key, nofent: LONGINT);
     VAR obj: O7B.Object;
       i, comsize, nofimps, nofptrs, size: LONGINT;
       name: O7S.Ident;
@@ -140,7 +163,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     i:= 0; WHILE i < 12 DO target.regmap[i] := i; INC(i) END;  (* identity map RISC lower registers *)
     i:= 12; WHILE i < 28 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-15; INC(i) END;  (* MT SB SP LNK, no PC in lower 16 registers*)
-    i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; target.opLSmap[Ldrb] := 9; target.opLSmap[Strb] := 11;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.Close := Close;  END SetArch;
+    i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; target.opLSmap[Ldrb] := 9; target.opLSmap[Strb] := 11;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;
 BEGIN
 END Or32G.
 
