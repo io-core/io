@@ -173,10 +173,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
 
   PROCEDURE a32WriteReg(r: LONGINT);
   BEGIN Texts.Write(W, " ");
-    IF r < 10 THEN Texts.WriteString(W, "r"); Texts.WriteInt(W, r MOD 10H, 1)
-    ELSIF r = 10 THEN Texts.WriteString(W, "mt")
-    ELSIF r = 11 THEN Texts.WriteString(W, "sb")
-    ELSIF r = 12 THEN Texts.WriteString(W, "fp")
+    IF r < 11 THEN Texts.WriteString(W, "r"); Texts.WriteInt(W, r MOD 10H, 1)
+    ELSIF r = 11 THEN Texts.WriteString(W, "mt")
+    ELSIF r = 12 THEN Texts.WriteString(W, "sb")
     ELSIF r = 13 THEN Texts.WriteString(W, "sp")
     ELSIF r = 14 THEN Texts.WriteString(W, "lr")
     ELSE Texts.WriteString(W, "pc")
