@@ -92,7 +92,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE Header*(VAR target: O7X.Target); 
   BEGIN target.entry := target.pc*4; 
     IF target.version = 0 THEN 
-      target.code[0] := 0EA000000H + target.pc; 
+      target.code[0] := 0EA000000H -2 + target.pc; 
       target.PutOpRRI(target, 0, Mov, SB, 0, 16); 
       target.PutOpRRI(target, 0, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
     ELSE 

@@ -254,12 +254,19 @@ MODULE O7Tool;  (*NW 18.2.2013*)
                       Texts.WriteString(W, " BDT ");
         ELSIF  fmt=BRfmt THEN
           IF ODD( w DIV 1000000H ) THEN
-                     Texts.WriteString(W, "BL")
+                     Texts.WriteString(W, "bl")
           ELSE
-                     Texts.WriteString(W, "B ")
+                     Texts.WriteString(W, "b")
           END;
-          Texts.WriteString(W, a32cc[ w DIV 10000000H  MOD 10H ]);
-          Texts.WriteInt(W,  w  DIV 10H MOD 1000000H ,0);
+          IF (w DIV 10000000H  MOD 10H) = 0EH THEN
+                     Texts.WriteString(W, "   ");
+          ELSE
+                     Texts.WriteString(W, a32cc[ w DIV 10000000H  MOD 10H ]);
+          END;
+          IF ~ODD( w DIV 1000000H ) THEN
+                     Texts.WriteString(W, " ")
+          END;
+          Texts.WriteInt(W,  w  MOD 1000000H ,10);
         ELSIF  fmt=CDTfmt THEN
                      Texts.WriteString(W, " CDT ");
         ELSIF fmt=CDOfmt THEN
