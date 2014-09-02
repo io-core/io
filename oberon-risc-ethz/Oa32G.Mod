@@ -22,13 +22,19 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE opFormat*(w: LONGINT): LONGINT;		VAR fmt,cc, a, b, f: LONGINT; 	BEGIN        cc := w DIV 10000000H;        a  := w DIV 1000000H MOD 10H;        b  := w DIV 100000H MOD 10H;        f   := w DIV 10H MOD 10H;		        IF  (( a = 0 ) OR ( a = 1 ) OR ( a = 2 ) OR ( a = 3 )) THEN          IF (f = 9) & (a = 0) THEN (*mul / mull *)            IF ODD(b DIV 8) THEN fmt := MULLfmt	ELSE fmt := MULfmt END          ELSIF (f>9) & ODD(f) & (a<2) THEN (* ldrh/strh *)            IF ~ODD(b DIV 4) THEN fmt := HDTRfmt ELSE fmt := HDTIfmt END          ELSIF (f = 9) & (a=1) THEN (*single swap *)            fmt := SDSfmt          ELSIF (a = 1) & ((b = 2) OR (b = 6) OR (b = 0) OR (b = 4)) OR (a = 3)&((b = 2) OR (b = 6)) THEN(* msr /mrs *)            fmt :=  -1          ELSE            IF (b DIV 2 + a*8 MOD 10H = 0DH) OR (b DIV 2 + a*8 MOD 10H = 0FH) THEN (* Mov, Mvn*)              fmt := DPfmt            ELSIF (b DIV 2 + a*8 MOD 10H >= 8H) & (b DIV 2 + a*8 MOD 10H <=  0BH) THEN (* cmp, tst*)              fmt := DPfmt            ELSE               fmt := DPfmt            END;            IF ODD(a DIV 2) THEN (* Immidiate Data processing *)              fmt := DPfmt            ELSE (* Data processing *)              fmt :=  DPfmt            END          END        ELSIF ((a=4) OR (a=5) OR (a=6) OR (a=7)) THEN (* ldf, str *)          IF (a >= 6) & ODD(f) THEN 	(* undef *)            fmt := UNDfmt          ELSE	(*ldr, str *)            fmt := SDTfmt          END        ELSIF ((a=8) OR (a=9)) THEN (* ldm, stm *) fmt := BDTfmt        ELSIF a=0AH THEN (* Branch *) fmt := BRfmt        ELSIF a=0BH THEN (* Branch and Link *) fmt := BRfmt        ELSIF a=0CH THEN (* FP Push/Pop *) fmt := CDTfmt        ELSIF a=0DH THEN (* FP Ldc / Stc *) fmt := CDTfmt        ELSIF a=0EH THEN (* FP Operation *) fmt := CDOfmt        ELSIF a=0FH THEN (* SWI *) fmt := SWIfmt        END        RETURN fmt
   END opFormat;  PROCEDURE PutOpRRR(target: O7X.Target; u, op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
-    IF u = 0 THEN      IF  (c >= -100H) & (c <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + (target.opRRmap[op]*200000H) + (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + target.regmap[c]       ELSE         O7S.Mark("PutOpRRR c overflow")      END;
+    IF u = 0 THEN      IF  (c >= -100H) & (c <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + target.regmap[c]       ELSE         O7S.Mark("PutOpRRR c overflow")      END;
     ELSE
       O7S.Mark("PutOpRRR u flag not handled")    END;    INC(target.pc)
   END PutOpRRR;
   PROCEDURE PutOpRRI(target: O7X.Target; u, op, a, b, im: LONGINT);
-  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)    IF u = 0 THEN      IF (im >= -100H) & (im <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + im      ELSE         target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + 0BFH(*        O7S.Mark("PutOpRRI im overflow")*)       END    ELSE        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + 0BEH(*
-      O7S.Mark("PutOpRRR u flag not handled")*)    END;    INC(target.pc)
+  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)   IF op > -1 THEN IF op < 16  THEN    IF u = 0 THEN      IF (im >= -100H) & (im <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + im      ELSE         target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + 0BFH(*        O7S.Mark("PutOpRRI im overflow")*)       END    ELSE        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + 0BEH(*
+      O7S.Mark("PutOpRRR u flag not handled")*)    END;
+   ELSE
+      O7S.Mark("PutOpRRR op out of range")   END END;   INC(target.pc)
   END PutOpRRI;
 
   PROCEDURE PutOpRRIa(target: O7X.Target; op, a, b, im: LONGINT);
@@ -62,7 +68,17 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE FixLink*(target: O7X.Target; L: LONGINT); 
     VAR L1: LONGINT; 
   BEGIN target.invalSB(target); 
-    WHILE L # 0 DO L1 := target.code[L] MOD 40000H; fix(target, L, target.pc-L-1); L := L1 END 
+    WHILE L # 0 DO
+    IF L > -1 THEN
+      IF L < O7X.maxCode THEN
+        L1 := target.code[L] MOD 40000H; fix(target, L, target.pc-L-1); L := L1 
+      ELSE
+        O7S.Mark("FixLink offset beyond code space");
+        L:=0      END
+    ELSE
+      O7S.Mark("FixLink offset is negative");
+      L:=0    END
+    END
   END FixLink; 
  
   PROCEDURE FixLinkWith*(target: O7X.Target; L0, dst: LONGINT); 
@@ -154,6 +170,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     i := 0;
     WHILE i < target.tdx DO Files.WriteInt(R, target.data[i]); INC(i) END ; (*type descriptors*)
     Files.WriteInt(R, target.varsize - target.tdx*4);  (*data*)    Files.WriteInt(R, target.strx);    FOR i := 0 TO target.strx-1 DO Files.Write(R, target.str[i]) END ;  (*strings*)    Files.WriteInt(R, target.pc);  (*code len*)    FOR i := 0 TO target.pc-1 DO Files.WriteInt(R, target.code[i]) END ;  (*program*)    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*commands*)      IF (obj.exno # 0) & (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) &          (obj.type.nofpar = 0) & (obj.type.base = O7B.noType) THEN        Files.WriteString(R, obj.name); Files.WriteInt(R, obj.val)      END ;      obj := obj.next    END ;    Files.Write(R, 0X);    Files.WriteInt(R, nofent); Files.WriteInt(R, target.entry);    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*entries*)      IF obj.exno # 0 THEN        IF (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) OR (obj.class = O7B.Var) THEN          Files.WriteInt(R, obj.val)        ELSIF obj.class = O7B.Typ THEN          IF obj.type.form = O7B.Record THEN Files.WriteInt(R,  obj.type.len MOD 10000H)          ELSIF (obj.type.form = O7B.Pointer) & ((obj.type.base.typobj = NIL) OR (obj.type.base.typobj.exno = 0)) THEN            Files.WriteInt(R, obj.type.base.len MOD 10000H)          END        END      END;      obj := obj.next    END ;    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*pointer variables*)      IF obj.class = O7B.Var THEN FindPtrs(R, obj.type, obj.val) END ;      obj := obj.next    END ;    Files.WriteInt(R, -1);    Files.WriteInt(R, target.fixorgP); Files.WriteInt(R, target.fixorgD); Files.WriteInt(R, target.fixorgT); Files.WriteInt(R, target.entry);    Files.Write(R, "O"); Files.Register(F)  END Close;  PROCEDURE SetArch*(VAR target: O7X.Target);  VAR i : INTEGER;  BEGIN    target.arch := 1X;
+    target.pcl := 2;
     target.WordSize := 4;
     target.RX := 11;
 (* ARM:

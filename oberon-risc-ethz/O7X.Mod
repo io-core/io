@@ -20,7 +20,7 @@ MODULE O7X; (* NW  10.10.2013 CP 6.3.2014 common code generator resources*)
     Reg    regno
     RegI   regno   off     -
     Cond  cond   Fchain  Tchain  *)
-   Target* = POINTER TO TargetDesc;   TargetDesc* = RECORD     arch*: CHAR;     WordSize*: LONGINT;     pc*, varsize*: LONGINT;   (*program counter, data index*)     tdx*, strx*: LONGINT;     entry*: LONGINT;   (*main entry point*)     RH*: LONGINT;  (*next free register*)
+   Target* = POINTER TO TargetDesc;   TargetDesc* = RECORD     arch*: CHAR;     WordSize*: LONGINT;     pc*, pcl*, varsize*: LONGINT;   (*program counter, pc lead, data index*)     tdx*, strx*: LONGINT;     entry*: LONGINT;   (*main entry point*)     RH*: LONGINT;  (*next free register*)
      RX*: LONGINT;  (*available registers R[0] ... R[RX-1]*)     curSB*: LONGINT;  (*current static base in SB*)     fixorgP*, fixorgD*, fixorgT*: LONGINT;   (*origins of lists of locations to be fixed up by loader*)
      check*, inhibitCalls*: BOOLEAN;  (*emit run-time checks*)
      version*: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
