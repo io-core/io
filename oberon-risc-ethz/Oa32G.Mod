@@ -6,7 +6,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   (*  MT = 11; LNK = 14; PC* = 15; LR* = 14; SP* = 13; SB* = 12; FirstUniversalReg = 10; *)
   (*  MT = 12; SB = 13; SP = 14; LNK = 15; *)  (*dedicated registers*)
 
-  (*frequently used opcodes -- abstract not machine values except for risc*)      U = 2000H;
+  (*frequently used opcodes -- abstract not machine values except for risc*)      U = 2000H; C24 = 1000000H; 
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3;    And = 4; Ann = 5; Ior = 6; Xor = 7;
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11;
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15;
@@ -52,9 +52,27 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   END PutOpBRR;
 
   PROCEDURE PutOpBRI(target: O7X.Target; op, cond, off: LONGINT);
-  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN         PutOpRRR(target,0,Mov,PC,0,LNK);         DEC(target.pc)      ELSE        target.code[target.pc] := 0E0000000H;      END    ELSIF op = BLR THEN     target.code[target.pc] := 0E0000001H;    ELSIF op = BC THEN     target.code[target.pc] := 0E0000002H;    ELSIF op = BL THEN     target.code[target.pc] := 0E0000003H;    ELSE      O7S.Mark("unknown branch opcode")    END;    INC(target.pc)
+  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN         PutOpRRR(target,0,Mov,PC,0,LNK);         DEC(target.pc)      ELSE        target.code[target.pc] := 0E0000000H;      END    ELSIF op = BLR THEN     target.code[target.pc] := 0E0000001H;    ELSIF op = BC THEN     target.code[target.pc] := (target.condmap[cond] * 10000000H) + (0AH * 1000000H) + (off - 2 );    ELSIF op = BL THEN     target.code[target.pc] := (target.condmap[cond] * 10000000H) + (0BH * 1000000H) + (off - 2 );    ELSE      O7S.Mark("unknown branch opcode")    END;    INC(target.pc)
   END PutOpBRI;
 
+  PROCEDURE fix*(target: O7X.Target; at, with: LONGINT); 
+  BEGIN target.code[at] := target.code[at] DIV C24 * C24 + (with MOD C24) 
+  END fix; 
+ 
+  PROCEDURE FixLink*(target: O7X.Target; L: LONGINT); 
+    VAR L1: LONGINT; 
+  BEGIN target.invalSB(target); 
+    WHILE L # 0 DO L1 := target.code[L] MOD 40000H; fix(target, L, target.pc-L-1); L := L1 END 
+  END FixLink; 
+ 
+  PROCEDURE FixLinkWith*(target: O7X.Target; L0, dst: LONGINT); 
+    VAR L1: LONGINT; 
+  BEGIN 
+    WHILE L0 # 0 DO 
+      L1 := target.code[L0] MOD C24; 
+      target.code[L0] := target.code[L0] DIV C24 * C24 + ((dst - L0 - 1) MOD C24); L0 := L1 
+    END 
+  END FixLinkWith; 
  
   PROCEDURE NofPtrs(typ: O7B.Type): LONGINT;
     VAR fld: O7B.Object; n: LONGINT;
@@ -145,4 +163,4 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     i:= 11; WHILE i < 27 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-16; INC(i) END;  (* MT SB SP LNK PC*)
     target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := -1; target.opRRmap[Xor] := -1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 51H; target.opLSmap[Str] := 50H; target.opLSmap[Ldrb] := 59H; target.opLSmap[Strb] := 58H;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; 
-    target.relmap[4] := 14; target.relmap[5] := 13;      target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;BEGINEND Oa32G.
+    target.relmap[4] := 14; target.relmap[5] := 13;      target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;BEGINEND Oa32G.

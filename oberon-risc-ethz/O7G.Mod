@@ -86,23 +86,16 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN T.invalSB(T) 
   END invalSB; 
  
-  PROCEDURE fix(at, with: LONGINT); 
+(*  PROCEDURE fix(at, with: LONGINT); 
   BEGIN T.code[at] := T.code[at] DIV C24 * C24 + (with MOD C24) 
-  END fix; 
+  END fix;  *)
  
   PROCEDURE FixLink*(L: LONGINT); 
-    VAR L1: LONGINT; 
-  BEGIN invalSB; 
-    WHILE L # 0 DO L1 := T.code[L] MOD 40000H; fix(L, T.pc-L-1); L := L1 END 
+  BEGIN T.FixLink(T, L) 
   END FixLink; 
  
   PROCEDURE FixLinkWith(L0, dst: LONGINT); 
-    VAR L1: LONGINT; 
-  BEGIN 
-    WHILE L0 # 0 DO 
-      L1 := T.code[L0] MOD C24; 
-      T.code[L0] := T.code[L0] DIV C24 * C24 + ((dst - L0 - 1) MOD C24); L0 := L1 
-    END 
+  BEGIN T.FixLinkWith(T,L0,dst)
   END FixLinkWith; 
  
   PROCEDURE merged(L0, L1: LONGINT): LONGINT; 
@@ -614,7 +607,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
         IF T.check THEN 
           T.PutOpRRI(T, 0, Mov, T.RH+1, 0, (x.type.size+3) DIV 4); T.PutOpRRR(T, 0, Cmp, T.RH+1, T.RH, T.RH+1); Trap(GT, 3) 
         END ; 
-        fix(pc0, T.pc + 5 - pc0) 
+        T.fix(T,pc0, T.pc + 5 - pc0) 
       END 
     ELSIF x.type.form = O7B.Record THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, x.type.size DIV 4) 
     ELSE O7S.Mark("inadmissible assignment") 

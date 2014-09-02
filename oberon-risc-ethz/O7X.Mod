@@ -25,7 +25,10 @@ MODULE O7X; (* NW  10.10.2013 CP 6.3.2014 common code generator resources*)
      check*, inhibitCalls*: BOOLEAN;  (*emit run-time checks*)
      version*: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
          condmap*: ARRAY 16 OF INTEGER;  (*machine values of abstract condition codes*)     opRRmap*: ARRAY 16 OF INTEGER;  (*machine values of register operations*)     opLSmap*: ARRAY 4 OF INTEGER;  (*machine values of load/store operations*)     opBRmap*: ARRAY 4 OF INTEGER;  (*machine values of branch operations*)     relmap*: ARRAY 6 OF INTEGER;  (*condition codes for relations*)     regmap*: ARRAY 32 OF INTEGER;  (*abstract register to actual register map*)     code*: ARRAY maxCode OF LONGINT;     data*: ARRAY maxTD OF LONGINT;  (*type descriptors*)
-     str*: ARRAY maxStrx OF CHAR;     PutOpRRR* : PROCEDURE(target: Target; u, op, a, b, c: LONGINT);     PutOpRRI* : PROCEDURE(target: Target; u, op, a, b, im: LONGINT);     PutOpRRIa* : PROCEDURE(target: Target; op, a, b, im: LONGINT);     PutOpLS* : PROCEDURE(target: Target; op, a, b, off: LONGINT);     PutOpBRR* : PROCEDURE(target: Target; op, cond, imm, a: LONGINT);     PutOpBRI* : PROCEDURE(target: Target; op, cond, off: LONGINT);     invalSB* : PROCEDURE(VAR target: Target);
+     str*: ARRAY maxStrx OF CHAR;     PutOpRRR* : PROCEDURE(target: Target; u, op, a, b, c: LONGINT);     PutOpRRI* : PROCEDURE(target: Target; u, op, a, b, im: LONGINT);     PutOpRRIa* : PROCEDURE(target: Target; op, a, b, im: LONGINT);     PutOpLS* : PROCEDURE(target: Target; op, a, b, off: LONGINT);     PutOpBRR* : PROCEDURE(target: Target; op, cond, imm, a: LONGINT);     PutOpBRI* : PROCEDURE(target: Target; op, cond, off: LONGINT);
+     fix* : PROCEDURE (target: Target; at, with: LONGINT);
+     FixLink* : PROCEDURE(target: Target; L: LONGINT);
+     FixLinkWith* : PROCEDURE(target: Target; L0, dst: LONGINT);      invalSB* : PROCEDURE(VAR target: Target);
      Open* : PROCEDURE(VAR target: Target; v: INTEGER);
      Header*: PROCEDURE(VAR target: Target);     Close* : PROCEDURE(VAR target: Target; modid: O7S.Ident; key, nofent: LONGINT);   END;
 END O7X.

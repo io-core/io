@@ -266,7 +266,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)
           IF ~ODD( w DIV 1000000H ) THEN
                      Texts.WriteString(W, " ")
           END;
-          Texts.WriteInt(W,  w  MOD 1000000H ,10);
+          Texts.WriteInt(W,  ((w  MOD 1000000H) * 100H ) DIV 100H ,10);
         ELSIF  fmt=CDTfmt THEN
                      Texts.WriteString(W, " CDT ");
         ELSIF fmt=CDOfmt THEN
