@@ -1,6 +1,6 @@
-MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
+MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Oberon-07*)
   IMPORT SYSTEM, Files, O7S, O7B, O7X;
-  (*Code generator for Oberon compiler for RISC processor.
+  (*Code generator for Oberon compiler for intel 32-bit processor.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)  CONST
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*) 
@@ -126,7 +126,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       obj := obj.next
     END ;
     size := target.varsize + target.strx + comsize + (target.pc + nofimps + nofent + nofptrs + 1)*4;  (*varsize includes type descriptors*)
-    O7B.MakeFileName(name, modid, ".r32"); (*write code file*)
+    O7B.MakeFileName(name, modid, ".i32"); (*write code file*)
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.WriteByte(R, target.version);
     Files.WriteInt(R, size);
     obj := O7B.topScope.next;
@@ -177,7 +177,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     Files.Write(R, "O"); Files.Register(F)
   END Close;
   PROCEDURE SetArch*(VAR target: O7X.Target);
-  VAR i : INTEGER;  BEGIN    target.arch := 0X;
+  VAR i : INTEGER;  BEGIN    target.arch := 2X;
     target.pcl := 1;
     target.WordSize := 4;
     target.RX := 12;
@@ -186,5 +186,5 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-15; INC(i) END;  (* MT SB SP LNK, no PC in lower 16 registers*)
     i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; target.opLSmap[Ldrb] := 9; target.opLSmap[Strb] := 11;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;
 BEGIN
-END Or32G.
+END Oi32G.
 

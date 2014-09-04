@@ -1,6 +1,6 @@
 MODULE O7Tool;  (*NW 18.2.2013*)
-  IMPORT SYSTEM, Fonts, Files, Texts,  Viewers, MenuViewers, TextFrames, Oberon, O7B, Or32G, Oa32G;
-  CONST r32 = 0; r64 = 1; a32 = 2; a64 = 3; i32 = 4; i64 = 5;
+  IMPORT SYSTEM, Fonts, Files, Texts,  Viewers, MenuViewers, TextFrames, Oberon, O7B, Or32G, Oa32G, Oi32G;
+  CONST r32 = 0; a32 = 1; i32 = 2;
 
   VAR W: Texts.Writer;
   (*  arch: INTEGER; *)
@@ -197,15 +197,17 @@ MODULE O7Tool;  (*NW 18.2.2013*)
                     i := w DIV 200000H MOD 10H;
                    Texts.WriteString(W, a32mnemo0[i]);
                    a32WriteReg( w DIV 1000H MOD 10H);
+                   Texts.WriteString(W, ",");
                    IF i # 13 THEN
-                     a32WriteReg( w DIV 10000H MOD 10H)
+                     a32WriteReg( w DIV 10000H MOD 10H);
+                     Texts.WriteString(W, ",")
                    END;
                    IF ODD(w DIV 2000000H) THEN (* immediate *)
                      IF w DIV 100H MOD 10H # 0 THEN
                        Texts.WriteString(W, " (");
                        Texts.WriteInt(W,  w  MOD 100H ,0);
                        Texts.WriteString(W, " ror ");
-                       Texts.WriteInt(W,  w  DIV 100H MOD 10H ,0);
+                       Texts.WriteInt(W,  w  DIV 100H MOD 10H ,10);
                        Texts.WriteString(W, ")");
                      ELSE
                        Texts.WriteString(W, " ");
@@ -241,8 +243,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
                       Texts.WriteString(W, "str");
           END;
                    a32WriteReg( w DIV 1000H MOD 10H);
+                   Texts.WriteString(W, ",");
                    a32WriteReg( w DIV 10000H MOD 10H);
-                     Texts.WriteString(W, " ");               
+                   Texts.WriteString(W, ", ");               
           IF ODD( w DIV 800000H ) THEN
                      Texts.WriteInt(W,  w  MOD 1000H ,0);
           ELSE
@@ -281,13 +284,27 @@ MODULE O7Tool;  (*NW 18.2.2013*)
 
   END a32opcode;
 
+  PROCEDURE i32opcode(w: LONGINT);
+    VAR b1, b2, b3, b4: LONGINT;
+  BEGIN
+      b1 := w DIV 1000000H MOD 100H;
+      b2 := w DIV 10000H MOD 100H;
+      b3 := w DIV 100H MOD 100H;
+      b4 := w MOD 100H;
+
+        Texts.WriteString(W, "???; ");
+        Texts.WriteString(W, "???; ");
+        Texts.WriteString(W, "???; ");
+        Texts.WriteString(W, "??? ");
+  END i32opcode;
+
 
   PROCEDURE opcode(w: LONGINT; arch: INTEGER);
   BEGIN 
     IF arch = a32 THEN
       a32opcode( w )
-    ELSIF arch = r32 THEN
-      r32opcode( w ) 
+    ELSIF arch = i32 THEN
+      i32opcode( w ) 
     ELSE
       r32opcode( w ) 
     END
@@ -305,11 +322,8 @@ MODULE O7Tool;  (*NW 18.2.2013*)
 
   PROCEDURE getArch( s: ARRAY OF CHAR; VAR ext: ARRAY OF CHAR; VAR arch: INTEGER);  VAR i: INTEGER;  BEGIN        arch := r32;
         i:= 0; WHILE s[i] # 0X DO INC(i) END; ext[3]:=s[i]; ext[3]:=s[i]; ext[2]:=s[i-1]; ext[1]:=s[i-2]; ext[0]:=s[i-3];
-        IF ext = "r64" THEN arch := r64; Texts.WriteString(W, " (r64) ") END;
         IF ext = "a32" THEN arch := a32; Texts.WriteString(W, " (a32) ") END;
-        IF ext = "a64" THEN arch := a64; Texts.WriteString(W, " (a64) ") END;
         IF ext = "i32" THEN arch := i32; Texts.WriteString(W, " (i32) ") END;
-        IF ext = "i64" THEN arch := i64; Texts.WriteString(W, " (i64) ") END;
         IF arch = r32 THEN Texts.WriteString(W, " (r32) ") END;
   END getArch;
 

@@ -71,7 +71,8 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     WHILE L # 0 DO
     IF L > -1 THEN
       IF L < O7X.maxCode THEN
-        L1 := target.code[L] MOD 40000H; fix(target, L, target.pc-L-1); L := L1 
+(*        L1 := target.code[L] MOD 40000H; fix(target, L, target.pc-L-target.pcl); L := L1 *)
+        L1 := target.code[L] MOD 1000H; fix(target, L, target.pc-L-target.pcl); L := L1 
       ELSE
         O7S.Mark("FixLink offset beyond code space");
         L:=0      END
@@ -120,7 +121,7 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE Open*(VAR target: O7X.Target; v: INTEGER); 
   BEGIN target.pc := 0; target.tdx := 0; target.strx := 0; target.RH := 0; target.fixorgP := 0; target.fixorgD := 0; target.fixorgT := 0; 
     target.check := v # 0; target.version := v; target.inhibitCalls := FALSE; 
-    IF v = 0 THEN target.pc := 8 END 
+    IF v = 0 THEN target.pc := 9 END 
   END Open; 
  
   PROCEDURE Header*(VAR target: O7X.Target); 
@@ -169,8 +170,8 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     Files.WriteInt(R, target.tdx*4);
     i := 0;
     WHILE i < target.tdx DO Files.WriteInt(R, target.data[i]); INC(i) END ; (*type descriptors*)
-    Files.WriteInt(R, target.varsize - target.tdx*4);  (*data*)    Files.WriteInt(R, target.strx);    FOR i := 0 TO target.strx-1 DO Files.Write(R, target.str[i]) END ;  (*strings*)    Files.WriteInt(R, target.pc);  (*code len*)    FOR i := 0 TO target.pc-1 DO Files.WriteInt(R, target.code[i]) END ;  (*program*)    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*commands*)      IF (obj.exno # 0) & (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) &          (obj.type.nofpar = 0) & (obj.type.base = O7B.noType) THEN        Files.WriteString(R, obj.name); Files.WriteInt(R, obj.val)      END ;      obj := obj.next    END ;    Files.Write(R, 0X);    Files.WriteInt(R, nofent); Files.WriteInt(R, target.entry);    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*entries*)      IF obj.exno # 0 THEN        IF (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) OR (obj.class = O7B.Var) THEN          Files.WriteInt(R, obj.val)        ELSIF obj.class = O7B.Typ THEN          IF obj.type.form = O7B.Record THEN Files.WriteInt(R,  obj.type.len MOD 10000H)          ELSIF (obj.type.form = O7B.Pointer) & ((obj.type.base.typobj = NIL) OR (obj.type.base.typobj.exno = 0)) THEN            Files.WriteInt(R, obj.type.base.len MOD 10000H)          END        END      END;      obj := obj.next    END ;    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*pointer variables*)      IF obj.class = O7B.Var THEN FindPtrs(R, obj.type, obj.val) END ;      obj := obj.next    END ;    Files.WriteInt(R, -1);    Files.WriteInt(R, target.fixorgP); Files.WriteInt(R, target.fixorgD); Files.WriteInt(R, target.fixorgT); Files.WriteInt(R, target.entry);    Files.Write(R, "O"); Files.Register(F)  END Close;  PROCEDURE SetArch*(VAR target: O7X.Target);  VAR i : INTEGER;  BEGIN    target.arch := 1X;
-    target.pcl := 2;
+    Files.WriteInt(R, target.varsize - target.tdx*4);  (*data*)    Files.WriteInt(R, target.strx);    FOR i := 0 TO target.strx-1 DO Files.Write(R, target.str[i]) END ;  (*strings*)    Files.WriteInt(R, target.pc);  (*code len*)    FOR i := 0 TO target.pc-target.pcl DO Files.WriteInt(R, target.code[i]) END ;  (*program*)    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*commands*)      IF (obj.exno # 0) & (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) &          (obj.type.nofpar = 0) & (obj.type.base = O7B.noType) THEN        Files.WriteString(R, obj.name); Files.WriteInt(R, obj.val)      END ;      obj := obj.next    END ;    Files.Write(R, 0X);    Files.WriteInt(R, nofent); Files.WriteInt(R, target.entry);    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*entries*)      IF obj.exno # 0 THEN        IF (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) OR (obj.class = O7B.Var) THEN          Files.WriteInt(R, obj.val)        ELSIF obj.class = O7B.Typ THEN          IF obj.type.form = O7B.Record THEN Files.WriteInt(R,  obj.type.len MOD 10000H)          ELSIF (obj.type.form = O7B.Pointer) & ((obj.type.base.typobj = NIL) OR (obj.type.base.typobj.exno = 0)) THEN            Files.WriteInt(R, obj.type.base.len MOD 10000H)          END        END      END;      obj := obj.next    END ;    obj := O7B.topScope.next;    WHILE obj # NIL DO  (*pointer variables*)      IF obj.class = O7B.Var THEN FindPtrs(R, obj.type, obj.val) END ;      obj := obj.next    END ;    Files.WriteInt(R, -1);    Files.WriteInt(R, target.fixorgP); Files.WriteInt(R, target.fixorgD); Files.WriteInt(R, target.fixorgT); Files.WriteInt(R, target.entry);    Files.Write(R, "O"); Files.Register(F)  END Close;  PROCEDURE SetArch*(VAR target: O7X.Target);  VAR i : INTEGER;  BEGIN    target.arch := 1X;
+    target.pcl := 1;
     target.WordSize := 4;
     target.RX := 11;
 (* ARM:
