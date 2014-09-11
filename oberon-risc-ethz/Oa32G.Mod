@@ -128,10 +128,10 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   BEGIN target.entry := target.pc*4; 
     IF target.version = 0 THEN 
       target.code[0] := 0EA000000H -2 + target.pc; 
-      target.PutOpRRI(target, 0, Mov, SB, 0, 16); 
-      target.PutOpRRI(target, 0, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
+      target.PutOpRRIa(target, Mov, SB, 0, 16); 
+      target.PutOpRRIa(target, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
     ELSE 
-      target.PutOpRRI(target, 0, Sub, SP, SP, 4); 
+      target.PutOpRRIa(target, Sub, SP, SP, 4); 
       target.PutOpLS(target, Str, LNK, SP, 0); 
       target.invalSB(target) 
     END 
@@ -143,8 +143,8 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       name: O7S.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
-    IF target.version = 0 THEN target.PutOpRRI(target, 0, Mov, 0, 0, 0); target.PutOpBRI(target, BR, AL, 0)  (*RISC-0*)
-    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, 0, LNK)
+    IF target.version = 0 THEN target.PutOpRRIa(target, Mov, 0, 0, 0); target.PutOpBRI(target, BR, AL, 0)  (*RISC-0*)
+    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRIa(target, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, 0, LNK)
     END ;
     obj := O7B.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO

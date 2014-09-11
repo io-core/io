@@ -15,10 +15,32 @@ MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Ober
 
     MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14; AL = 7;  PROCEDURE PutOpRRR(target: O7X.Target; u, op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
-    target.code[target.pc] := ((target.regmap[a]*10H + target.regmap[b]) * 10H + (target.opRRmap[op]+u)) * 10000H + target.regmap[c]; INC(target.pc)
+    target.code[target.pc] := 90909090H;  (* ((target.regmap[a]*10H + target.regmap[b]) * 10H + (target.opRRmap[op]+u)) * 10000H + target.regmap[c]; *)
+    INC(target.pc)
   END PutOpRRR;
   PROCEDURE PutOpRRI(target: O7X.Target; u, op, a, b, im: LONGINT);  VAR v : INTEGER;
-  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)  (*  IF op > 15 THEN op := op MOD 16; u := U END; *)    v := 0; IF im < 0 THEN v:= 1000H END ;  (*set v-bit*)    target.code[target.pc] := (((target.regmap[a]+40H) * 10H + target.regmap[b]) * 10H + (target.opRRmap[op]+u+v )) * 10000H + (im MOD 10000H); INC(target.pc)
+  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)  (*  IF op > 15 THEN op := op MOD 16; u := U END; *)    v := 0; IF im < 0 THEN v:= 1000H END ;  (*set v-bit*)    target.code[target.pc] := 90909090H;  (* (((target.regmap[a]+40H) * 10H + target.regmap[b]) * 10H + (target.opRRmap[op]+u+v )) * 10000H + (im MOD 10000H); *)
+    IF op  = Mov THEN  (* 88H *)
+    ELSIF op = Lsl THEN
+    ELSIF op = Asr THEN
+    ELSIF op = Ror THEN (* C0H *)
+    ELSIF op = And THEN (* 20H *)
+    ELSIF op = Ann THEN
+    ELSIF op = Ior THEN (* 08H ?? *)
+    ELSIF op = Xor THEN (* 30H *)
+    ELSIF op = Add THEN (* OOH ADD, 10H ADC *)
+    ELSIF op = Sub THEN (* 28H *)
+      target.code[target.pc] := 90909028H;  
+    ELSIF op = Cmp THEN (* 38H *)
+    ELSIF op = Mul THEN
+    ELSIF op = Div THEN
+    ELSIF op = Fad THEN
+    ELSIF op = Fsb THEN
+    ELSIF op = Fml THEN
+    ELSIF op = Fdv THEN
+    ELSE
+    END;
+    INC(target.pc)
   END PutOpRRI;
 
   PROCEDURE PutOpRRIa(target: O7X.Target; op, a, b, im: LONGINT);
@@ -32,13 +54,26 @@ MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Ober
 
   PROCEDURE PutOpLS(target: O7X.Target; op, a, b, off: LONGINT);
   BEGIN (*emit load/store instruction*)
-    target.code[target.pc] := ((target.opLSmap[op] * 10H + target.regmap[a]) * 10H + target.regmap[b]) * 100000H + (off MOD 100000H); INC(target.pc)
+    target.code[target.pc] := 90909090H;  (* ((target.opLSmap[op] * 10H + target.regmap[a]) * 10H + target.regmap[b]) * 100000H + (off MOD 100000H);  *)
+    INC(target.pc)
   END PutOpLS;  PROCEDURE PutOpBRR(target: O7X.Target; op, cond, imm, a: LONGINT);
   BEGIN (*emit branch instruction*)
-    target.code[target.pc] := ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + imm + (target.regmap[a] MOD 10H); INC(target.pc)
+    target.code[target.pc] := 90909090H;  (* ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + imm + (target.regmap[a] MOD 10H); *)
+    IF op = BR THEN
+      IF cond=AL THEN
+        IF a = LNK THEN 
+          target.code[target.pc] := 909090CBH
+        END
+      END 
+    END;
+    INC(target.pc)
   END PutOpBRR;  PROCEDURE PutOpBRI(target: O7X.Target; op, cond, off: LONGINT);
   BEGIN (*emit branch instruction*)
-    target.code[target.pc] := ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + (off MOD 1000000H); INC(target.pc)
+    target.code[target.pc] := 90909090H;  (* ((target.opBRmap[op]+12) * 10H + cond) * 1000000H + (off MOD 1000000H); *) 
+    IF op = BL THEN
+          target.code[target.pc] := 909090E8H
+    END;
+    INC(target.pc)
   END PutOpBRI;
 
   PROCEDURE fix*(target: O7X.Target; at, with: LONGINT); 
@@ -96,10 +131,10 @@ MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Ober
   BEGIN target.entry := target.pc*4; 
     IF target.version = 0 THEN 
       target.code[0] := 0E7000000H-1 + target.pc; 
-      target.PutOpRRI(target, 0, Mov, SB, 0, 16); 
-      target.PutOpRRI(target, 0, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
+      target.PutOpRRIa(target, Mov, SB, 0, 16); 
+      target.PutOpRRIa(target, Mov, SP, 0, StkOrg0)  (*RISC-0*) 
     ELSE 
-      target.PutOpRRI(target, 0, Sub, SP, SP, 4); 
+      target.PutOpRRIa(target, Sub, SP, SP, 4); 
       target.PutOpLS(target, Str, LNK, SP, 0); 
       target.invalSB(target) 
     END 
@@ -111,8 +146,8 @@ MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Ober
       name: O7S.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
-    IF target.version = 0 THEN target.PutOpRRI(target, 0, Mov, 0, 0, 0); target.PutOpBRI(target, BR, AL, 0)  (*RISC-0*)
-    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRI(target, 0, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, 0, LNK)
+    IF target.version = 0 THEN target.PutOpRRIa(target, Mov, 0, 0, 0); target.PutOpBRI(target, BR, AL, 0)  (*RISC-0*)
+    ELSE target.PutOpLS(target, Ldr, LNK, SP, 0); target.PutOpRRIa(target, Add, SP, SP, 4); target.PutOpBRR(target, BR, AL, 0, LNK)
     END ;
     obj := O7B.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO

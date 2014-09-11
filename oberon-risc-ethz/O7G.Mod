@@ -56,7 +56,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE SaveRegs(r: LONGINT); (* R[0 .. r-1] to be saved; R[r .. T.RH-1] to be moved down*) 
     VAR rs, rd: LONGINT;  (*r > 0*) 
   BEGIN rs := r; rd := 0; 
-    REPEAT DEC(rs); T.PutOpRRI(T, 0, Sub, SP, SP, 4); T.PutOpLS(T, Str, rs, SP, 0) UNTIL rs = 0; 
+    REPEAT DEC(rs); T.PutOpRRIa(T, Sub, SP, SP, 4); T.PutOpLS(T, Str, rs, SP, 0) UNTIL rs = 0; 
     rs := r; rd := 0; 
     WHILE rs < T.RH DO T.PutOpRRR(T, 0, Mov, rd, 0, rs); INC(rs); INC(rd) END ; 
     T.RH := rd 
@@ -65,7 +65,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE RestoreRegs(r: LONGINT; VAR x: O7X.Item); (*R[0 .. r-1] to be restored*) 
     VAR rd: LONGINT;  (*r > 0*) 
   BEGIN T.PutOpRRR(T, 0, Mov, r, 0, 0); rd := 0; 
-    REPEAT T.PutOpLS(T, Ldr, rd, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, 4); INC(rd) UNTIL rd = r 
+    REPEAT T.PutOpLS(T, Ldr, rd, SP, 0); T.PutOpRRIa(T, Add, SP, SP, 4); INC(rd) UNTIL rd = r 
   END RestoreRegs; 
  
   PROCEDURE SetCC(VAR x: O7X.Item; n: LONGINT); 
@@ -138,18 +138,18 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
         IF x.type.form = O7B.Proc THEN 
           IF x.r > 0 THEN O7S.Mark("not allowed") 
           ELSIF x.r = 0 THEN T.PutOpBRI(T, BL, AL, 0); T.PutOpRRIa(T, Sub, T.RH, LNK, T.pc*4 - x.a) 
-          ELSE GetSB(x.r); T.PutOpRRI(T, 0, Add, T.RH, SB, x.a + 100H) (*mark as progbase-relative*) 
+          ELSE GetSB(x.r); T.PutOpRRIa(T, Add, T.RH, SB, x.a + 100H) (*mark as progbase-relative*) 
           END 
-        ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, x.a) 
+        ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN T.PutOpRRIa(T, Mov, T.RH, 0, x.a) 
         ELSE T.PutOpRRI(T, U, Mov, T.RH, 0, x.a DIV 10000H MOD 10000H); 
-          IF x.a MOD 10000H # 0 THEN T.PutOpRRI(T, 0, Ior, T.RH, T.RH, x.a MOD 10000H) END 
+          IF x.a MOD 10000H # 0 THEN T.PutOpRRIa(T, Ior, T.RH, T.RH, x.a MOD 10000H) END 
         END ; 
         x.r := T.RH; incR 
       ELSIF x.mode = RegI THEN T.PutOpLS(T, op, x.r, x.r, x.a) 
       ELSIF x.mode = Cond THEN         ng := negated(x.r); 
         T.PutOpBRI(T, BC, ng, 2); 
-        FixLink(x.b); T.PutOpRRI(T, 0, Mov, T.RH, 0, 1); T.PutOpBRI(T, BC, AL, 1); 
-        FixLink(x.a); T.PutOpRRI(T, 0, Mov, T.RH, 0, 0); x.r := T.RH; incR 
+        FixLink(x.b); T.PutOpRRIa(T, Mov, T.RH, 0, 1); T.PutOpBRI(T, BC, AL, 1); 
+        FixLink(x.a); T.PutOpRRIa(T, Mov, T.RH, 0, 0); x.r := T.RH; incR 
       END ; 
       x.mode := Reg 
     END 
@@ -177,7 +177,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF x.type.form = O7B.Bool THEN 
       IF x.mode = O7B.Const THEN x.r := 15 - x.a*8 
       ELSE load(x); 
-        IF T.code[T.pc-T.pcl] DIV 40000000H # -2 THEN T.PutOpRRI(T, 0, Cmp, x.r, x.r, 0) END ; 
+        IF T.code[T.pc-T.pcl] DIV 40000000H # -2 THEN T.PutOpRRIa(T, Cmp, x.r, x.r, 0) END ; 
         x.r := NE; DEC(T.RH) 
       END ; 
       x.mode := Cond; x.a := 0; x.b := 0 
@@ -255,7 +255,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
         END ; 
         Trap(10, 1) 
       END ; 
-      IF s = 4 THEN T.PutOpRRI(T, 0, Lsl, y.r, y.r, 2) ELSIF s > 1 THEN T.PutOpRRI(T, 0, Mul, y.r, y.r, s) END ; 
+      IF s = 4 THEN T.PutOpRRIa(T, Lsl, y.r, y.r, 2) ELSIF s > 1 THEN T.PutOpRRIa(T, Mul, y.r, y.r, s) END ; 
       IF x.mode = O7B.Var THEN 
         IF x.r > 0 THEN T.PutOpRRR(T, 0, Add, y.r, SP, y.r) 
         ELSE GetSB(x.r); 
@@ -376,15 +376,15 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF x.type.form = O7B.Int THEN 
       IF x.mode = O7B.Const THEN x.a := -x.a 
-      ELSE load(x); T.PutOpRRI(T, 0, Mov, T.RH, 0, 0); T.PutOpRRR(T, 0, Sub, x.r, T.RH, x.r) 
+      ELSE load(x); T.PutOpRRIa(T, Mov, T.RH, 0, 0); T.PutOpRRR(T, 0, Sub, x.r, T.RH, x.r) 
       END 
     ELSIF x.type.form = O7B.Real THEN 
       IF x.mode = O7B.Const THEN x.a := x.a + 7FFFFFFFH + 1 
-      ELSE load(x); T.PutOpRRI(T, 0, Mov, T.RH, 0, 0); T.PutOpRRR(T, 0, Fsb, x.r, T.RH, x.r) 
+      ELSE load(x); T.PutOpRRIa(T, Mov, T.RH, 0, 0); T.PutOpRRR(T, 0, Fsb, x.r, T.RH, x.r) 
       END 
     ELSE (*form = Set*) 
       IF x.mode = O7B.Const THEN x.a := -x.a-1  
-      ELSE load(x); T.PutOpRRI(T, 0, Xor, x.r, x.r, -1) 
+      ELSE load(x); T.PutOpRRIa(T, Xor, x.r, x.r, -1) 
       END 
     END 
   END Neg; 
@@ -416,9 +416,9 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     VAR e: LONGINT; 
   BEGIN 
     IF (x.mode = O7B.Const) & (y.mode = O7B.Const) THEN x.a := x.a * y.a 
-    ELSIF (y.mode = O7B.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); T.PutOpRRI(T, 0, Lsl, x.r, x.r, e) 
+    ELSIF (y.mode = O7B.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); T.PutOpRRIa(T, Lsl, x.r, x.r, e) 
     ELSIF y.mode = O7B.Const THEN load(x); T.PutOpRRIa(T, Mul, x.r, x.r, y.a) 
-    ELSIF (x.mode = O7B.Const) & (x.a >= 2) & (log2(x.a, e) = 1) THEN load(y); T.PutOpRRI(T, 0, Lsl, y.r, y.r, e); x.mode := Reg; x.r := y.r 
+    ELSIF (x.mode = O7B.Const) & (x.a >= 2) & (log2(x.a, e) = 1) THEN load(y); T.PutOpRRIa(T, Lsl, y.r, y.r, e); x.mode := Reg; x.r := y.r 
     ELSIF x.mode = O7B.Const THEN load(y); T.PutOpRRIa(T, Mul, y.r, y.r, x.a); x.mode := Reg; x.r := y.r 
     ELSE load(x); load(y); T.PutOpRRR(T, 0, Mul, T.RH-2, x.r, y.r); DEC(T.RH); x.r := T.RH-1 
     END 
@@ -430,7 +430,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF op = O7S.div THEN 
       IF (x.mode = O7B.Const) & (y.mode = O7B.Const) THEN 
         IF y.a > 0 THEN x.a := x.a DIV y.a ELSE O7S.Mark("bad divisor") END 
-      ELSIF (y.mode = O7B.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); T.PutOpRRI(T, 0, Asr, x.r, x.r, e) 
+      ELSIF (y.mode = O7B.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); T.PutOpRRIa(T, Asr, x.r, x.r, e) 
       ELSIF y.mode = O7B.Const THEN 
         IF y.a > 0 THEN load(x); T.PutOpRRIa(T, Div, x.r, x.r, y.a) ELSE O7S.Mark("bad divisor") END 
       ELSE load(y); 
@@ -441,7 +441,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
       IF (x.mode = O7B.Const) & (y.mode = O7B.Const) THEN 
         IF y.a > 0 THEN x.a := x.a MOD y.a ELSE O7S.Mark("bad modulus") END 
       ELSIF (y.mode = O7B.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); 
-        IF e <= 16 THEN T.PutOpRRI(T, 0, And, x.r, x.r, y.a-1) ELSE T.PutOpRRI(T, 0, Lsl, x.r, x.r, 32-e); T.PutOpRRI(T, 0, Ror, x.r, x.r, 32-e) END 
+        IF e <= 16 THEN T.PutOpRRIa(T, And, x.r, x.r, y.a-1) ELSE T.PutOpRRIa(T, Lsl, x.r, x.r, 32-e); T.PutOpRRIa(T, Ror, x.r, x.r, 32-e) END 
       ELSIF y.mode = O7B.Const THEN 
         IF y.a > 0 THEN load(x); T.PutOpRRIa(T, Div, x.r, x.r, y.a); T.PutOpRRR(T, U, Mov, x.r, 0, 0) ELSE O7S.Mark("bad modulus") END 
       ELSE load(y); 
@@ -468,7 +468,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE Singleton*(VAR x: O7X.Item);  (* x := {x} *) 
   BEGIN 
     IF x.mode = O7B.Const THEN x.a := LSL(1, x.a) 
-    ELSE load(x); T.PutOpRRI(T, 0, Mov, T.RH, 0, 1); T.PutOpRRR(T, 0, Lsl, x.r, T.RH,  x.r) 
+    ELSE load(x); T.PutOpRRIa(T, Mov, T.RH, 0, 1); T.PutOpRRR(T, 0, Lsl, x.r, T.RH,  x.r) 
     END 
   END Singleton; 
  
@@ -478,13 +478,13 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
       IF x.a <= y.a THEN x.a := LSL(2, y.a) - LSL(1, x.a) ELSE x.a := 0 END 
     ELSE 
       IF (x.mode = O7B.Const) & (x.a < 10H) THEN x.a := LSL(-1, x.a) 
-      ELSE load(x); T.PutOpRRI(T, 0, Mov, T.RH, 0, -1); T.PutOpRRR(T, 0, Lsl, x.r, T.RH, x.r) 
+      ELSE load(x); T.PutOpRRIa(T, Mov, T.RH, 0, -1); T.PutOpRRR(T, 0, Lsl, x.r, T.RH, x.r) 
       END ; 
-      IF (y.mode = O7B.Const) & (y.a < 10H) THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, LSL(-2, y.a)); y.mode := Reg; y.r := T.RH; INC(T.RH) 
-      ELSE load(y); T.PutOpRRI(T, 0, Mov, T.RH, 0, -2); T.PutOpRRR(T, 0, Lsl, y.r, T.RH, y.r) 
+      IF (y.mode = O7B.Const) & (y.a < 10H) THEN T.PutOpRRIa(T, Mov, T.RH, 0, LSL(-2, y.a)); y.mode := Reg; y.r := T.RH; INC(T.RH) 
+      ELSE load(y); T.PutOpRRIa(T, Mov, T.RH, 0, -2); T.PutOpRRR(T, 0, Lsl, y.r, T.RH, y.r) 
       END ; 
       IF x.mode = O7B.Const THEN 
-        IF x.a # 0 THEN T.PutOpRRI(T, 0, Xor, y.r, y.r, -1); T.PutOpRRIa(T, And, T.RH-1, y.r, x.a) END ; 
+        IF x.a # 0 THEN T.PutOpRRIa(T, Xor, y.r, y.r, -1); T.PutOpRRIa(T, And, T.RH-1, y.r, x.a) END ; 
         x.mode := Reg; x.r := T.RH-1 
       ELSE DEC(T.RH); T.PutOpRRR(T, 0, Ann, T.RH-1, x.r, y.r) 
       END 
@@ -493,8 +493,8 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
  
   PROCEDURE In*(VAR x, y: O7X.Item);  (* x := x IN y *) 
   BEGIN load(y); 
-    IF x.mode = O7B.Const THEN T.PutOpRRI(T, 0, Ror, y.r, y.r, (x.a + 1) MOD 20H); DEC(T.RH) 
-    ELSE load(x); T.PutOpRRI(T, 0, Add, x.r, x.r, 1); T.PutOpRRR(T, 0, Ror, y.r, y.r, x.r); DEC(T.RH, 2) 
+    IF x.mode = O7B.Const THEN T.PutOpRRIa(T, Ror, y.r, y.r, (x.a + 1) MOD 20H); DEC(T.RH) 
+    ELSE load(x); T.PutOpRRIa(T, Add, x.r, x.r, 1); T.PutOpRRR(T, 0, Ror, y.r, y.r, x.r); DEC(T.RH, 2) 
     END ; 
     SetCC(x, MI) 
   END In; 
@@ -564,10 +564,10 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF x.type.form = O7B.String THEN loadStringAdr(x) ELSE loadAdr(x) END ; 
     IF y.type.form = O7B.String THEN loadStringAdr(y) ELSE loadAdr(y) END ; 
-    T.PutOpLS(T, Ldr+1, T.RH, x.r, 0); T.PutOpRRI(T, 0, Add, x.r, x.r, 1); 
-    T.PutOpLS(T, Ldr+1, T.RH+1, y.r, 0); T.PutOpRRI(T, 0, Add, y.r, y.r, 1); 
+    T.PutOpLS(T, Ldr+1, T.RH, x.r, 0); T.PutOpRRIa(T, Add, x.r, x.r, 1); 
+    T.PutOpLS(T, Ldr+1, T.RH+1, y.r, 0); T.PutOpRRIa(T, Add, y.r, y.r, 1); 
     T.PutOpRRR(T, 0, Cmp, T.RH+2, T.RH, T.RH+1); T.PutOpBRI(T, BC, NE, 2); 
-    T.PutOpRRI(T, 0, Cmp, T.RH+2, T.RH, 0); T.PutOpBRI(T, BC, NE, -8); 
+    T.PutOpRRIa(T, Cmp, T.RH+2, T.RH, 0); T.PutOpBRI(T, BC, NE, -8); 
     DEC(T.RH, 2); SetCC(x, T.relmap[op - O7S.eql]) 
   END StringRelation; 
  
@@ -597,26 +597,26 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN loadAdr(x); loadAdr(y); 
     IF (x.type.form = O7B.Array) & (x.type.len > 0) THEN 
       IF y.type.len >= 0 THEN  
-        IF x.type.len >= y.type.len THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, (y.type.size+3) DIV 4) 
+        IF x.type.len >= y.type.len THEN T.PutOpRRIa(T, Mov, T.RH, 0, (y.type.size+3) DIV 4) 
         ELSE O7S.Mark("source array too long") 
         END 
       ELSE (*y is open array*) 
         T.PutOpLS(T, Ldr, T.RH, SP, y.a+4); s := y.type.base.size;  (*element size*) 
         pc0 := T.pc; T.PutOpBRI(T, BC, EQ, 0); 
-        IF s = 1 THEN T.PutOpRRI(T, 0, Add, T.RH, T.RH, 3); T.PutOpRRI(T, 0, Asr, T.RH, T.RH, 2) 
-        ELSIF s # 4 THEN T.PutOpRRI(T, 0, Mul, T.RH, T.RH, s DIV 4) 
+        IF s = 1 THEN T.PutOpRRIa(T, Add, T.RH, T.RH, 3); T.PutOpRRIa(T, Asr, T.RH, T.RH, 2) 
+        ELSIF s # 4 THEN T.PutOpRRIa(T, Mul, T.RH, T.RH, s DIV 4) 
         END ; 
         IF T.check THEN 
-          T.PutOpRRI(T, 0, Mov, T.RH+1, 0, (x.type.size+3) DIV 4); T.PutOpRRR(T, 0, Cmp, T.RH+1, T.RH, T.RH+1); Trap(GT, 3) 
+          T.PutOpRRIa(T, Mov, T.RH+1, 0, (x.type.size+3) DIV 4); T.PutOpRRR(T, 0, Cmp, T.RH+1, T.RH, T.RH+1); Trap(GT, 3) 
         END ; 
         T.fix(T,pc0, T.pc + 5 - pc0) 
       END 
-    ELSIF x.type.form = O7B.Record THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, x.type.size DIV 4) 
+    ELSIF x.type.form = O7B.Record THEN T.PutOpRRIa(T, Mov, T.RH, 0, x.type.size DIV 4) 
     ELSE O7S.Mark("inadmissible assignment") 
     END ; 
-    T.PutOpLS(T, Ldr, T.RH+1, y.r, 0); T.PutOpRRI(T, 0, Add, y.r, y.r, 4); 
-    T.PutOpLS(T, Str, T.RH+1, x.r, 0); T.PutOpRRI(T, 0, Add, x.r, x.r, 4); 
-    T.PutOpRRI(T, 0, Sub, T.RH, T.RH, 1); T.PutOpBRI(T, BC, NE, -6); DEC(T.RH, 2) 
+    T.PutOpLS(T, Ldr, T.RH+1, y.r, 0); T.PutOpRRIa(T, Add, y.r, y.r, 4); 
+    T.PutOpLS(T, Str, T.RH+1, x.r, 0); T.PutOpRRIa(T, Add, x.r, x.r, 4); 
+    T.PutOpRRIa(T, Sub, T.RH, T.RH, 1); T.PutOpBRI(T, BC, NE, -6); DEC(T.RH, 2) 
   END StoreStruct; 
  
   PROCEDURE CopyString*(VAR x, y: O7X.Item);  (*from x to y*) 
@@ -625,12 +625,12 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF len >= 0 THEN 
       IF x.b > len THEN O7S.Mark("string too long") END 
     ELSIF T.check THEN T.PutOpLS(T, Ldr, T.RH, y.r, 4);  (*array length check*) 
-      T.PutOpRRI(T, 0, Cmp, T.RH, T.RH, x.b); Trap(NE, 3) 
+      T.PutOpRRIa(T, Cmp, T.RH, T.RH, x.b); Trap(NE, 3) 
     END ; 
     loadStringAdr(x); 
-    T.PutOpLS(T, Ldr, T.RH, x.r, 0); T.PutOpRRI(T, 0, Add, x.r, x.r, 4); 
-    T.PutOpLS(T, Str, T.RH, y.r, 0); T.PutOpRRI(T, 0, Add, y.r, y.r, 4); 
-    T.PutOpRRI(T, 0, Asr, T.RH, T.RH, 24); T.PutOpBRI(T, BC, NE, -6); DEC(T.RH, 2) 
+    T.PutOpLS(T, Ldr, T.RH, x.r, 0); T.PutOpRRIa(T, Add, x.r, x.r, 4); 
+    T.PutOpLS(T, Str, T.RH, y.r, 0); T.PutOpRRIa(T, Add, y.r, y.r, 4); 
+    T.PutOpRRIa(T, Asr, T.RH, T.RH, 24); T.PutOpBRI(T, BC, NE, -6); DEC(T.RH, 2) 
   END CopyString; 
  
   (* Code generation for parameters *) 
@@ -639,7 +639,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     VAR xmd: INTEGER; 
   BEGIN xmd := x.mode; loadAdr(x); 
     IF (ftype.form = O7B.Array) & (ftype.len < 0) THEN (*open array*) 
-      IF x.type.len >= 0 THEN T.PutOpRRI(T, 0, Mov, T.RH, 0, x.type.len) ELSE  T.PutOpLS(T, Ldr, T.RH, SP, x.a+4) END ; 
+      IF x.type.len >= 0 THEN T.PutOpRRIa(T, Mov, T.RH, 0, x.type.len) ELSE  T.PutOpLS(T, Ldr, T.RH, SP, x.a+4) END ; 
       incR 
     ELSIF ftype.form = O7B.Record THEN 
       IF xmd = O7B.Par THEN T.PutOpLS(T, Ldr, T.RH, SP, x.a+4); incR ELSE loadTypTagAdr(x.type) END 
@@ -657,7 +657,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END OpenArrayParam; 
  
   PROCEDURE StringParam*(VAR x: O7X.Item); 
-  BEGIN loadStringAdr(x); T.PutOpRRI(T, 0, Mov, T.RH, 0, x.b); incR  (*len*) 
+  BEGIN loadStringAdr(x); T.PutOpRRIa(T, Mov, T.RH, 0, x.b); incR  (*len*) 
   END StringParam; 
  
   (*For Statements*) 
@@ -755,10 +755,10 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN invalSB; 
     IF ~int THEN (*procedure prolog*) 
       a := 4; r := 0; 
-      T.PutOpRRI(T, 0, Sub, SP, SP, locblksize); T.PutOpLS(T, Str, LNK, SP, 0); 
+      T.PutOpRRIa(T, Sub, SP, SP, locblksize); T.PutOpLS(T, Str, LNK, SP, 0); 
       WHILE a < parblksize DO T.PutOpLS(T, Str, r, SP, a); INC(r); INC(a, 4) END 
     ELSE (*interrupt procedure*) 
-      T.PutOpRRI(T, 0, Sub, SP, SP, 8); T.PutOpLS(T, Str, 0, SP, 0); T.PutOpLS(T, Str, 1, SP, 4) 
+      T.PutOpRRIa(T, Sub, SP, SP, 8); T.PutOpLS(T, Str, 0, SP, 0); T.PutOpLS(T, Str, 1, SP, 4) 
       (*R0 and R1 saved, but NOT LNK*) 
     END 
   END Enter; 
@@ -767,9 +767,9 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF form # O7B.NoTyp THEN load(x) END ; 
     IF ~int THEN (*procedure epilog*) 
-      T.PutOpLS(T, Ldr, LNK, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, size); T.PutOpBRR(T, BR, AL, 0, LNK) 
+      T.PutOpLS(T, Ldr, LNK, SP, 0); T.PutOpRRIa(T, Add, SP, SP, size); T.PutOpBRR(T, BR, AL, 0, LNK) 
     ELSE (*interrupt*) 
-      T.PutOpLS(T, Ldr, 1, SP, 4); T.PutOpLS(T, Ldr, 0, SP, 0); T.PutOpRRI(T, 0, Add, SP, SP, 8); T.PutOpBRI(T, BR, AL, 10H) 
+      T.PutOpLS(T, Ldr, 1, SP, 4); T.PutOpLS(T, Ldr, 0, SP, 0); T.PutOpRRIa(T, Add, SP, SP, 8); T.PutOpBRI(T, BR, AL, 10H) 
     END ; 
     T.RH := 0 
   END Return; 
@@ -784,10 +784,10 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF y.type.form = O7B.NoTyp THEN y.mode := O7B.Const; y.a := 1 END ; 
     IF (x.mode = O7B.Var) & (x.r > 0) THEN 
       zr := T.RH; T.PutOpLS(T, Ldr+v, zr, SP, x.a); incR; 
-      IF y.mode = O7B.Const THEN T.PutOpRRI(T, 0, op, zr, zr, y.a) ELSE load(y); T.PutOpRRR(T, 0, op, zr, zr, y.r); DEC(T.RH) END ; 
+      IF y.mode = O7B.Const THEN T.PutOpRRIa(T, op, zr, zr, y.a) ELSE load(y); T.PutOpRRR(T, 0, op, zr, zr, y.r); DEC(T.RH) END ; 
       T.PutOpLS(T, Str+v, zr, SP, x.a); DEC(T.RH) 
     ELSE loadAdr(x); zr := T.RH; T.PutOpLS(T, Ldr+v, T.RH, x.r, 0); incR; 
-      IF y.mode = O7B.Const THEN T.PutOpRRI(T, 0, op, zr, zr, y.a) ELSE load(y); T.PutOpRRR(T, 0, op, zr, zr, y.r); DEC(T.RH) END ; 
+      IF y.mode = O7B.Const THEN T.PutOpRRIa(T, op, zr, zr, y.a) ELSE load(y); T.PutOpRRR(T, 0, op, zr, zr, y.r); DEC(T.RH) END ; 
       T.PutOpLS(T, Str+v, zr, x.r, 0); DEC(T.RH, 2) 
     END 
   END Increment; 
@@ -796,12 +796,12 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     VAR zr: LONGINT; 
   BEGIN loadAdr(x); zr := T.RH; T.PutOpLS(T, Ldr, T.RH, x.r, 0); incR; 
     IF inorex = 0 THEN (*include*) 
-      IF y.mode = O7B.Const THEN T.PutOpRRI(T, 0, Ior, zr, zr, LSL(1, y.a)) 
-      ELSE load(y); T.PutOpRRI(T, 0, Mov, T.RH, 0, 1); T.PutOpRRR(T, 0, Lsl, y.r, T.RH, y.r); T.PutOpRRR(T, 0, Ior, zr, zr, y.r); DEC(T.RH) 
+      IF y.mode = O7B.Const THEN T.PutOpRRIa(T, Ior, zr, zr, LSL(1, y.a)) 
+      ELSE load(y); T.PutOpRRIa(T, Mov, T.RH, 0, 1); T.PutOpRRR(T, 0, Lsl, y.r, T.RH, y.r); T.PutOpRRR(T, 0, Ior, zr, zr, y.r); DEC(T.RH) 
       END 
     ELSE (*exclude*) 
-      IF y.mode = O7B.Const THEN T.PutOpRRI(T, 0, And, zr, zr, -LSL(1, y.a)-1) 
-      ELSE load(y); T.PutOpRRI(T, 0, Mov, T.RH, 0, 1); T.PutOpRRR(T, 0, Lsl, y.r, T.RH, y.r); T.PutOpRRI(T, 0, Xor, y.r, y.r, -1); T.PutOpRRR(T, 0, And, zr, zr, y.r); DEC(T.RH) 
+      IF y.mode = O7B.Const THEN T.PutOpRRIa(T, And, zr, zr, -LSL(1, y.a)-1) 
+      ELSE load(y); T.PutOpRRIa(T, Mov, T.RH, 0, 1); T.PutOpRRR(T, 0, Lsl, y.r, T.RH, y.r); T.PutOpRRIa(T, Xor, y.r, y.r, -1); T.PutOpRRR(T, 0, And, zr, zr, y.r); DEC(T.RH) 
       END 
     END ; 
     T.PutOpLS(T, Str, zr, x.r, 0); DEC(T.RH, 2) 
@@ -824,18 +824,18 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE Pack*(VAR x, y: O7X.Item); 
     VAR z: O7X.Item; 
   BEGIN z := x; load(x); load(y); 
-    T.PutOpRRI(T, 0, Lsl, y.r, y.r, 23); T.PutOpRRR(T, 0, Add, x.r, x.r, y.r); DEC(T.RH); Store(z, x) 
+    T.PutOpRRIa(T, Lsl, y.r, y.r, 23); T.PutOpRRR(T, 0, Add, x.r, x.r, y.r); DEC(T.RH); Store(z, x) 
   END Pack; 
  
   PROCEDURE Unpk*(VAR x, y: O7X.Item); 
     VAR z, e0: O7X.Item; 
   BEGIN  z := x; load(x); e0.mode := Reg; e0.r := T.RH; e0.type := O7B.intType; 
-    T.PutOpRRI(T, 0, Asr, T.RH, x.r, 23); T.PutOpRRI(T, 0, Sub, T.RH, T.RH, 127); Store(y, e0); incR; 
-    T.PutOpRRI(T, 0, Lsl, T.RH, T.RH, 23); T.PutOpRRR(T, 0, Sub, x.r, x.r, T.RH); Store(z, x) 
+    T.PutOpRRIa(T, Asr, T.RH, x.r, 23); T.PutOpRRIa(T, Sub, T.RH, T.RH, 127); Store(y, e0); incR; 
+    T.PutOpRRIa(T, Lsl, T.RH, T.RH, 23); T.PutOpRRR(T, 0, Sub, x.r, x.r, T.RH); Store(z, x) 
   END Unpk; 
  
   PROCEDURE Led*(VAR x: O7X.Item); 
-  BEGIN load(x); T.PutOpRRI(T, 0, Mov, T.RH, 0, -60); T.PutOpLS(T, Str, x.r, T.RH, 0); DEC(T.RH) 
+  BEGIN load(x); T.PutOpRRIa(T, Mov, T.RH, 0, -60); T.PutOpLS(T, Str, x.r, T.RH, 0); DEC(T.RH) 
   END Led; 
  
   PROCEDURE Get*(VAR x, y: O7X.Item); 
@@ -854,9 +854,9 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
       IF T.check THEN Trap(LT, 3) END ; 
       T.PutOpBRI(T, BC, EQ, 6) 
     END ; 
-    T.PutOpLS(T, Ldr, T.RH, x.r, 0); T.PutOpRRI(T, 0, Add, x.r, x.r, 4); 
-    T.PutOpLS(T, Str, T.RH, y.r, 0); T.PutOpRRI(T, 0, Add, y.r, y.r, 4); 
-    T.PutOpRRI(T, 0, Sub, z.r, z.r, 1); T.PutOpBRI(T, BC, NE, -6); DEC(T.RH, 3) 
+    T.PutOpLS(T, Ldr, T.RH, x.r, 0); T.PutOpRRIa(T, Add, x.r, x.r, 4); 
+    T.PutOpLS(T, Str, T.RH, y.r, 0); T.PutOpRRIa(T, Add, y.r, y.r, 4); 
+    T.PutOpRRIa(T, Sub, z.r, z.r, 1); T.PutOpBRI(T, BC, NE, -6); DEC(T.RH, 3) 
   END Copy; 
  
   PROCEDURE LDPSR*(VAR x: O7X.Item); 
@@ -876,14 +876,14 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF x.mode = O7B.Const THEN x.a := ABS(x.a) 
     ELSE load(x); 
-      IF x.type.form = O7B.Real THEN T.PutOpRRI(T, 0, Lsl, x.r, x.r, 1); T.PutOpRRI(T, 0, Ror, x.r, x.r, 1) 
-      ELSE T.PutOpRRI(T, 0, Cmp, x.r, x.r, 0); T.PutOpBRI(T, BC, GE, 2); T.PutOpRRI(T, 0, Mov, T.RH, 0, 0); T.PutOpRRR(T, 0, Sub, x.r, T.RH, x.r) 
+      IF x.type.form = O7B.Real THEN T.PutOpRRIa(T, Lsl, x.r, x.r, 1); T.PutOpRRIa(T, Ror, x.r, x.r, 1) 
+      ELSE T.PutOpRRIa(T, Cmp, x.r, x.r, 0); T.PutOpBRI(T, BC, GE, 2); T.PutOpRRIa(T, Mov, T.RH, 0, 0); T.PutOpRRR(T, 0, Sub, x.r, T.RH, x.r) 
       END 
     END 
   END Abs; 
  
   PROCEDURE Odd*(VAR x: O7X.Item); 
-  BEGIN load(x); T.PutOpRRI(T, 0, And, x.r, x.r, 1); SetCC(x, NE); DEC(T.RH) 
+  BEGIN load(x); T.PutOpRRIa(T, And, x.r, x.r, 1); SetCC(x, NE); DEC(T.RH) 
   END Odd; 
  
   PROCEDURE Floor*(VAR x: O7X.Item); 
@@ -910,7 +910,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     VAR op: LONGINT; 
   BEGIN load(x); 
     IF fct = 0 THEN op := Lsl ELSIF fct = 1 THEN op := Asr ELSE op := Ror END ; 
-    IF y.mode = O7B.Const THEN T.PutOpRRI(T, 0, op, x.r, x.r, y.a MOD 20H) 
+    IF y.mode = O7B.Const THEN T.PutOpRRIa(T, op, x.r, x.r, y.a MOD 20H) 
     ELSE load(y); T.PutOpRRR(T, 0, op, T.RH-2, x.r, y.r); DEC(T.RH); x.r := T.RH-1 
     END 
   END Shift; 
@@ -929,8 +929,8 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
  
   PROCEDURE Bit*(VAR x, y: O7X.Item); 
   BEGIN load(x); T.PutOpLS(T, Ldr, x.r, x.r, 0); 
-    IF y.mode = O7B.Const THEN T.PutOpRRI(T, 0, Ror, x.r, x.r, y.a+1); DEC(T.RH) 
-    ELSE load(y); T.PutOpRRI(T, 0, Add, y.r, y.r, 1); T.PutOpRRR(T, 0, Ror, x.r, x.r, y.r); DEC(T.RH, 2) 
+    IF y.mode = O7B.Const THEN T.PutOpRRIa(T, Ror, x.r, x.r, y.a+1); DEC(T.RH) 
+    ELSE load(y); T.PutOpRRIa(T, Add, y.r, y.r, 1); T.PutOpRRR(T, 0, Ror, x.r, x.r, y.r); DEC(T.RH, 2) 
     END ; 
     SetCC(x, MI) 
   END Bit; 
