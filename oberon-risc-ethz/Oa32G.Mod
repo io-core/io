@@ -28,21 +28,19 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
       O7S.Mark("PutOpRRR u flag not handled")    END;    INC(target.pc)
   END PutOpRRR;
   PROCEDURE PutOpRRI(target: O7X.Target; u, op, a, b, im: LONGINT);
-  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)   IF op > -1 THEN IF op < 16  THEN    IF u = 0 THEN      IF (im >= -100H) & (im <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
-        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + im      ELSE         target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
-        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + 0BFH(*        O7S.Mark("PutOpRRI im overflow")*)       END    ELSE        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
-        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + 0BEH(*
-      O7S.Mark("PutOpRRR u flag not handled")*)    END;
+  BEGIN (*emit format-1 instruction*)   IF op > -1 THEN IF op < 16  THEN    IF u = 0 THEN      IF (im >= -100H) & (im <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + im      ELSE         O7S.Mark("PutOpRRI im overflow")       END    ELSE        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + (0CH * 100H) + im    END;
    ELSE
       O7S.Mark("PutOpRRR op out of range")   END END;   INC(target.pc)
   END PutOpRRI;
 
   PROCEDURE PutOpRRIa(target: O7X.Target; op, a, b, im: LONGINT);
-  BEGIN (*same as Pu1, but with range test  -10000H <= im < 10000H*)
+  BEGIN (*same as Pu1, but with range test  -100H <= im < 100H*)
     IF (im >= -100H) & (im <= 0FFH) THEN PutOpRRI(target, 0, op, a, b, im)
     ELSE PutOpRRI(target, U, Mov, target.RH, 0, im DIV 100H);
-      IF im MOD 100H # 0 THEN PutOpRRI(target, 0, target.opRRmap[Ior], target.RH, target.RH, im MOD 100H) END ;
-      PutOpRRR(target, 0, target.opRRmap[op], a, b, target.RH)
+      IF im MOD 100H # 0 THEN PutOpRRI(target, 0, Ior, target.RH, target.RH, im MOD 100H) END ;
+      PutOpRRR(target, 0, op, a, b, target.RH)
     END
   END PutOpRRIa;
 
@@ -176,9 +174,28 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     target.RX := 11;
 (* ARM:
 		EQ* = 0; NE* = 1; CS* = 2; CC* = 3;  MI* = 4; PL* = 5; VS* = 6; VC* = 7;		HI* = 8; LS* = 9; GE* = 10; LT* = 11;  GT* = 12; LE* = 13; AL* = 14; NV* = 15;   RISC:    MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14; AL = 7; *)
+
+(*
+  a32mnemo0[0] := "and";
+  a32mnemo0[1] := "eor";
+  a32mnemo0[2] := "sub";
+  a32mnemo0[3] := "rsb";
+  a32mnemo0[4] := "add";
+  a32mnemo0[5] := "adc";
+  a32mnemo0[6] := "sbc";
+  a32mnemo0[7] := "rsc";
+  a32mnemo0[8] := "tst";
+  a32mnemo0[9] := "teq";
+  a32mnemo0[10] := "cmp";
+  a32mnemo0[11] := "cmn";
+  a32mnemo0[12] := "orr";
+  a32mnemo0[13] := "mov";
+  a32mnemo0[14] := "bic";
+  a32mnemo0[15] := "mvn"; *)
+
     i:= 0; WHILE i < 16 DO target.condmap[i] := -1; INC(i) END;
     target.condmap[MI] := -1; target.condmap[PL] := 5; target.condmap[EQ] := 0; target.condmap[NE] := 1; target.condmap[LT] := 11;    target.condmap[GT] := 12; target.condmap[AL] := 14;    i:= 0; WHILE i < 11 DO target.regmap[i] := i; INC(i) END;  (* identity map RISC lower registers *)
     i:= 11; WHILE i < 27 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-16; INC(i) END;  (* MT SB SP LNK PC*)
-    target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := -1; target.opRRmap[Xor] := -1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 51H; target.opLSmap[Str] := 50H; target.opLSmap[Ldrb] := 59H; target.opLSmap[Strb] := 58H;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; 
+    target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := 12; target.opRRmap[Xor] := 1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 51H; target.opLSmap[Str] := 50H; target.opLSmap[Ldrb] := 59H; target.opLSmap[Strb] := 58H;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; 
     target.relmap[4] := 14; target.relmap[5] := 13;      target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;BEGINEND Oa32G.

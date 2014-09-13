@@ -207,7 +207,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)
                        Texts.WriteString(W, " (");
                        Texts.WriteInt(W,  w  MOD 100H ,0);
                        Texts.WriteString(W, " ror ");
-                       Texts.WriteInt(W,  w  DIV 100H MOD 10H ,10);
+                       Texts.WriteInt(W,  (w  DIV 100H MOD 10H) * 2 ,4);
                        Texts.WriteString(W, ")");
                      ELSE
                        Texts.WriteString(W, " ");
@@ -284,27 +284,50 @@ MODULE O7Tool;  (*NW 18.2.2013*)
 
   END a32opcode;
 
-  PROCEDURE i32opcode(w: LONGINT);
-    VAR b1, b2, b3, b4: LONGINT;
+  PROCEDURE i32opcode(w, w2: LONGINT);
+    VAR b: ARRAY 8 OF LONGINT;
+        i,v: LONGINT;
   BEGIN
-      b1 := w DIV 1000000H MOD 100H;
-      b2 := w DIV 10000H MOD 100H;
-      b3 := w DIV 100H MOD 100H;
-      b4 := w MOD 100H;
+      b[3] := w DIV 1000000H MOD 100H;
+      b[2] := w DIV 10000H MOD 100H;
+      b[1] := w DIV 100H MOD 100H;
+      b[0] := w MOD 100H;
+      b[7] := w2 DIV 1000000H MOD 100H;
+      b[6] := w2 DIV 10000H MOD 100H;
+      b[5] := w2 DIV 100H MOD 100H;
+      b[4] := w2 MOD 100H;
 
-        Texts.WriteString(W, "???; ");
-        Texts.WriteString(W, "???; ");
-        Texts.WriteString(W, "???; ");
-        Texts.WriteString(W, "??? ");
+      i := 0; WHILE i < 4 DO
+        IF b[i] = 90H THEN
+          Texts.WriteString(W, "NOP; ");
+        ELSIF b[i] = 0C3H THEN
+          Texts.WriteString(W, "RET; ");
+        ELSIF (b[i] = 028H) OR (b[i] = 029H) OR (b[i] = 02AH) OR (b[i] = 02BH) OR (b[i] = 02CH) OR (b[i] = 02DH) THEN
+          Texts.WriteString(W, "SUB; ");
+        ELSIF b[i] = 0CBH THEN
+          Texts.WriteString(W, "RET");
+          v:=b[i+2]+(b[i+1]*100H);
+          Texts.WriteInt(W, v, 6);
+          Texts.WriteString(W, "; ");
+          INC(i,2) 
+        ELSIF b[i] = 0E8H THEN
+          Texts.WriteString(W, "CALL");
+          v:=b[i+4]+(b[i+3]*100H)+(b[i+2]*10000H)+(b[i+1]*1000000H);
+          Texts.WriteInt(W, v, 6);
+          Texts.WriteString(W, "; ");
+          INC(i,4)
+        END;
+        INC(i)
+      END
   END i32opcode;
 
 
-  PROCEDURE opcode(w: LONGINT; arch: INTEGER);
+  PROCEDURE opcode(w, w2: LONGINT; arch: INTEGER);
   BEGIN 
     IF arch = a32 THEN
       a32opcode( w )
     ELSIF arch = i32 THEN
-      i32opcode( w ) 
+      i32opcode( w, w2 ) 
     ELSE
       r32opcode( w ) 
     END
@@ -364,7 +387,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)
         WHILE i < n DO
           Files.ReadInt(R, data); Texts.WriteInt(W, i, 4); Texts.Write(W, 9X); Texts.WriteHex(W, i*4);
           Texts.Write(W, 9X); Texts.WriteHex(W, data);
-          Texts.Write(W, 9X); opcode(data,arch); Texts.WriteLn(W); INC(i)
+          Texts.Write(W, 9X); opcode(data,90909090H,arch); Texts.WriteLn(W); INC(i)
         END ;
       (* Sync(R); *)
         Texts.WriteString(W, "commands:"); Texts.WriteLn(W);
@@ -452,9 +475,9 @@ MODULE O7Tool;  (*NW 18.2.2013*)
         WHILE ((i < n) OR (i < n2))DO          IF i < n THEN
             Files.ReadInt(R, data); Texts.WriteInt(W, i, 4); Texts.Write(W, 9X); Texts.WriteHex(W, i*4);
             Texts.Write(W, 9X); Texts.WriteHex(W, data);
-            Texts.Write(W, 9X); opcode(data,arch)          ELSE Texts.WriteString(W, "                                                     ") END;          IF i < n2 THEN            Files.ReadInt(R2, data2); 
+            Texts.Write(W, 9X); opcode(data,90909090H,arch)          ELSE Texts.WriteString(W, "                                                     ") END;          IF i < n2 THEN            Files.ReadInt(R2, data2); 
             Texts.Write(W, 9X); Texts.WriteHex(W, data2);
-            Texts.Write(W, 9X); opcode(data2,arch2);           END;          IF data # data2 THEN IF arch = arch2 THEN Texts.Write(W,9X);Texts.Write(W,"*") END END;          Texts.WriteLn(W);           INC(i)
+            Texts.Write(W, 9X); opcode(data2,90909090H,arch2);           END;          IF data # data2 THEN IF arch = arch2 THEN Texts.Write(W,9X);Texts.Write(W,"*") END END;          Texts.WriteLn(W);           INC(i)
         END ;      (* Sync(R); *)
         Texts.WriteString(W, "(1)commands:"); Texts.WriteLn(W);
         Files.ReadString(R, name);
