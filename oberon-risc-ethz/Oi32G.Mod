@@ -76,6 +76,10 @@ MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Ober
     INC(target.pc)
   END PutOpBRI;
 
+  PROCEDURE Trap(target: O7X.Target; cond, num: LONGINT);   VAR pos : LONGINT; 
+  BEGIN pos := O7S.Pos();     target.PutOpBRR(target, BLR, cond, pos*100H + num*10H , MT) 
+  END Trap; 
+
   PROCEDURE fix*(target: O7X.Target; at, with: LONGINT); 
   BEGIN target.code[at] := target.code[at] DIV C24 * C24 + (with MOD C24) 
   END fix; 
@@ -219,7 +223,7 @@ MODULE Oi32G; (* NW  10.10.2013 CP 19.8.2014 intel 32-bit code generator in Ober
     i:= 0; WHILE i < 12 DO target.regmap[i] := i; INC(i) END;  (* identity map RISC lower registers *)
     i:= 12; WHILE i < 28 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-15; INC(i) END;  (* MT SB SP LNK, no PC in lower 16 registers*)
-    i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; target.opLSmap[Ldrb] := 9; target.opLSmap[Strb] := 11;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;
+    i:= 0; WHILE i < 16 DO target.opRRmap[i] := i; INC(i) END;  (* identity map RISC opcodes in opcode map *)    target.opLSmap[Ldr] := 8; target.opLSmap[Str] := 10; target.opLSmap[Ldrb] := 9; target.opLSmap[Strb] := 11;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; target.relmap[4] := 14; target.relmap[5] := 13;     target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.Trap := Trap;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;
 BEGIN
 END Oi32G.
 

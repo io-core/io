@@ -73,7 +73,8 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END SetCC; 
  
   PROCEDURE Trap(cond, num: LONGINT);   VAR pos : LONGINT; 
-  BEGIN pos := O7S.Pos();     T.PutOpBRR(T, BLR, cond, pos*100H + num*10H , MT) 
+  BEGIN  (*pos := O7S.Pos();     T.PutOpBRR(T, BLR, cond, pos*100H + num*10H , MT) *)
+    T.Trap(T,cond,num)
   END Trap; 
  
   (*handling of forward reference, fixups of branch addresses and constant tables*) 
@@ -140,9 +141,10 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
           ELSIF x.r = 0 THEN T.PutOpBRI(T, BL, AL, 0); T.PutOpRRIa(T, Sub, T.RH, LNK, T.pc*4 - x.a) 
           ELSE GetSB(x.r); T.PutOpRRIa(T, Add, T.RH, SB, x.a + 100H) (*mark as progbase-relative*) 
           END 
-        ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN T.PutOpRRIa(T, Mov, T.RH, 0, x.a) 
+(*      ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN T.PutOpRRIa(T, Mov, T.RH, 0, x.a) 
         ELSE T.PutOpRRI(T, U, Mov, T.RH, 0, x.a DIV 10000H MOD 10000H); 
-          IF x.a MOD 10000H # 0 THEN T.PutOpRRIa(T, Ior, T.RH, T.RH, x.a MOD 10000H) END 
+          IF x.a MOD 10000H # 0 THEN T.PutOpRRIa(T, Ior, T.RH, T.RH, x.a MOD 10000H) END *)
+        ELSE T.PutOpRRIa(T, Mov, T.RH, 0, x.a) 
         END ; 
         x.r := T.RH; incR 
       ELSIF x.mode = RegI THEN T.PutOpLS(T, op, x.r, x.r, x.a) 
@@ -887,11 +889,18 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END Odd; 
  
   PROCEDURE Floor*(VAR x: O7X.Item); 
-  BEGIN load(x); T.PutOpRRI(T, U, Mov, T.RH, 0, 4B00H); T.PutOpRRR(T, 0, Fad+1000H, x.r, x.r, T.RH)  
+  BEGIN load(x); 
+(*   T.PutOpRRI(T, U, Mov, T.RH, 0, 4B00H); *)
+   T.PutOpRRIa(T, Mov, T.RH, 0, 4B000000H);
+   T.PutOpRRR(T, 0, Fad+1000H, x.r, x.r, T.RH)  
   END Floor; 
  
   PROCEDURE Float*(VAR x: O7X.Item); 
-  BEGIN load(x); T.PutOpRRI(T, U, Mov, T.RH, 0, 4B00H);  T.PutOpRRR(T, U, Fad, x.r, x.r, T.RH) 
+  BEGIN load(x); 
+(*     T.PutOpRRI(T, U, Mov, T.RH, 0, 4B00H);
+     T.PutOpRRR(T, U, Fad, x.r, x.r, T.RH) *)
+     T.PutOpRRIa(T, Mov, T.RH, 0, 4B0000H);
+     T.PutOpRRR(T, U, Fad, x.r, x.r, T.RH) 
   END Float; 
  
   PROCEDURE Ord*(VAR x: O7X.Item); 

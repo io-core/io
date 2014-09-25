@@ -29,8 +29,8 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   END PutOpRRR;
   PROCEDURE PutOpRRI(target: O7X.Target; u, op, a, b, im: LONGINT);
   BEGIN (*emit format-1 instruction*)   IF op > -1 THEN IF op < 16  THEN    IF u = 0 THEN      IF (im >= -100H) & (im <= 0FFH) THEN        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
-        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + im      ELSE         O7S.Mark("PutOpRRI im overflow")       END    ELSE        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
-        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + (0CH * 100H) + im    END;
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + (im MOD 100H)      ELSE         O7S.Mark("PutOpRRI im overflow")       END    ELSE        target.code[target.pc] := (target.condmap[AL] * 10000000H) + 2000000H + (target.opRRmap[op]*200000H) + 
+        (target.regmap[b] * 10000H) + (target.regmap[a] * 1000H) + ( (u MOD 10H) * 100H) + (im MOD 100H)    END;
    ELSE
       O7S.Mark("PutOpRRR op out of range")   END END;   INC(target.pc)
   END PutOpRRI;
@@ -38,9 +38,20 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   PROCEDURE PutOpRRIa(target: O7X.Target; op, a, b, im: LONGINT);
   BEGIN (*same as Pu1, but with range test  -100H <= im < 100H*)
     IF (im >= -100H) & (im <= 0FFH) THEN PutOpRRI(target, 0, op, a, b, im)
-    ELSE PutOpRRI(target, U, Mov, target.RH, 0, im DIV 100H);
-      IF im MOD 100H # 0 THEN PutOpRRI(target, 0, Ior, target.RH, target.RH, im MOD 100H) END ;
-      PutOpRRR(target, 0, op, a, b, target.RH)
+    ELSE 
+(*      target.code[target.pc] := im;
+      INC(target.pc) *)
+      IF im MOD 100H # 0 THEN 
+        PutOpRRI(target, 0, Mov, target.RH, 0, im MOD 100H) 
+      ELSE
+        PutOpRRI(target, 0, Mov, target.RH, 0, 0);
+      END;
+      IF im DIV 100H MOD 100H # 0H THEN PutOpRRI(target, 0CH, Ior, target.RH, target.RH, im DIV 100H MOD 100H) END ;
+      IF im DIV 10000H MOD 100H # 0H THEN PutOpRRI(target, 08H, Ior, target.RH, target.RH, im DIV 10000H MOD 100H) END ;
+      IF im DIV 1000000H MOD 100H # 0H THEN PutOpRRI(target, 04H, Ior, target.RH, target.RH, im DIV 1000000H MOD 100H) END  ;
+      IF (op # Mov) OR (a # target.RH) THEN 
+        PutOpRRR(target, 0, op, a, b, target.RH)
+      END 
     END
   END PutOpRRIa;
 
@@ -56,8 +67,17 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
   END PutOpBRR;
 
   PROCEDURE PutOpBRI(target: O7X.Target; op, cond, off: LONGINT);
-  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN         PutOpRRR(target,0,Mov,PC,0,LNK);         DEC(target.pc)      ELSE        target.code[target.pc] := 0E0000000H;      END    ELSIF op = BLR THEN     target.code[target.pc] := 0E0000001H;    ELSIF op = BC THEN     target.code[target.pc] := (target.condmap[cond] * 10000000H) + (0AH * 1000000H) + (off - 2 );    ELSIF op = BL THEN     target.code[target.pc] := (target.condmap[cond] * 10000000H) + (0BH * 1000000H) + (off - 2 );    ELSE      O7S.Mark("unknown branch opcode")    END;    INC(target.pc)
+  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = AL THEN(*         PutOpRRR(target,0,Mov,PC,0,LNK); *)        target.code[target.pc] := 0E000000AH;(*         DEC(target.pc) *)      ELSE        target.code[target.pc] := 0E000000BH;      END    ELSIF op = BLR THEN     target.code[target.pc] := 0E000000CH;    ELSIF op = BC THEN     target.code[target.pc] := (target.condmap[cond] * 10000000H) + (0AH * 1000000H) + ((off - 2 ) MOD 0FFFFFFH );    ELSIF op = BL THEN     target.code[target.pc] := (target.condmap[cond] * 10000000H) + (0BH * 1000000H) + ((off - 2 ) MOD 0FFFFFFH );    ELSE      O7S.Mark("unknown branch opcode")    END;    INC(target.pc)
   END PutOpBRI;
+
+  PROCEDURE Trap(target: O7X.Target; cond, num: LONGINT);   VAR pos : LONGINT; 
+  BEGIN 
+     pos := O7S.Pos();
+(*     target.PutOpBRR(target, BLR, cond, pos*100H + num*10H , MT) *)
+     target.code[target.pc] := 2F000001H;  (* SWI *)
+    INC(target.pc)
+  END Trap; 
+
 
   PROCEDURE fix*(target: O7X.Target; at, with: LONGINT); 
   BEGIN target.code[at] := target.code[at] DIV C24 * C24 + (with MOD C24) 
@@ -198,4 +218,4 @@ MODULE Oa32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     i:= 11; WHILE i < 27 DO target.regmap[i] := -1; INC(i) END;  (* unavailable registers *)
     i:= 27; WHILE i < 32 DO target.regmap[i] := i-16; INC(i) END;  (* MT SB SP LNK PC*)
     target.opRRmap[Mov] := 13; target.opRRmap[Lsl] := -1; target.opRRmap[Asr] := -1; target.opRRmap[Ror] := -1;    target.opRRmap[And] := 0; target.opRRmap[Ann] := -1; target.opRRmap[Ior] := 12; target.opRRmap[Xor] := 1;    target.opRRmap[Add] := 4; target.opRRmap[Sub] := 2; target.opRRmap[Mul] := -1; target.opRRmap[Div] := -1;     target.opRRmap[Fad] := -1; target.opRRmap[Fsb] := -1; target.opRRmap[Fml] := -1;  target.opRRmap[Fdv] := -1;    target.opLSmap[Ldr] := 51H; target.opLSmap[Str] := 50H; target.opLSmap[Ldrb] := 59H; target.opLSmap[Strb] := 58H;     target.opBRmap[BR] := 0; target.opBRmap[BLR] := 1; target.opBRmap[BC] := 2; target.opBRmap[BL] := 3;    target.relmap[0] := 1; target.relmap[1] := 9; target.relmap[2] := 5; target.relmap[3] := 6; 
-    target.relmap[4] := 14; target.relmap[5] := 13;      target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;BEGINEND Oa32G.
+    target.relmap[4] := 14; target.relmap[5] := 13;      target.PutOpRRR := PutOpRRR;    target.PutOpRRI := PutOpRRI;    target.PutOpRRIa := PutOpRRIa;    target.PutOpLS := PutOpLS;    target.PutOpBRR := PutOpBRR;    target.PutOpBRI := PutOpBRI;    target.Trap := Trap;    target.fix := fix;    target.FixLink := FixLink;    target.FixLinkWith := FixLinkWith;    target.invalSB := invalSB;    target.Open := Open;    target.Header := Header;    target.Close := Close;  END SetArch;BEGINEND Oa32G.
