@@ -116,7 +116,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE GetSB(base: LONGINT); 
   BEGIN 
     IF (T.version # 0) & ((base # T.curSB) OR (base # 0)) THEN 
-      T.PutOpLS(T, Ldr, SB, -base, T.pc-T.fixorgD); T.fixorgD := T.pc-T.pcl; T.curSB := base 
+      T.PutOpLS(T, Ldr, SB, -base, T.pc-T.fixorgD); T.fixorgD := T.pc-1; T.curSB := base 
     END 
   END GetSB; 
  
@@ -179,7 +179,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF x.type.form = O7B.Bool THEN 
       IF x.mode = O7B.Const THEN x.r := 15 - x.a*8 
       ELSE load(x); 
-        IF T.code[T.pc-T.pcl] DIV 40000000H # -2 THEN T.PutOpRRIa(T, Cmp, x.r, x.r, 0) END ; 
+        IF T.code[T.pc-1] DIV 40000000H # -2 THEN T.PutOpRRIa(T, Cmp, x.r, x.r, 0) END ; 
         x.r := NE; DEC(T.RH) 
       END ; 
       x.mode := Cond; x.a := 0; x.b := 0 
@@ -351,7 +351,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE And1*(VAR x: O7X.Item);   (* x := x & *)   VAR ng : LONGINT; 
   BEGIN 
     IF x.mode # Cond THEN loadCond(x) END ;     ng := negated(x.r); 
-    T.PutOpBRI(T, BC, ng, x.a); x.a := T.pc-T.pcl; FixLink(x.b); x.b := 0 
+    T.PutOpBRI(T, BC, ng, x.a); x.a := T.pc-1; FixLink(x.b); x.b := 0 
   END And1; 
  
   PROCEDURE And2*(VAR x, y: O7X.Item); 
@@ -363,7 +363,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   PROCEDURE Or1*(VAR x: O7X.Item);   (* x := x OR *) 
   BEGIN 
     IF x.mode # Cond THEN loadCond(x) END ; 
-    T.PutOpBRI(T, BC, x.r, x.b);  x.b := T.pc-T.pcl; FixLink(x.a); x.a := 0 
+    T.PutOpBRI(T, BC, x.r, x.b);  x.b := T.pc-1; FixLink(x.a); x.a := 0 
   END Or1; 
  
   PROCEDURE Or2*(VAR x, y: O7X.Item); 
@@ -535,7 +535,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF (y.mode = O7B.Const) & (y.type.form # O7B.Proc) THEN 
       load(x); 
-      IF (y.a # 0) OR ~(op IN {O7S.eql, O7S.neq}) OR (T.code[T.pc-T.pcl] DIV 40000000H # -2) THEN T.PutOpRRIa(T, Cmp, x.r, x.r, y.a) END ; 
+      IF (y.a # 0) OR ~(op IN {O7S.eql, O7S.neq}) OR (T.code[T.pc-1] DIV 40000000H # -2) THEN T.PutOpRRIa(T, Cmp, x.r, x.r, y.a) END ; 
       DEC(T.RH) 
     ELSE load(x); load(y); T.PutOpRRR(T, 0, Cmp, x.r, x.r, y.r); DEC(T.RH, 2) 
     END ; 
@@ -692,23 +692,26 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   END Here; 
  
   PROCEDURE FJump*(VAR L: LONGINT); 
-  BEGIN T.PutOpBRI(T, BC, AL, L); L := T.pc-T.pcl 
+  BEGIN T.PutOpBRI(T, BC, AL, L); L := T.pc-1 
   END FJump; 
  
   PROCEDURE CFJump*(VAR x: O7X.Item);   VAR ng : LONGINT; 
   BEGIN 
-    IF x.mode # Cond THEN loadCond(x) END ;     ng := negated(x.r); 
-    T.PutOpBRI(T, BC, ng, x.a); FixLink(x.b); x.a := T.pc-T.pcl 
+    IF x.mode # Cond THEN loadCond(x) END ;
+    ng := negated(x.r); 
+    T.PutOpBRI(T, BC, ng, x.a);
+    FixLink(x.b);
+    x.a := T.pc-1 
   END CFJump; 
  
   PROCEDURE BJump*(L: LONGINT); 
-  BEGIN T.PutOpBRI(T, BC, AL, L-T.pc-T.pcl) 
+  BEGIN T.PutOpBRI(T, BC, AL, L-T.pc-1) 
   END BJump; 
  
   PROCEDURE CBJump*(VAR x: O7X.Item; L: LONGINT);   VAR ng : LONGINT; 
   BEGIN 
     IF x.mode # Cond THEN loadCond(x) END ;     ng := negated(x.r); 
-    T.PutOpBRI(T, BC, ng, L-T.pc-T.pcl); FixLink(x.b); FixLinkWith(x.a, L) 
+    T.PutOpBRI(T, BC, ng, L-T.pc-1); FixLink(x.b); FixLinkWith(x.a, L) 
   END CBJump; 
  
   PROCEDURE Fixup*(VAR x: O7X.Item); 
@@ -719,7 +722,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF x.type.form = O7B.Proc THEN 
       IF x.mode # O7B.Const THEN 
-        load(x); T.code[T.pc-T.pcl] := T.code[T.pc-T.pcl] + 0B000000H; x.r := 11; DEC(T.RH); T.inhibitCalls := TRUE; 
+        load(x); T.code[T.pc-1] := T.code[T.pc-1] + 0B000000H; x.r := 11; DEC(T.RH); T.inhibitCalls := TRUE; 
         IF T.check THEN Trap(EQ, 5) END 
       END 
     ELSE O7S.Mark("not a procedure") 
@@ -733,10 +736,10 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
     IF r > 0 THEN SaveRegs(r) END ; 
     IF x.type.form = O7B.Proc THEN 
       IF x.mode = O7B.Const THEN 
-        IF x.r >= 0 THEN T.PutOpBRI(T, BL, AL, (x.a DIV 4)-T.pc-T.pcl) 
+        IF x.r >= 0 THEN T.PutOpBRI(T, BL, AL, (x.a DIV 4)-T.pc-1) 
         ELSE (*imported*) 
           IF T.pc - T.fixorgP < 1000H THEN 
-            T.PutOpBRI(T, BL, AL, ((-x.r) * 100H + x.a) * 1000H + T.pc-T.fixorgP); T.fixorgP := T.pc-T.pcl 
+            T.PutOpBRI(T, BL, AL, ((-x.r) * 100H + x.a) * 1000H + T.pc-T.fixorgP); T.fixorgP := T.pc-1 
           ELSE O7S.Mark("fixup impossible") 
           END 
         END 
@@ -814,7 +817,7 @@ MODULE O7G; (* NW  10.10.2013 CP 8.14.2014 Retargetable code generator in Oberon
   BEGIN 
     IF x.mode # Cond THEN loadCond(x) END ; 
     IF x.a = 0 THEN cond := negated(x.r) 
-    ELSE T.PutOpBRI(T, BC, x.r, x.b); FixLink(x.a); x.b := T.pc-T.pcl; cond := 7 
+    ELSE T.PutOpBRI(T, BC, x.r, x.b); FixLink(x.a); x.b := T.pc-1; cond := 7 
     END ; 
     Trap(cond, 7); FixLink(x.b) 
   END Assert;  

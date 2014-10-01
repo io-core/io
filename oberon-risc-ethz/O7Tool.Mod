@@ -204,14 +204,19 @@ MODULE O7Tool;  (*NW 18.2.2013*)
                    END;
                    IF ODD(w DIV 2000000H) THEN (* immediate *)
                      IF w DIV 100H MOD 10H # 0 THEN
-                       Texts.WriteString(W, " (");
-                       Texts.WriteInt(W,  w  MOD 100H ,0);
-                       Texts.WriteString(W, " ror ");
+                       Texts.WriteString(W, " ( ");
+                       Texts.WriteHex(W,  w  MOD 100H );
+                       Texts.WriteString(W, "H ror ");
                        Texts.WriteInt(W,  (w  DIV 100H MOD 10H) * 2 ,4);
                        Texts.WriteString(W, ")");
                      ELSE
-                       Texts.WriteString(W, " ");
-                       Texts.WriteInt(W,  w  MOD 100H ,0);
+                       IF ODD(w DIV 80H) THEN
+                         Texts.WriteString(W, " ");
+                         Texts.WriteInt(W,  (w  MOD 100H)+0FFFFFF00H ,0);
+                       ELSE
+                         Texts.WriteString(W, "  ");
+                         Texts.WriteInt(W,  w  MOD 100H ,0);
+                       END
                      END
                   ELSE (* register *)
                      IF w DIV 100H MOD 10H # 0 THEN
@@ -350,14 +355,82 @@ MODULE O7Tool;  (*NW 18.2.2013*)
         IF arch = r32 THEN Texts.WriteString(W, " (r32) ") END;
   END getArch;
 
-  PROCEDURE DecObj*;   (*decode object file*)
+  PROCEDURE BinObj*;   (*Write binary from object file*)
+    VAR class, i, n, key, size, fix, adr, data, len, arch: INTEGER;
+      ch: CHAR;
+      name: ARRAY 32 OF CHAR;
+      name2: ARRAY 36 OF CHAR;
+      ext: ARRAY 4 OF CHAR;
+      F: Files.File; R: Files.Rider;
+      F2: Files.File; R2: Files.Rider;
+      S: Texts.Scanner;
+  BEGIN
+    T := TextFrames.Text(""); OpenViewer(T, "Tools.Text");
+    Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
+    Texts.WriteString(W, "O7Tool 19.8.2014");
+    Texts.WriteLn(W); Texts.Append(T, W.buf);
+
+    Texts.WriteString(W, "O7Tool extracting binary from ");
+    Texts.Append(Oberon.Log, W.buf);
+
+    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+    IF S.class = Texts.Name THEN
+      i:=0; WHILE S.s[i] # 0X DO name2[i]:=S.s[i]; INC(i) END ;
+      name2[i]:="."; name2[i+1]:="b"; name2[i+2]:="i"; name2[i+3]:="n"; name2[i+4]:=0X;
+      Texts.WriteString(W, S.s); Texts.WriteString(W, " to ");  Texts.WriteString(W, name2); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+      F := Files.Old(S.s);
+      IF F # NIL THEN        getArch( S.s, ext, arch );
+        Files.Set(R, F, 0); Files.ReadString(R, name);  
+        Files.ReadInt(R, key); 
+        Read(R, class); 
+        IF class # 0 THEN
+           Texts.WriteString(W, "Error: Module is not type 0 -- needs '*' in MODULE definition."); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+        ELSE
+
+          Files.ReadInt(R, size);  
+          Files.ReadString(R, name);
+          IF name[0] # 0X THEN
+           Texts.WriteString(W, "Error: Module has imports -- imports not supported in binary output."); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+          ELSE
+            Files.ReadInt(R, n); n := n DIV 4; i := 0;
+            WHILE i < n DO Files.ReadInt(R, data); INC(i) END ; (* type signatures *)
+            Files.ReadInt(R, data); IF data # 0 THEN 
+              Texts.WriteString(W, "Warning: Module has a data section. Ignoring."); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+            END;
+            Files.ReadInt(R, n); i := 0; IF n # 0 THEN 
+              Texts.WriteString(W, "Warning: Module has a string section. Ignoring."); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+            END;
+            WHILE i < n DO Files.Read(R, ch);  INC(i)  END ;
+
+
+            F2 := Files.New(name2); Files.Set(R2, F2, 0);
+
+            Files.ReadInt(R, n); i := 0;
+            WHILE i < n DO
+              Files.ReadInt(R, data); Texts.WriteHex(W, i*4);
+              Texts.Write(W, 9X); Texts.WriteHex(W, data); Texts.WriteLn(W); 
+              Files.WriteInt(R2, data); INC(i)
+            END ;
+            Files.Register(F2)
+          END
+        END
+      ELSE Texts.WriteString(W, " not found"); Texts.WriteLn(W)
+      END ;
+      Texts.Append(T, W.buf)
+    END
+  END BinObj;  PROCEDURE DecObj*;   (*decode object file*)
     VAR class, i, n, key, size, fix, adr, data, len, arch: INTEGER;
       ch: CHAR;
       name: ARRAY 32 OF CHAR;
       ext: ARRAY 4 OF CHAR;
       F: Files.File; R: Files.Rider;
       S: Texts.Scanner;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+  BEGIN
+    T := TextFrames.Text(""); OpenViewer(T, "Tools.Text");
+    Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
+    Texts.WriteString(W, "O7Tool 19.8.2014");
+    Texts.WriteLn(W); Texts.Append(T, W.buf);
+    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     IF S.class = Texts.Name THEN
       Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
       Texts.WriteString(W, "decoding "); Texts.WriteString(W, S.s); F := Files.Old(S.s);
@@ -430,7 +503,12 @@ MODULE O7Tool;  (*NW 18.2.2013*)
       F: Files.File; R: Files.Rider;
       F2: Files.File; R2: Files.Rider;
       S: Texts.Scanner;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+  BEGIN
+  T := TextFrames.Text(""); OpenViewer(T, "Tools.Text");
+  Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
+  Texts.WriteString(W, "O7Tool 19.8.2014");
+  Texts.WriteLn(W); Texts.Append(T, W.buf);
+  Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     IF S.class = Texts.Name THEN
       Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
       Texts.WriteString(W, "comparing "); Texts.WriteString(W, S.s); F := Files.Old(S.s);
@@ -531,10 +609,10 @@ MODULE O7Tool;  (*NW 18.2.2013*)
     END
   END CmpObj;
 
-BEGIN Texts.OpenWriter(W); T := TextFrames.Text(""); OpenViewer(T, "Tools.Text");
-  Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
+
+BEGIN Texts.OpenWriter(W); 
   Texts.WriteString(W, "O7Tool 19.8.2014");
-  Texts.WriteLn(W); Texts.Append(T, W.buf);
+  Texts.WriteLn(W);  Texts.Append(Oberon.Log, W.buf);
   r32mnemo0[0] := "MOV";
   r32mnemo0[1] := "LSL";
   r32mnemo0[2] := "ASR";

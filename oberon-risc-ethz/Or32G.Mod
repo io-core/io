@@ -148,7 +148,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 19.8.2014 RISC code generator in Oberon-07*)
     Files.WriteInt(R, target.strx);
     FOR i := 0 TO target.strx-1 DO Files.Write(R, target.str[i]) END ;  (*strings*)
     Files.WriteInt(R, target.pc);  (*code len*)
-    FOR i := 0 TO target.pc-target.pcl DO Files.WriteInt(R, target.code[i]) END ;  (*program*)
+    FOR i := 0 TO target.pc-1 DO Files.WriteInt(R, target.code[i]) END ;  (*program*)
     obj := O7B.topScope.next;
     WHILE obj # NIL DO  (*commands*)
       IF (obj.exno # 0) & (obj.class = O7B.Const) & (obj.type.form = O7B.Proc) &
