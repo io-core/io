@@ -19,6 +19,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strings"
+	"strconv"
 )
 
 const MemSize=     0x00180000
@@ -28,6 +31,11 @@ const ROMWords=    512
 const DisplayStart=0x000E7F00
 const IOStart=     0xFFFFFFC0
 
+const pbit = 0x80000000
+const qbit = 0x40000000
+const ubit = 0x20000000
+const vbit = 0x10000000
+
 
 type RISC struct {
   PC uint32
@@ -35,6 +43,13 @@ type RISC struct {
   H uint32
   Z, N, C, V bool
 
+  OPC uint32
+  OR [16]uint32
+  OH uint32
+  OZ, ON, OC, OV bool
+
+  icount uint32
+  spi_selected uint32
   progress uint32
   current_tick uint32
   mouse uint32
@@ -69,8 +84,99 @@ var risc RISC
 var  RAM [MemWords]uint32
 var  ROM [ROMWords]uint32
 
+
+func msgtrace(risc * RISC,s string){
+    if (risc.icount<1000){
+	fmt.Printf("%s",s)
+    }
+}
+
+func rtrace(risc * RISC, ir uint32){
+//  if (risc != nil){
+    if (risc.icount<1000){
+      risc.OPC=risc.PC;
+      for i:=0; i<16; i++ {
+         if  risc.OR[i] != risc.R[i] {
+           fmt.Printf( "  R[%2d]<%08x ", i, risc.R[i]);
+         }
+         risc.OR[i]=risc.R[i];
+      }
+      risc.OH=risc.H;
+      risc.OZ=risc.Z;
+      risc.ON=risc.N;
+      risc.OC=risc.C;
+      risc.OV=risc.V;
+      op := (ir & 0x000F0000) >> 16
+      opcode:="???"
+      if ir & pbit == 0 {
+        switch op {
+        case MOV:
+            opcode="MOV"
+        case LSL:
+            opcode="LSL"
+        case ASR:
+            opcode="ASR"
+        case ROR:
+            opcode="ROR"
+        case AND:
+            opcode="AND"
+        case ANN:
+            opcode="ANN"
+        case IOR:
+            opcode="IOR"
+        case XOR:
+            opcode="XOR"
+        case ADD:
+            opcode="ADD"
+        case SUB:
+            opcode="SUB"
+        case MUL:
+            opcode="MUL"
+        case DIV:
+            opcode="DIV"
+        case FAD:
+            opcode="FAD"
+        case FSB:
+            opcode="FSB"
+        case FML:
+            opcode="FML"
+        case FDV:
+            opcode="FDV"
+        }
+      } else if ((ir & qbit) == 0) {
+        if ((ir & ubit) == 0) {
+            opcode="LD "
+        }else{
+            opcode="ST "
+        }
+      }else{
+            opcode="BR "
+      }
+      fmt.Printf("\n%6d %x %s",risc.icount, risc.PC -1, opcode );
+    }
+//  }
+}
+
+
 func reset() {
+        risc.icount=0
 	risc.PC=ROMStart/4
+	content, err := ioutil.ReadFile("risc-boot.inc")
+	if err != nil {
+	    fmt.Printf("Error reading boot rom.")
+	}
+	lines := strings.Split(string(content), "\n")
+        ri:=0
+        for _,l := range lines{
+	   e := strings.Split(l, ",")
+           for _,n := range e{
+             if len(n)>0{
+                r,_:=strconv.ParseUint( strings.Replace(strings.TrimSpace(n), "0x", "", -1), 16, 32)
+		ROM[ri]=uint32(r)
+		ri++
+	     }
+           }
+        }
 }
 
 
@@ -277,39 +383,51 @@ func set_register(reg uint32, value uint32) {
 
 func load_word(address uint32) uint32{
   if (address < MemSize) {
+    msgtrace(&risc, fmt.Sprintf("%08x from MEMORY LOCATION %08x ",RAM[address/4],address/4))
     return RAM[address/4]
   } else {
     return load_io(address)
-   return 0
   }
 }
 
 func load_byte(address uint32) byte {
-  w := uint32(load_word(address))
-  return byte(w >> (address % 4 * 8))
+  var w uint32 = 0 
+  if (address < MemSize) {
+    w = RAM[address/4]
+  } else { 
+    w = load_io(address)
+  }
+  b:=byte(w >> (address % 4 * 8))
+
+  msgtrace(&risc, fmt.Sprintf("%02x from MEMORY LOCATION %08x ",b,address/4))
+  return b
 
 }
 
 
 func store_word(address, value uint32) {
   if (address < DisplayStart) {
+    msgtrace(&risc, fmt.Sprintf("%08x to MEMORY LOCATION %08x ",value,address/4))
     RAM[address/4] = value
   } else if (address < MemSize) {
+    msgtrace(&risc, fmt.Sprintf("%08x to VIDEO LOCATION %08x ",value,address/4))
     RAM[address/4] = value
 //    risc_update_damage(risc, address/4 - DisplayStart/4)
   } else {
-    store_io(address, value);
+    store_io(address, value)
   }
 }
 
 func store_byte(address uint32, value uint8) {
   if (address < MemSize) {
+    if trace { fmt.Printf("MEMORY BYTE ") }
     w := uint32(load_word(address))
     shift := uint32((address & 3) * 8)
     w = w ^ (0xFF << shift)
     w = w | uint32(value) << shift
     store_word(address, w)
   } else {
+    if trace { fmt.Printf("IO BYTE ") }
     store_io( address, uint32(value))
   }
 }
@@ -318,15 +436,18 @@ func load_io(address uint32) uint32 {
   switch (address - IOStart) {
     case 0: 
       // Millisecond counter
+      if trace { fmt.Printf("MS COUNTER") }
       risc.progress--
       return risc.current_tick
     
     case 4: 
       // Switches
+      if trace { fmt.Printf("SWITCHES") }
       return 0
     
     case 8: 
       // RS232 data
+      if trace { fmt.Printf("RS232 DATA") }
 //      if (risc->serial) {
 //        return risc->serial->read_data(risc->serial);
 //      }
@@ -334,6 +455,7 @@ func load_io(address uint32) uint32 {
     
     case 12: 
       // RS232 status
+      if trace { fmt.Printf("RS232 STATUS") }
 //      if (risc->serial) {
 //        return risc->serial->read_status(risc->serial);
 //      }
@@ -341,6 +463,9 @@ func load_io(address uint32) uint32 {
     
     case 16: 
       // SPI data
+        var value uint32 = 255
+        msgtrace(&risc, fmt.Sprintf("%08x from SPI DATA ",value))
+
 //      const struct RISC_SPI *spi = risc->spi[risc->spi_selected];
 //      if (spi != NULL) {
 //        return spi->read_data(spi);
@@ -351,10 +476,13 @@ func load_io(address uint32) uint32 {
       // SPI status
       // Bit 0: rx ready
       // Other bits unused
+      var value uint32 = 1
+      msgtrace(&risc, fmt.Sprintf("%08x from SPI STATUS ",value))
       return 1
     
     case 24: 
       // Mouse input / keyboard status
+      if trace { fmt.Printf("MOUSE/KEYBOARD STATUS") }
 //      uint32_t mouse = risc->mouse;
 //      if (risc->key_cnt > 0) {
 //        mouse |= 0x10000000;
@@ -365,6 +493,7 @@ func load_io(address uint32) uint32 {
       return 0
     case 28: 
       // Keyboard input
+      if trace { fmt.Printf("KEYBOARD INPUT\n") }
 //      if (risc->key_cnt > 0) {
 //        uint8_t scancode = risc->key_buf[0];
 //        risc->key_cnt--;
@@ -375,6 +504,7 @@ func load_io(address uint32) uint32 {
     
     case 40: 
       // Clipboard control
+      if trace { fmt.Printf("CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_control(risc->clipboard);
 //      }
@@ -382,20 +512,26 @@ func load_io(address uint32) uint32 {
     
     case 44: 
       // Clipboard data
+      if trace { fmt.Printf("CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_data(risc->clipboard);
 //      }
       return 0
    
     default: 
+      if trace { fmt.Printf("IO DEFAULT FALLTHROUGH ") }
       return 0
     
   }
 }
 
+func spi_write_data(spi, value uint32){
+}
+
 func store_io(address, value uint32) {
   switch (address - IOStart) {
     case 4: 
+      msgtrace(&risc, fmt.Sprintf("%08x -> LED CONTROL ",value))
       // LED control
 //      if (risc->leds) {
 //        risc->leds->write(risc->leds, value);
@@ -404,17 +540,17 @@ func store_io(address, value uint32) {
     
     case 8: 
       // RS232 data
+      if trace { fmt.Printf("RS232 DATA ") }
 //      if (risc->serial) {
 //        risc->serial->write_data(risc->serial, value);
 //      }
       
     
     case 16: 
-      // SPI write
-//      const struct RISC_SPI *spi = risc->spi[risc->spi_selected];
-//      if (spi != NULL) {
-//        spi->write_data(spi, value);
-//      }
+     // SPI write
+        spi_write_data(risc.spi_selected, value);
+        msgtrace(&risc, fmt.Sprintf("%08x to SPI DATA ",value))
+
       
     
     case 20: 
@@ -423,11 +559,13 @@ func store_io(address, value uint32) {
       // Bit 2:   fast mode
       // Bit 3:   netwerk enable
       // Other bits unused
-//      risc->spi_selected = value & 3;
+      risc.spi_selected = value & 3;
+        msgtrace(&risc, fmt.Sprintf("%08x to SPI CONTROL ",value & 3))
       
     
     case 40: 
       // Clipboard control
+        if trace { fmt.Printf("CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        risc->clipboard->write_control(risc->clipboard, value);
 //      }
@@ -435,6 +573,7 @@ func store_io(address, value uint32) {
     
     case 44: 
       // Clipboard data
+        if trace { fmt.Printf("CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        risc->clipboard->write_data(risc->clipboard, value);
 //      }
@@ -443,8 +582,13 @@ func store_io(address, value uint32) {
   }
 }
 
+var trace bool
 
 func step() {
+  
+  trace = true
+
+
   var ir uint32
   switch{
   case risc.PC < MemWords :
@@ -456,12 +600,11 @@ func step() {
     reset()
     return
   }
-  risc.PC=risc.PC+1
 
-  const pbit = 0x80000000
-  const qbit = 0x40000000
-  const ubit = 0x20000000
-  const vbit = 0x10000000
+//  fmt.Printf("%s %x, %x ","step",risc.PC,ir)
+  risc.PC=risc.PC+1
+  rtrace(&risc,ir)
+  risc.icount++
 
   if ir & pbit == 0 {
     // Register instructions
@@ -480,9 +623,9 @@ func step() {
     } else {
       c_val = 0xFFFF0000 | im;
     }
-
+    
     switch op {
-    case MOV: 
+    case MOV:
         if ((ir & ubit) == 0) {
           a_val = c_val
         } else if ((ir & qbit) != 0) {
@@ -500,32 +643,25 @@ func step() {
       
     case LSL: 
         a_val = b_val << (c_val & 31)
-     
       
     case ASR: 
         a_val = (b_val) >> (c_val & 31)
-       
       
     case ROR: 
         a_val = (b_val >> (c_val & 31)) | (b_val << (-c_val & 31));
      
-      
     case AND: 
         a_val = b_val & c_val
         
-      
     case ANN: 
         a_val = b_val & ^c_val
      
-      
     case IOR: 
         a_val = b_val | c_val
         
-      
     case XOR: 
         a_val = b_val ^ c_val
         
-      
     case ADD: 
         a_val = b_val + c_val
         if (((ir & ubit) != 0)&&risc.C) {
@@ -534,7 +670,6 @@ func step() {
         risc.C = a_val < b_val
         risc.V = (((a_val ^ c_val) & (a_val ^ b_val)) >> 31) != 0
         
-      
     case SUB: 
         a_val = b_val - c_val
         if (((ir & ubit) != 0)&&risc.C) {
@@ -572,7 +707,6 @@ func step() {
           a_val,risc.H = idiv(b_val, c_val, (ir & ubit) != 0)
         }
         
-     
     case FAD: 
 	a_val = fp_add(b_val, c_val, (ir & ubit)!=0, (ir & vbit)!=0)
         
@@ -657,9 +791,10 @@ func step() {
 
 
 func main() {
-	fmt.Printf("Initializing IO\n")
 	reset()
-	step()
+	for i:=0;i<1000;i++{
+	  step()
+	}
 	fmt.Printf("%+v\n",risc.PC)
 }
 
