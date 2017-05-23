@@ -19,10 +19,14 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"io/ioutil"
 	"strings"
 	"strconv"
 )
+
+const TRACEMIN =  6600000
+const TRACEMAX = 10000000
 
 const MemSize=     0x00180000
 const MemWords=    (MemSize / 4)
@@ -78,22 +82,42 @@ const(
 )
 
 
+const ( // DiskState
+  diskCommand = iota
+  diskRead
+  diskWrite
+  diskWriting
+)
 
+type Disk struct {
+//  struct RISC_SPI spi;
+
+  state uint32
+  file *os.File
+  offset uint32
+
+  rx_buf [128]uint32
+  rx_idx int
+
+  tx_buf [128+2]uint32
+  tx_cnt int
+  tx_idx int
+}
 
 var risc RISC
 var  RAM [MemWords]uint32
 var  ROM [ROMWords]uint32
-
+var disk Disk
 
 func msgtrace(risc * RISC,s string){
-    if (risc.icount<1000){
+    if (risc.icount<TRACEMAX && risc.icount>TRACEMIN){
 	fmt.Printf("%s",s)
     }
 }
 
 func rtrace(risc * RISC, ir uint32){
 //  if (risc != nil){
-    if (risc.icount<1000){
+    if (risc.icount<TRACEMAX && risc.icount>TRACEMIN){
       risc.OPC=risc.PC;
       for i:=0; i<16; i++ {
          if  risc.OR[i] != risc.R[i] {
@@ -145,14 +169,22 @@ func rtrace(risc * RISC, ir uint32){
         }
       } else if ((ir & qbit) == 0) {
         if ((ir & ubit) == 0) {
-            opcode="LD "
-        }else{
-            opcode="ST "
+          if (ir & vbit) == 0 {
+            opcode="LDW" 
+          }else{
+            opcode="LDB"
+          } 
+         }else{
+          if (ir & vbit) == 0 {
+            opcode="STW"
+          }else{
+            opcode="STB"
+          }
         }
       }else{
             opcode="BR "
       }
-      fmt.Printf("\n%6d %x %s",risc.icount, risc.PC -1, opcode );
+      fmt.Printf("\n%6d %08x %s",risc.icount, risc.PC -1, opcode );
     }
 //  }
 }
@@ -177,6 +209,17 @@ func reset() {
 	     }
            }
         }
+	f,err:=os.OpenFile("Oberon-2016-08-02.dsk", os.O_RDWR, 0644)
+        if err != nil {
+          panic(err)
+        }else{
+	  disk.file=f
+	}
+	disk.state = diskCommand
+	disk.offset = 0x80002
+	RAM[DisplayStart/4] = 0x53697A66;  // magic value 'SIZE'+1
+	RAM[DisplayStart/4+1] = 1024;
+	RAM[DisplayStart/4+2] = 768;
 }
 
 
@@ -383,7 +426,7 @@ func set_register(reg uint32, value uint32) {
 
 func load_word(address uint32) uint32{
   if (address < MemSize) {
-    msgtrace(&risc, fmt.Sprintf("%08x from MEMORY LOCATION %08x ",RAM[address/4],address/4))
+    msgtrace(&risc, fmt.Sprintf(" %08x from MEMORY LOCATION %08x ",RAM[address/4],address/4))
     return RAM[address/4]
   } else {
     return load_io(address)
@@ -399,7 +442,7 @@ func load_byte(address uint32) byte {
   }
   b:=byte(w >> (address % 4 * 8))
 
-  msgtrace(&risc, fmt.Sprintf("%02x from MEMORY LOCATION %08x ",b,address/4))
+  msgtrace(&risc, fmt.Sprintf(" %02x from MEMORY LOCATION %08x ",b,address/4))
   return b
 
 }
@@ -407,10 +450,10 @@ func load_byte(address uint32) byte {
 
 func store_word(address, value uint32) {
   if (address < DisplayStart) {
-    msgtrace(&risc, fmt.Sprintf("%08x to MEMORY LOCATION %08x ",value,address/4))
+    msgtrace(&risc, fmt.Sprintf(" %08x to MEMORY LOCATION %08x ",value,address/4))
     RAM[address/4] = value
   } else if (address < MemSize) {
-    msgtrace(&risc, fmt.Sprintf("%08x to VIDEO LOCATION %08x ",value,address/4))
+    msgtrace(&risc, fmt.Sprintf(" %08x to VIDEO LOCATION %08x ",value,address/4))
     RAM[address/4] = value
 //    risc_update_damage(risc, address/4 - DisplayStart/4)
   } else {
@@ -420,10 +463,10 @@ func store_word(address, value uint32) {
 
 func store_byte(address uint32, value uint8) {
   if (address < MemSize) {
-    if trace { fmt.Printf("MEMORY BYTE ") }
+//    if trace { fmt.Printf("MEMORY BYTE ") }
     w := uint32(load_word(address))
     shift := uint32((address & 3) * 8)
-    w = w ^ (0xFF << shift)
+    w = w & (^ (0xFF << shift))
     w = w | uint32(value) << shift
     store_word(address, w)
   } else {
@@ -432,22 +475,129 @@ func store_byte(address uint32, value uint8) {
   }
 }
 
+func spi_read_data( spi_selected uint32) uint32 {
+
+  var result uint32 = 255
+  if (spi_selected==1)&&(disk.tx_idx >= 0 && disk.tx_idx < disk.tx_cnt) {
+    result = disk.tx_buf[disk.tx_idx];
+  } 
+  return result;  
+
+}
+
+func disk_run_command(){
+//  fmt.Printf(" DISK-OPERATION ")
+  cmd := disk.rx_buf[0]
+  arg := (disk.rx_buf[1] << 24) | (disk.rx_buf[2] << 16) | (disk.rx_buf[3] << 8) | disk.rx_buf[4]
+
+  switch (cmd) {
+    case 81: 
+      disk.state = diskRead
+      disk.tx_buf[0] = 0
+      disk.tx_buf[1] = 254
+      _,err := disk.file.Seek( int64((arg - disk.offset) * 512), 0)
+      if err!= nil {
+	fmt.Println("Disk Seek Error",err)
+      }
+//      read_sector(disk.file, &disk.tx_buf[2]);
+ 
+      read_sector()
+      disk.tx_cnt = 2 + 128
+      
+    case 88: 
+      disk.state = diskWrite
+//      fseek(disk.file, (arg - disk.offset) * 512, SEEK_SET);
+      disk.tx_buf[0] = 0
+      disk.tx_cnt = 1
+      
+    default: 
+      disk.tx_buf[0] = 0
+      disk.tx_cnt = 1
+      
+  }
+  disk.tx_idx = -1
+}
+
+func write_sector(){
+  fmt.Printf(" WRITING SECTOR ")
+}
+
+func read_sector(){
+//  fmt.Printf(" READING SECTOR ")
+  bytes := make([]byte, 512)
+  _,err := disk.file.Read(bytes)
+  if err!= nil {
+    fmt.Println("Disk Read Error",err)
+  }
+  for i := 0; i < 128; i++ {
+    disk.tx_buf[i+2] = uint32(bytes[i*4+0]) | (uint32(bytes[i*4+1]) << 8) | (uint32(bytes[i*4+2]) << 16) | (uint32(bytes[i*4+3]) << 24)
+  }
+}
+
+func spi_write_data(spi, value uint32){
+ if spi == 1 {
+  disk.tx_idx++
+  switch (disk.state) {
+    case diskCommand: 
+      if (uint8(value) != 0xFF || disk.rx_idx != 0) {
+        disk.rx_buf[disk.rx_idx] = value
+        disk.rx_idx++
+        if (disk.rx_idx == 6) {
+         disk_run_command()
+          disk.rx_idx = 0
+        }
+      }
+      
+    case diskRead: 
+      if (disk.tx_idx == disk.tx_cnt) {
+        disk.state = diskCommand;
+        disk.tx_cnt = 0;
+        disk.tx_idx = 0;
+      }
+     
+    case diskWrite: 
+      if (value == 254) {
+        disk.state = diskWriting;
+      }
+      
+    case diskWriting: 
+      if (disk.rx_idx < 128) {
+        disk.rx_buf[disk.rx_idx] = value;
+      }
+      disk.rx_idx++;
+      if (disk.rx_idx == 128) {
+//        write_sector(disk.file, &disk.rx_buf[0]);
+        write_sector()
+      }
+      if (disk.rx_idx == 130) {
+        disk.tx_buf[0] = 5;
+        disk.tx_cnt = 1;
+        disk.tx_idx = -1;
+        disk.rx_idx = 0;
+        disk.state = diskCommand;
+      }
+      
+  }
+ }
+}
+
+
 func load_io(address uint32) uint32 {
   switch (address - IOStart) {
     case 0: 
       // Millisecond counter
-      if trace { fmt.Printf("MS COUNTER") }
+      if trace { fmt.Printf(" MS COUNTER") }
       risc.progress--
       return risc.current_tick
     
     case 4: 
       // Switches
-      if trace { fmt.Printf("SWITCHES") }
+      if trace { fmt.Printf(" SWITCHES") }
       return 0
     
     case 8: 
       // RS232 data
-      if trace { fmt.Printf("RS232 DATA") }
+      if trace { fmt.Printf(" RS232 DATA") }
 //      if (risc->serial) {
 //        return risc->serial->read_data(risc->serial);
 //      }
@@ -455,7 +605,7 @@ func load_io(address uint32) uint32 {
     
     case 12: 
       // RS232 status
-      if trace { fmt.Printf("RS232 STATUS") }
+      if trace { fmt.Printf(" RS232 STATUS") }
 //      if (risc->serial) {
 //        return risc->serial->read_status(risc->serial);
 //      }
@@ -464,25 +614,26 @@ func load_io(address uint32) uint32 {
     case 16: 
       // SPI data
         var value uint32 = 255
-        msgtrace(&risc, fmt.Sprintf("%08x from SPI DATA ",value))
+        value=spi_read_data(risc.spi_selected)
+        msgtrace(&risc, fmt.Sprintf(" %08x from SPI%d DATA ",value,risc.spi_selected))
 
 //      const struct RISC_SPI *spi = risc->spi[risc->spi_selected];
 //      if (spi != NULL) {
 //        return spi->read_data(spi);
 //      }
-      return 255
+      return value
     
     case 20: 
       // SPI status
       // Bit 0: rx ready
       // Other bits unused
       var value uint32 = 1
-      msgtrace(&risc, fmt.Sprintf("%08x from SPI STATUS ",value))
+      msgtrace(&risc, fmt.Sprintf(" %08x from SPI STATUS ",value))
       return 1
     
     case 24: 
       // Mouse input / keyboard status
-      if trace { fmt.Printf("MOUSE/KEYBOARD STATUS") }
+      if trace { fmt.Printf(" MOUSE/KEYBOARD STATUS") }
 //      uint32_t mouse = risc->mouse;
 //      if (risc->key_cnt > 0) {
 //        mouse |= 0x10000000;
@@ -493,7 +644,7 @@ func load_io(address uint32) uint32 {
       return 0
     case 28: 
       // Keyboard input
-      if trace { fmt.Printf("KEYBOARD INPUT\n") }
+      if trace { fmt.Printf(" KEYBOARD INPUT") }
 //      if (risc->key_cnt > 0) {
 //        uint8_t scancode = risc->key_buf[0];
 //        risc->key_cnt--;
@@ -504,7 +655,7 @@ func load_io(address uint32) uint32 {
     
     case 40: 
       // Clipboard control
-      if trace { fmt.Printf("CLIPBOARD CONTROL ") }
+      if trace { fmt.Printf(" CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_control(risc->clipboard);
 //      }
@@ -512,26 +663,24 @@ func load_io(address uint32) uint32 {
     
     case 44: 
       // Clipboard data
-      if trace { fmt.Printf("CLIPBOARD DATA ") }
+      if trace { fmt.Printf(" CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_data(risc->clipboard);
 //      }
       return 0
    
     default: 
-      if trace { fmt.Printf("IO DEFAULT FALLTHROUGH ") }
+      if trace { fmt.Printf(" IO DEFAULT FALLTHROUGH ") }
       return 0
     
   }
 }
 
-func spi_write_data(spi, value uint32){
-}
 
 func store_io(address, value uint32) {
   switch (address - IOStart) {
     case 4: 
-      msgtrace(&risc, fmt.Sprintf("%08x -> LED CONTROL ",value))
+      msgtrace(&risc, fmt.Sprintf(" %08x -> LED CONTROL ",value))
       // LED control
 //      if (risc->leds) {
 //        risc->leds->write(risc->leds, value);
@@ -540,7 +689,7 @@ func store_io(address, value uint32) {
     
     case 8: 
       // RS232 data
-      if trace { fmt.Printf("RS232 DATA ") }
+      if trace { fmt.Printf(" RS232 DATA ") }
 //      if (risc->serial) {
 //        risc->serial->write_data(risc->serial, value);
 //      }
@@ -549,7 +698,7 @@ func store_io(address, value uint32) {
     case 16: 
      // SPI write
         spi_write_data(risc.spi_selected, value);
-        msgtrace(&risc, fmt.Sprintf("%08x to SPI DATA ",value))
+        msgtrace(&risc, fmt.Sprintf(" %08x to SPI%d DATA ",value,risc.spi_selected))
 
       
     
@@ -560,12 +709,12 @@ func store_io(address, value uint32) {
       // Bit 3:   netwerk enable
       // Other bits unused
       risc.spi_selected = value & 3;
-        msgtrace(&risc, fmt.Sprintf("%08x to SPI CONTROL ",value & 3))
+        msgtrace(&risc, fmt.Sprintf(" %08x to SPI CONTROL ",value & 3))
       
     
     case 40: 
       // Clipboard control
-        if trace { fmt.Printf("CLIPBOARD CONTROL ") }
+        if trace { fmt.Printf(" CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        risc->clipboard->write_control(risc->clipboard, value);
 //      }
@@ -573,7 +722,7 @@ func store_io(address, value uint32) {
     
     case 44: 
       // Clipboard data
-        if trace { fmt.Printf("CLIPBOARD DATA ") }
+        if trace { fmt.Printf(" CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        risc->clipboard->write_data(risc->clipboard, value);
 //      }
@@ -645,7 +794,7 @@ func step() {
         a_val = b_val << (c_val & 31)
       
     case ASR: 
-        a_val = (b_val) >> (c_val & 31)
+        a_val = uint32(int32((b_val)) >> (c_val & 31))
       
     case ROR: 
         a_val = (b_val >> (c_val & 31)) | (b_val << (-c_val & 31));
@@ -792,7 +941,7 @@ func step() {
 
 func main() {
 	reset()
-	for i:=0;i<1000;i++{
+	for i:=0;i<TRACEMAX;i++{
 	  step()
 	}
 	fmt.Printf("%+v\n",risc.PC)
