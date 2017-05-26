@@ -23,10 +23,15 @@ import (
 	"io/ioutil"
 	"strings"
 	"strconv"
+	"gofb/framebuffer"
+	
+	"github.com/fogleman/gg"
+	"image"
+	
 )
 
-const TRACEMIN =  6600000
-const TRACEMAX = 10000000
+const TRACEMIN = 100000000
+const TRACEMAX = 100000000
 
 const MemSize=     0x00180000
 const MemWords=    (MemSize / 4)
@@ -455,6 +460,20 @@ func store_word(address, value uint32) {
   } else if (address < MemSize) {
     msgtrace(&risc, fmt.Sprintf(" %08x to VIDEO LOCATION %08x ",value,address/4))
     RAM[address/4] = value
+//    if address < DisplayStart+(64*768){
+      for pi:=0;pi<32;pi++{
+	pxc:=uint32(0)
+	if value & (1 << uint32(pi) ) != 0 { pxc = uint32(255) }
+//	pxc:=uint32((value >> uint32(pi)) & 1)
+        fbo:=((address)-(DisplayStart))/4        
+        fby:=fbo/32
+	fbx:=(fbo%32)*32+uint32(pi)
+        if int(fby) < 768 && int(fbx) < 1024 {
+	  fb.SetPixel(int(fbx),int(768-fby),pxc,pxc,pxc,255)
+//	  fmt.Println(fbx,fby,pxc)
+        }
+      }
+//    }
 //    risc_update_damage(risc, address/4 - DisplayStart/4)
   } else {
     store_io(address, value)
@@ -586,18 +605,18 @@ func load_io(address uint32) uint32 {
   switch (address - IOStart) {
     case 0: 
       // Millisecond counter
-      if trace { fmt.Printf(" MS COUNTER") }
+//      if trace { fmt.Printf(" MS COUNTER") }
       risc.progress--
       return risc.current_tick
     
     case 4: 
       // Switches
-      if trace { fmt.Printf(" SWITCHES") }
+//      if trace { fmt.Printf(" SWITCHES") }
       return 0
     
     case 8: 
       // RS232 data
-      if trace { fmt.Printf(" RS232 DATA") }
+//      if trace { fmt.Printf(" RS232 DATA") }
 //      if (risc->serial) {
 //        return risc->serial->read_data(risc->serial);
 //      }
@@ -605,7 +624,7 @@ func load_io(address uint32) uint32 {
     
     case 12: 
       // RS232 status
-      if trace { fmt.Printf(" RS232 STATUS") }
+//      if trace { fmt.Printf(" RS232 STATUS") }
 //      if (risc->serial) {
 //        return risc->serial->read_status(risc->serial);
 //      }
@@ -633,7 +652,7 @@ func load_io(address uint32) uint32 {
     
     case 24: 
       // Mouse input / keyboard status
-      if trace { fmt.Printf(" MOUSE/KEYBOARD STATUS") }
+//      if trace { fmt.Printf(" MOUSE/KEYBOARD STATUS") }
 //      uint32_t mouse = risc->mouse;
 //      if (risc->key_cnt > 0) {
 //        mouse |= 0x10000000;
@@ -644,7 +663,7 @@ func load_io(address uint32) uint32 {
       return 0
     case 28: 
       // Keyboard input
-      if trace { fmt.Printf(" KEYBOARD INPUT") }
+//      if trace { fmt.Printf(" KEYBOARD INPUT") }
 //      if (risc->key_cnt > 0) {
 //        uint8_t scancode = risc->key_buf[0];
 //        risc->key_cnt--;
@@ -655,7 +674,7 @@ func load_io(address uint32) uint32 {
     
     case 40: 
       // Clipboard control
-      if trace { fmt.Printf(" CLIPBOARD CONTROL ") }
+//      if trace { fmt.Printf(" CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_control(risc->clipboard);
 //      }
@@ -663,14 +682,14 @@ func load_io(address uint32) uint32 {
     
     case 44: 
       // Clipboard data
-      if trace { fmt.Printf(" CLIPBOARD DATA ") }
+//      if trace { fmt.Printf(" CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_data(risc->clipboard);
 //      }
       return 0
    
     default: 
-      if trace { fmt.Printf(" IO DEFAULT FALLTHROUGH ") }
+//      if trace { fmt.Printf(" IO DEFAULT FALLTHROUGH ") }
       return 0
     
   }
@@ -937,13 +956,70 @@ func step() {
   }
 }
 
+var fb *framebuffer.Framebuffer
+var dc *gg.Context
 
+func initfb(){
+
+	fb = framebuffer.NewFramebuffer()
+//	defer 	fb.Release()
+
+	fb.Init()
+
+	const S = 1024
+	w:=fb.Xres
+	h:=fb.Yres
+	dc = gg.NewContext(w,h)
+	dc.DrawRectangle(0,0,float64(w),float64(h))
+	dc.SetRGB(1, 1, 1)
+	dc.Fill()
+
+
+	f,err:=os.Open("./flower.png")
+	if err!=nil {
+		panic(err.Error())
+	}
+
+	flower,_,err:=image.Decode(f)
+	if err!=nil {
+		panic(err.Error())
+	}
+
+	dc.DrawImage(flower,w-flower.Bounds().Max.X,h-flower.Bounds().Max.Y)
+
+	dc.SetRGBA(0, 0, 0, 0.1)
+	for i := 0; i < 360; i += 15 {
+		dc.Push()
+		dc.RotateAbout(gg.Radians(float64(i)), S/2, S/2)
+		dc.DrawEllipse(S/2, S/2, S*7/16, S/8)
+		dc.Fill()
+		dc.Pop()
+	}
+        for i:=0;i<fb.Yres;i++{
+		dc.SetPixel(i,i)
+
+	}
+
+
+	fb.DrawImage(0,0,dc.Image())
+        for i:=0;i<fb.Yres;i++{
+                fb.SetPixel(fb.Yres-i,i,255,255,255,255)
+
+        }
+
+}
 
 func main() {
+
+	initfb()
+
+
 	reset()
 	for i:=0;i<TRACEMAX;i++{
 	  step()
 	}
 	fmt.Printf("%+v\n",risc.PC)
+
+        fb.Release()
 }
 
