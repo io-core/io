@@ -653,14 +653,15 @@ func load_io(address uint32) uint32 {
     case 24: 
       // Mouse input / keyboard status
 //      if trace { fmt.Printf(" MOUSE/KEYBOARD STATUS") }
-//      uint32_t mouse = risc->mouse;
-//      if (risc->key_cnt > 0) {
-//        mouse |= 0x10000000;
+      mouse := risc.mouse
+      if risc.key_cnt > 0 {
+        mouse = mouse | 0x10000000
 //      } else {
 //        risc->progress--;
-//      }
-//      return mouse;
-      return 0
+      }
+ //     fmt.Printf(" %02x %03x %03x \n",(mouse >> 24),(mouse & 0x00FFF000)>>12,(mouse & 0x00000FFF));
+       return mouse
+      
     case 28: 
       // Keyboard input
 //      if trace { fmt.Printf(" KEYBOARD INPUT") }
@@ -1009,13 +1010,51 @@ func initfb(){
 
 }
 
+type mmsg struct {
+	a byte
+	b int8
+	c int8
+}
+
 func main() {
 
 	initfb()
 
+	sayChan := make(chan mmsg)  
+        f, err := os.Open("/dev/input/mice")
+        if err != nil { fmt.Println(err) }
+	go func() {
+	    for {
+		b1 := make([]byte, 3)
+		_, err := f.Read(b1)
+	      if err != nil {
+	        fmt.Println(err)
+	        sayChan <- mmsg{0,0,0}
+	        return
+	      }
+	      sayChan <- mmsg{b1[0],int8(b1[1]),int8(b1[2])}
+	    }
+	}()
+
+	go func() {
+	  
+	  for {
+	    m := <- sayChan
+//	    mb := risc.mouse & 0xFF000000
+	    mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
+	    my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
+	    mbl := m.a & 1
+	    mbm :=  (m.a & 4 ) >> 2 
+	    mbr :=  (m.a & 2 ) >> 1
+	    risc.mouse=uint32(mbr)<<26|uint32(mbm)<<25|uint32(mbl)<<24| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
+ //           fmt.Printf(" %02x %03x %03x \n",(risc.mouse >> 24),(risc.mouse & 0x00FFF000)>>12,(risc.mouse & 0x00000FFF));
+ //	    fmt.Println(m.a,m.b,m.c,mb>>24,mx,my,mbl,mbm,mbr)
+	  }
+	}()
 
 	reset()
-	for i:=0;i<TRACEMAX;i++{
+//	for i:=0;i<TRACEMAX;i++{
+	for {
 	  step()
 	}
 	fmt.Printf("%+v\n",risc.PC)
