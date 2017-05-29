@@ -20,6 +20,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"io/ioutil"
 	"strings"
 	"strconv"
@@ -1026,6 +1027,11 @@ type kmsg struct {
 }
 
 func main() {
+
+
+  cmd := exec.Command("stty", "-echo")
+  cmd.Stdin = os.Stdin
+  _, _ = cmd.Output()
 
 	initfb()
 
