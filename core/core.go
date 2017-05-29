@@ -26,14 +26,14 @@ import (
 	"gofb/framebuffer"
 	
 	"github.com/fogleman/gg"
-	"image"
+//	"image"
 	
 )
 
 const TRACEMIN = 100000000
 const TRACEMAX = 100000000
 
-const MemSize=     0x00180000
+const MemSize=     0x00280000
 const MemWords=    (MemSize / 4)
 const ROMStart=    0xFFFFF800
 const ROMWords=    512
@@ -64,6 +64,8 @@ type RISC struct {
   mouse uint32
   key_buf [16]byte
   key_cnt uint32
+  fbw uint32
+  fbh uint32
 }
 
 
@@ -222,9 +224,11 @@ func reset() {
 	}
 	disk.state = diskCommand
 	disk.offset = 0x80002
-	RAM[DisplayStart/4] = 0x53697A66;  // magic value 'SIZE'+1
-	RAM[DisplayStart/4+1] = 1024;
-	RAM[DisplayStart/4+2] = 768;
+	RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
+	RAM[DisplayStart/4+1] = risc.fbw
+	RAM[DisplayStart/4+2] = risc.fbh
+//	risc.fbw=1600
+//	risc.fbh=890
 }
 
 
@@ -460,20 +464,19 @@ func store_word(address, value uint32) {
   } else if (address < MemSize) {
     msgtrace(&risc, fmt.Sprintf(" %08x to VIDEO LOCATION %08x ",value,address/4))
     RAM[address/4] = value
-//    if address < DisplayStart+(64*768){
-      for pi:=0;pi<32;pi++{
+
+    for pi:=0;pi<32;pi++{
 	pxc:=uint32(0)
 	if value & (1 << uint32(pi) ) != 0 { pxc = uint32(255) }
-//	pxc:=uint32((value >> uint32(pi)) & 1)
         fbo:=((address)-(DisplayStart))/4        
-        fby:=fbo/32
-	fbx:=(fbo%32)*32+uint32(pi)
-        if int(fby) < 768 && int(fbx) < 1024 {
-	  fb.SetPixel(int(fbx),int(768-fby),pxc,pxc,pxc,255)
-//	  fmt.Println(fbx,fby,pxc)
+        fby:=fbo/(risc.fbw/32)
+	fbx:=((fbo*32)%risc.fbw)+uint32(pi)
+        if int(fby) < int(risc.fbh) && int(fbx) < int(risc.fbw) {
+	  fb.SetPixel(int(fbx),int(risc.fbh-fby),pxc,pxc,pxc,255)
+
         }
-      }
-//    }
+    }
+
 //    risc_update_damage(risc, address/4 - DisplayStart/4)
   } else {
     store_io(address, value)
@@ -968,45 +971,45 @@ func initfb(){
 	fb.Init()
 
 	const S = 1024
-	w:=fb.Xres
-	h:=fb.Yres
-	dc = gg.NewContext(w,h)
-	dc.DrawRectangle(0,0,float64(w),float64(h))
-	dc.SetRGB(1, 1, 1)
-	dc.Fill()
+	risc.fbw=uint32(fb.Xres)
+	risc.fbh=uint32(fb.Yres)-1
+//	dc = gg.NewContext(w,h)
+//	dc.DrawRectangle(0,0,float64(w),float64(h))
+//	dc.SetRGB(1, 1, 1)
+//	dc.Fill()
 
 
-	f,err:=os.Open("./flower.png")
-	if err!=nil {
-		panic(err.Error())
-	}
+//	f,err:=os.Open("./flower.png")
+//	if err!=nil {
+//		panic(err.Error())
+//	}
 
-	flower,_,err:=image.Decode(f)
-	if err!=nil {
-		panic(err.Error())
-	}
+//	flower,_,err:=image.Decode(f)
+//	if err!=nil {
+//		panic(err.Error())
+//	}
 
-	dc.DrawImage(flower,w-flower.Bounds().Max.X,h-flower.Bounds().Max.Y)
+//	dc.DrawImage(flower,w-flower.Bounds().Max.X,h-flower.Bounds().Max.Y)
 
-	dc.SetRGBA(0, 0, 0, 0.1)
-	for i := 0; i < 360; i += 15 {
-		dc.Push()
-		dc.RotateAbout(gg.Radians(float64(i)), S/2, S/2)
-		dc.DrawEllipse(S/2, S/2, S*7/16, S/8)
-		dc.Fill()
-		dc.Pop()
-	}
-        for i:=0;i<fb.Yres;i++{
-		dc.SetPixel(i,i)
+//	dc.SetRGBA(0, 0, 0, 0.1)
+//	for i := 0; i < 360; i += 15 {
+//		dc.Push()
+//		dc.RotateAbout(gg.Radians(float64(i)), S/2, S/2)
+//		dc.DrawEllipse(S/2, S/2, S*7/16, S/8)
+//		dc.Fill()
+//		dc.Pop()
+//	}
+//      for i:=0;i<fb.Yres;i++{
+//		dc.SetPixel(i,i)
+//
+//	}
 
-	}
 
-
-	fb.DrawImage(0,0,dc.Image())
-        for i:=0;i<fb.Yres;i++{
-                fb.SetPixel(fb.Yres-i,i,255,255,255,255)
-
-        }
+//	fb.DrawImage(0,0,dc.Image())
+//        for i:=0;i<fb.Yres;i++{
+//                fb.SetPixel(fb.Yres-i,i,255,255,255,255)
+//
+//        }
 
 }
 
@@ -1016,41 +1019,81 @@ type mmsg struct {
 	c int8
 }
 
+type kmsg struct {
+        a byte
+        b int8
+        c int8
+}
+
 func main() {
 
 	initfb()
 
-	sayChan := make(chan mmsg)  
-        f, err := os.Open("/dev/input/mice")
+	mChan := make(chan mmsg)  
+        fm, err := os.Open("/dev/input/mice")
         if err != nil { fmt.Println(err) }
 	go func() {
 	    for {
 		b1 := make([]byte, 3)
-		_, err := f.Read(b1)
+		_, err := fm.Read(b1)
 	      if err != nil {
 	        fmt.Println(err)
-	        sayChan <- mmsg{0,0,0}
+	        mChan <- mmsg{0,0,0}
 	        return
 	      }
-	      sayChan <- mmsg{b1[0],int8(b1[1]),int8(b1[2])}
+	      mChan <- mmsg{b1[0],int8(b1[1]),int8(b1[2])}
 	    }
 	}()
+        kChan := make(chan kmsg)  
+        fk, err := os.Open("/dev/input/by-path/platform-i8042-serio-0-event-kbd")
+        go func() {
+            for { 
+                b2 := make([]byte, 24)
+                _, err := fk.Read(b2)
+              if err != nil {
+                fmt.Println(err)
+                kChan <- kmsg{0,0,0}
+                return
+              } 
+              if b2[16]==4 && b2[18]==4&&b2[20]<88{	      
+                fmt.Println("press",b2[20])
+         //       kChan <- kmsg{b2[0],int8(b2[1]),int8(b2[2])}
+              }else if b2[16]==1 && b2[20]==0&&b2[18]<88{
+                fmt.Println("release",b2[18])
+         //       kChan <- kmsg{b2[0],int8(b2[1]),int8(b2[2])}
+	      }
+            } 
+        }() 
 
 	go func() {
 	  
 	  for {
-	    m := <- sayChan
-//	    mb := risc.mouse & 0xFF000000
+	    m := <- mChan
 	    mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
 	    my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
 	    mbl := m.a & 1
 	    mbm :=  (m.a & 4 ) >> 2 
 	    mbr :=  (m.a & 2 ) >> 1
 	    risc.mouse=uint32(mbr)<<26|uint32(mbm)<<25|uint32(mbl)<<24| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
- //           fmt.Printf(" %02x %03x %03x \n",(risc.mouse >> 24),(risc.mouse & 0x00FFF000)>>12,(risc.mouse & 0x00000FFF));
- //	    fmt.Println(m.a,m.b,m.c,mb>>24,mx,my,mbl,mbm,mbr)
 	  }
 	}()
+
+        go func() {
+
+          for {
+            m := <- kChan
+            mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
+            my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
+            mbl := m.a & 1
+            mbm :=  (m.a & 4 ) >> 2
+            mbr :=  (m.a & 2 ) >> 1
+            risc.mouse=uint32(mbr)<<26|uint32(mbm)<<25|uint32(mbl)<<24| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
+          }
+        }()
+
+
+
+
 
 	reset()
 //	for i:=0;i<TRACEMAX;i++{
