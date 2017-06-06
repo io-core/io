@@ -19,20 +19,23 @@ package main
 
 import (
 	"fmt"
+	"flag"
+	"context"
+	"os/signal"
 	"os"
 	"os/exec"
 	"io/ioutil"
 	"strings"
 	"strconv"
 	"gofb/framebuffer"
-	
+	"github.com/veandco/go-sdl2/sdl"	
 	"github.com/fogleman/gg"
 //	"image"
 	
 )
 
-const TRACEMIN = 100000000
-const TRACEMAX = 100000000
+const TRACEMIN = 800000
+const TRACEMAX = 800000
 
 const MemSize=     0x00280000
 const MemWords=    (MemSize / 4)
@@ -67,6 +70,8 @@ type RISC struct {
   key_cnt uint32
   fbw uint32
   fbh uint32
+  diskImage string
+  frameDevice string
 }
 
 
@@ -217,7 +222,8 @@ func reset() {
 	     }
            }
         }
-	f,err:=os.OpenFile("Oberon-2016-08-02.dsk", os.O_RDWR, 0644)
+//	f,err:=os.OpenFile("Oberon-2016-08-02.dsk", os.O_RDWR, 0644)
+        f,err:=os.OpenFile(risc.diskImage, os.O_RDWR, 0644)
         if err != nil {
           panic(err)
         }else{
@@ -225,6 +231,7 @@ func reset() {
 	}
 	disk.state = diskCommand
 	disk.offset = 0x80002
+//        disk.offset = 0
 	RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
 	RAM[DisplayStart/4+1] = risc.fbw
 	RAM[DisplayStart/4+2] = risc.fbh
@@ -467,17 +474,32 @@ func store_word(address, value uint32) {
     RAM[address/4] = value
 
     for pi:=0;pi<32;pi++{
-	pxc:=uint32(0)
-	if value & (1 << uint32(pi) ) != 0 { pxc = uint32(255) }
+	pxcr:=uint32(238)
+        pxcg:=uint32(223) 
+        pxcb:=uint32(204) 
+	if value & (1 << uint32(pi) ) != 0 { 
+	  pxcr = uint32(0) 
+          pxcg = uint32(0) 
+          pxcb = uint32(0) 
+	}
         fbo:=((address)-(DisplayStart))/4        
         fby:=fbo/(risc.fbw/32)
 	fbx:=((fbo*32)%risc.fbw)+uint32(pi)
         if int(fby) < int(risc.fbh) && int(fbx) < int(risc.fbw) {
-	  fb.SetPixel(int(fbx),int(risc.fbh-fby),pxc,pxc,pxc,255)
+          if risc.frameDevice == "console" {
+	    fb.SetPixel(int(fbx),int(risc.fbh-fby),pxcr,pxcg,pxcb,255)
+	  }
+          if risc.frameDevice == "X" {
+		xr.SetDrawColor(byte(pxcr), byte(pxcg), byte(pxcb), 255)
+	//	xr.DrawPoint(int(fbx), int(risc.fbh-fby))
+        //        xr.Present()
+                xr.DrawPoint(int(fbx), int(risc.fbh-fby))
+        //        xr.Present()
 
+	  }
         }
+ 
     }
-
 //    risc_update_damage(risc, address/4 - DisplayStart/4)
   } else {
     store_io(address, value)
@@ -522,14 +544,15 @@ func disk_run_command(){
       if err!= nil {
 	fmt.Println("Disk Seek Error",err)
       }
-//      read_sector(disk.file, &disk.tx_buf[2]);
- 
       read_sector()
       disk.tx_cnt = 2 + 128
       
     case 88: 
       disk.state = diskWrite
-//      fseek(disk.file, (arg - disk.offset) * 512, SEEK_SET);
+      _,err := disk.file.Seek( int64((arg - disk.offset) * 512), 0)
+      if err!= nil {
+        fmt.Println("Disk Seek Error",err)
+      } 
       disk.tx_buf[0] = 0
       disk.tx_cnt = 1
       
@@ -542,7 +565,15 @@ func disk_run_command(){
 }
 
 func write_sector(){
-  fmt.Printf(" WRITING SECTOR ")
+//  fmt.Printf(" WRITING SECTOR ")
+  bytes:=make([]byte, 512)
+  for i := 0; i < 128; i++ {
+    bytes[i*4+0] = uint8(disk.rx_buf[i]      )
+    bytes[i*4+1] = uint8(disk.rx_buf[i] >>  8)
+    bytes[i*4+2] = uint8(disk.rx_buf[i] >> 16)
+    bytes[i*4+3] = uint8(disk.rx_buf[i] >> 24)
+  }
+  disk.file.Write(bytes)
 }
 
 func read_sector(){
@@ -669,12 +700,14 @@ func load_io(address uint32) uint32 {
     case 28: 
       // Keyboard input
 //      if trace { fmt.Printf(" KEYBOARD INPUT") }
-//      if (risc->key_cnt > 0) {
-//        uint8_t scancode = risc->key_buf[0];
-//        risc->key_cnt--;
-//        memmove(&risc->key_buf[0], &risc->key_buf[1], risc->key_cnt);
-//        return scancode;
-//      }
+      if (risc.key_cnt > 0) {
+        scancode := risc.key_buf[0]
+        risc.key_cnt--
+        for i:=0; i<int(risc.key_cnt); i++ { 
+           risc.key_buf[i]=risc.key_buf[i+1] 
+        }
+        return uint32(scancode)
+      }
       return 0
     
     case 40: 
@@ -769,7 +802,7 @@ func step() {
   case (risc.PC >= ROMStart/4) && (risc.PC < ROMStart/4 + ROMWords) : 
     ir = ROM[risc.PC - ROMStart/4]
   default: 
-    fmt.Printf("Branched into the void (PC=0x%08X), resetting...\n", risc.PC)
+    fmt.Printf("Branched into the void (PC=0x%08X, I=%d), resetting...\n", risc.PC,risc.icount)
     reset()
     return
   }
@@ -778,6 +811,12 @@ func step() {
   risc.PC=risc.PC+1
   rtrace(&risc,ir)
   risc.icount++
+
+  if risc.icount % 1000 == 0 {
+    if risc.frameDevice == "X" {
+	xr.Present()
+    }
+  }
 
   if ir & pbit == 0 {
     // Register instructions
@@ -963,54 +1002,151 @@ func step() {
 
 var fb *framebuffer.Framebuffer
 var dc *gg.Context
+var window *sdl.Window
+var xi *sdl.Surface
+var xt *sdl.Texture
+var xr *sdl.Renderer
 
 func initfb(){
 
-	fb = framebuffer.NewFramebuffer()
-//	defer 	fb.Release()
+        mChan := make(chan mmsg)
+        kChan := make(chan kmsg)
+        if risc.frameDevice == "console" {
 
-	fb.Init()
+		fb = framebuffer.NewFramebuffer()
+//		defer 	fb.Release()
 
-	const S = 1024
-	risc.fbw=uint32(fb.Xres)
-	risc.fbh=uint32(fb.Yres)-1
-//	dc = gg.NewContext(w,h)
-//	dc.DrawRectangle(0,0,float64(w),float64(h))
-//	dc.SetRGB(1, 1, 1)
-//	dc.Fill()
+		fb.Init()
+
+		const S = 1024
+		risc.fbw=uint32(fb.Xres)
+		risc.fbh=uint32(fb.Yres)-1
+//                risc.fbw=1024
+//                risc.fbh=768
+
+	        fm, err := os.Open("/dev/input/mice")
+	        if err != nil { fmt.Println(err) }
+	        go func() {
+	            for {
+	                b1 := make([]byte, 3)
+	                _, err := fm.Read(b1)
+	              if err != nil {
+	                fmt.Println(err)
+	                mChan <- mmsg{0,0,0}
+	                return
+	              }
+	              mChan <- mmsg{b1[0],int8(b1[1]),int8(b1[2])}
+	            }
+	        }()
+
+       
+	        fk, err := os.Open("/dev/input/by-path/platform-i8042-serio-0-event-kbd")
+	        go func() {
+	            var kstate [256]byte
+	             kc := []byte      {   0,0x76,0x16,0x1e,0x26,0x25,0x2e,0x36,0x3d,0x3e,
+	                                0x46,0x45,0x4e,0x55,0x66,0x0d,0x15,0x1d,0x24,0x2d,
+	                                0x2c,0x35,0x3c,0x43,0x44,0x4D,0x54,0x5b,0x5a,0x14,
+	                                0x1c,0x1b,0x23,0x2b,0x34,0x33,0x3b,0x42,0x4b,0x4c,
+	                                0x52,0x0e,0x12,0x5d,0x1a,0x22,0x21,0x2a,0x32,0x31,
+	                                0x3a,0x41,0x49,0x4a,0x59,  55,0x11,0x29,  58,  59,
+	                                60,61,62,63,64,65,66,67,68,69,
+	                                70,71,72,73,74,75,76,77,78,79,
+	                                80,81,82,83,84,85,86,87,88,89 }
+	            for {
+	                b2 := make([]byte, 24)
+	                _, err := fk.Read(b2)
+	              if err != nil {
+	                fmt.Println(err)
+	                kChan <- kmsg{0,0,0}
+	                return
+	              }
+	              if b2[16]==4 && b2[18]==4 && b2[20]<88 && kstate[b2[20]]!=1{
+	                kstate[b2[20]]=1
+	//                fmt.Println("press",b2[20])
+	                kChan <- kmsg{kc[b2[20]],0,0}
+	              }else if b2[16]==1 && b2[20]==0 && b2[18]<88{
+	                kstate[b2[18]]=0
+	//                fmt.Println("release",b2[18])
+	                kChan <- kmsg{ 0xF0 ,0,0}
+	                kChan <- kmsg{kc[b2[18]] ,0,0}
+	              }
+	            }
+	        }()
 
 
-//	f,err:=os.Open("./flower.png")
-//	if err!=nil {
-//		panic(err.Error())
-//	}
 
-//	flower,_,err:=image.Decode(f)
-//	if err!=nil {
-//		panic(err.Error())
-//	}
+	}
+        if risc.frameDevice == "X" {
 
-//	dc.DrawImage(flower,w-flower.Bounds().Max.X,h-flower.Bounds().Max.Y)
+                sdl.Init(sdl.INIT_EVERYTHING)
 
-//	dc.SetRGBA(0, 0, 0, 0.1)
-//	for i := 0; i < 360; i += 15 {
-//		dc.Push()
-//		dc.RotateAbout(gg.Radians(float64(i)), S/2, S/2)
-//		dc.DrawEllipse(S/2, S/2, S*7/16, S/8)
-//		dc.Fill()
-//		dc.Pop()
-//	}
-//      for i:=0;i<fb.Yres;i++{
-//		dc.SetPixel(i,i)
-//
-//	}
+                window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
+                        1280, 800, sdl.WINDOW_SHOWN)
+                if err != nil {
+                        panic(err)
+                }
+//                defer window.Destroy()
+
+		xr, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create renderer: %s\n", err)
+//			return 2
+		}
+
+		xr.Clear()
+		xt,_ =xr.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, 1280, 800)
+//              xt=xr.CreateTexture()
+		xr.SetDrawColor(0, 0, 255, 255)
+		xr.DrawLine(0, 0, 200, 200)
+		xr.Present()
+//                surface, err := window.GetSurface()
+//                if err != nil { 
+//                        panic(err)
+ //               }
 
 
-//	fb.DrawImage(0,0,dc.Image())
-//        for i:=0;i<fb.Yres;i++{
-//                fb.SetPixel(fb.Yres-i,i,255,255,255,255)
-//
-//        }
+                risc.fbw=uint32(1280)
+                risc.fbh=uint32(800)-1
+
+//                rect := sdl.Rect{0, 0, 200, 200}
+//                surface.FillRect(&rect, 0xffff0000)
+//                window.UpdateSurface()
+
+//                sdl.Delay(1000)
+//                sdl.Quit()
+
+	}
+
+        go func() {
+
+          for {
+            m := <- mChan
+            if m.b > 0 {
+               m.b = m.b*2
+            }
+            mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
+            if m.c > 0 {
+               m.c = m.c*2
+            }
+            my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
+            mbl := m.a & 1
+            mbm :=  (m.a & 4 ) >> 2
+            mbr :=  (m.a & 2 ) >> 1
+            risc.mouse=uint32(mbr)<<24|uint32(mbm)<<25|uint32(mbl)<<26| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
+          }
+        }()
+
+        go func() {
+
+          for {
+            m := <- kChan
+            risc.key_buf[risc.key_cnt]=m.a
+            risc.key_cnt++
+//          fmt.Println(m.a)
+          }
+        }()
+
+
 
 }
 
@@ -1026,80 +1162,48 @@ type kmsg struct {
         c int8
 }
 
+
 func main() {
+	
+        imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
+        devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
+	
+	flag.Parse()
+
+        risc.diskImage=*imagePtr
+	risc.frameDevice=*devicePtr
 
 
-  cmd := exec.Command("stty", "-echo")
-  cmd.Stdin = os.Stdin
-  _, _ = cmd.Output()
+	ctx := context.Background()
+
+	// trap Ctrl+C and call cancel on the context
+	ctx, cancel := context.WithCancel(ctx)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	defer func() {
+		signal.Stop(c)
+		cancel()
+	}()
+
+	go func() {
+		select {
+		case <-c:
+	          cmd := exec.Command("stty", "sane")
+	          cmd.Stdin = os.Stdin
+	          _, _ = cmd.Output()
+		  os.Exit(0)
+		case <-ctx.Done():
+		}
+		cancel()
+	}()
+
+        cmd := exec.Command("stty", "-echo")
+        cmd.Stdin = os.Stdin
+        _, _ = cmd.Output()
 
 	initfb()
 
-	mChan := make(chan mmsg)  
-        fm, err := os.Open("/dev/input/mice")
-        if err != nil { fmt.Println(err) }
-	go func() {
-	    for {
-		b1 := make([]byte, 3)
-		_, err := fm.Read(b1)
-	      if err != nil {
-	        fmt.Println(err)
-	        mChan <- mmsg{0,0,0}
-	        return
-	      }
-	      mChan <- mmsg{b1[0],int8(b1[1]),int8(b1[2])}
-	    }
-	}()
-        kChan := make(chan kmsg)  
-        fk, err := os.Open("/dev/input/by-path/platform-i8042-serio-0-event-kbd")
-        go func() {
-            for { 
-                b2 := make([]byte, 24)
-                _, err := fk.Read(b2)
-              if err != nil {
-                fmt.Println(err)
-                kChan <- kmsg{0,0,0}
-                return
-              } 
-              if b2[16]==4 && b2[18]==4&&b2[20]<88{	      
-                fmt.Println("press",b2[20])
-         //       kChan <- kmsg{b2[0],int8(b2[1]),int8(b2[2])}
-              }else if b2[16]==1 && b2[20]==0&&b2[18]<88{
-                fmt.Println("release",b2[18])
-         //       kChan <- kmsg{b2[0],int8(b2[1]),int8(b2[2])}
-	      }
-            } 
-        }() 
-
-	go func() {
-	  
-	  for {
-	    m := <- mChan
-	    mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
-	    my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
-	    mbl := m.a & 1
-	    mbm :=  (m.a & 4 ) >> 2 
-	    mbr :=  (m.a & 2 ) >> 1
-	    risc.mouse=uint32(mbr)<<26|uint32(mbm)<<25|uint32(mbl)<<24| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
-	  }
-	}()
-
-        go func() {
-
-          for {
-            m := <- kChan
-            mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
-            my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
-            mbl := m.a & 1
-            mbm :=  (m.a & 4 ) >> 2
-            mbr :=  (m.a & 2 ) >> 1
-            risc.mouse=uint32(mbr)<<26|uint32(mbm)<<25|uint32(mbl)<<24| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
-          }
-        }()
-
-
-
-
+	
 
 	reset()
 //	for i:=0;i<TRACEMAX;i++{
