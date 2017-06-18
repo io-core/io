@@ -1104,6 +1104,7 @@ func initfb(){
 
 		   var event sdl.Event
 		   var running bool
+		   var mbl,mbm,mbr uint8
 		   running = true
 		   for running {
 		       for event = sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -1124,51 +1125,21 @@ func initfb(){
 //
 			   case *sdl.MouseMotionEvent: 
 			   	fmt.Printf("[%d ms] Mouse %d %d\n",t.Timestamp,t.X,t.Y)
-//          int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
-//          int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
-//          int x = clamp(scaled_x, 0, risc_rect.w - 1);
-//          int y = clamp(scaled_y, 0, risc_rect.h - 1);
-//          bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
-//          if (mouse_is_offscreen != mouse_was_offscreen) {
-//            SDL_ShowCursor(mouse_is_offscreen);
-//            mouse_was_offscreen = mouse_is_offscreen;
-//          }
-				mChan <- mmsg{ 8 ,int16(t.X),int16(768-t.Y)}
+				mChan <- mmsg{ 8  | (mbm << 2) | (mbr << 1) | mbl,int16(t.X),int16(768-t.Y)}
+			   case *sdl.MouseButtonEvent: 
+			   	fmt.Printf("[%d ms] Mouse %d %d %d %d\n",t.Timestamp,t.Button,t.State,t.X,t.Y)
+				switch t.Button {
+				case 1:
+				     mbl = t.State
+				case 2:
+				     mbm = t.State
+				case 3:
+				     mbr = t.State
+				}
+				mChan <- mmsg{ 8 | (mbm << 2) | (mbr << 1) | mbl ,int16(t.X),int16(768-t.Y)}
+			    
 
-//          risc_mouse_moved(risc, x, risc_rect.h - y - 1);
-//          break;
-//        }
-//
-//        case SDL_MOUSEBUTTONDOWN:
-//        case SDL_MOUSEBUTTONUP: {
-//          bool down = event.button.state == SDL_PRESSED;
-//             SDL_Event event;
-//    while (SDL_PollEvent(&event)) {
-//      switch (event.type) {
-//        case SDL_QUIT: {
-//          done = true;
-//        }
-//
-//        case SDL_WINDOWEVENT: {
-//          if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-//            display_scale = scale_display(window, &risc_rect, &display_rect);
-//          }
-//          break;
-//        }
-//
-//        case SDL_MOUSEMOTION: {
-//          int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
-//          int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
-//          int x = clamp(scaled_x, 0, risc_rect.w - 1);
-//          int y = clamp(scaled_y, 0, risc_rect.h - 1);
-//          bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
-//          if (mouse_is_offscreen != mouse_was_offscreen) {
-//            SDL_ShowCursor(mouse_is_offscreen);
-//            mouse_was_offscreen = mouse_is_offscreen;
-//          }
-//          risc_mouse_moved(risc, x, risc_rect.h - y - 1);
-//          break;
-//        }
+
 //
 //        case SDL_MOUSEBUTTONDOWN:
 //        case SDL_MOUSEBUTTONUP: {
@@ -1216,57 +1187,8 @@ func initfb(){
 //              risc_keyboard_input(risc, ps2_bytes, len);
 //              break;
 //            }
-//          }
-//        }
-//      }
-//    }
-// risc_mouse_button(risc, event.button.button, down);
-//          break;
-//        }
-//
-//        case SDL_KEYDOWN:
-//        case SDL_KEYUP: {
-//          bool down = event.key.state == SDL_PRESSED;
-//          switch (map_keyboard_event(&event.key)) {
-//            case ACTION_RESET: {
-//              risc_reset(risc);
-//              break;
-//            }
-//            case ACTION_TOGGLE_FULLSCREEN: {
-//              fullscreen ^= true;
-//              if (fullscreen) {
-//                SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-//              } else {
-//                SDL_SetWindowFullscreen(window, 0);
-//              }
-//              break;
-//            }
-//            case ACTION_QUIT: {
-//              SDL_PushEvent(&(SDL_Event){ .type=SDL_QUIT });
-//              break;
-//            }
-//            case ACTION_FAKE_MOUSE1: {
-//              risc_mouse_button(risc, 1, down);
-//              break;
-//            }
-//            case ACTION_FAKE_MOUSE2: {
-//              risc_mouse_button(risc, 2, down);
-//              break;
-//            }
-//            case ACTION_FAKE_MOUSE3: {
-//              risc_mouse_button(risc, 3, down);
-//              break;
-//            }
-//            case ACTION_OBERON_INPUT: {
-//              uint8_t ps2_bytes[MAX_PS2_CODE_LEN];
-//              int len = ps2_encode(event.key.keysym.scancode, down, ps2_bytes);
-//              risc_keyboard_input(risc, ps2_bytes, len);
-//              break;
-//            }
-//          }
-//        }
-//      }
-//    }
+
+
 			}
 		   }
 		}
