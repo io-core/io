@@ -41,6 +41,9 @@ const MemSize=     0x00280000
 const MemWords=    (MemSize / 4)
 const ROMStart=    0xFFFFF800
 const ROMWords=    512
+const XWidth=	   1280
+const XHeight=	   768
+const XDepth=	   1
 const DisplayStart=0x000E7F00
 const IOStart=     0xFFFFFFC0
 
@@ -1057,18 +1060,18 @@ func initfb(){
 	                _, err := fk.Read(b2)
 	              if err != nil {
 	                fmt.Println(err)
-	                kChan <- kmsg{0,0,0}
+	                kChan <- kmsg{0}
 	                return
 	              }
 	              if b2[16]==4 && b2[18]==4 && b2[20]<88 && kstate[b2[20]]!=1{
 	                kstate[b2[20]]=1
 	//                fmt.Println("press",b2[20])
-	                kChan <- kmsg{kc[b2[20]],0,0}
+	                kChan <- kmsg{kc[b2[20]]}
 	              }else if b2[16]==1 && b2[20]==0 && b2[18]<88{
 	                kstate[b2[18]]=0
 	//                fmt.Println("release",b2[18])
-	                kChan <- kmsg{ 0xF0 ,0,0}
-	                kChan <- kmsg{kc[b2[18]] ,0,0}
+	                kChan <- kmsg{ 0xF0 }
+	                kChan <- kmsg{kc[b2[18]]}
 	              }
 	            }
 	        }()
@@ -1081,10 +1084,12 @@ func initfb(){
                 sdl.Init(sdl.INIT_EVERYTHING)
 
                 window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-                        1280, 768, sdl.WINDOW_SHOWN)
+                        XWidth, XHeight, sdl.WINDOW_SHOWN)
                 if err != nil {
                         panic(err)
                 }
+
+		sdl.ShowCursor(sdl.DISABLE)
 
 		xr, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
 		if err != nil {
@@ -1092,17 +1097,24 @@ func initfb(){
 		}
 
 		xr.Clear()
-		xt,_ =xr.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, 1280, 768)
+		xt,_ =xr.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, XWidth, XHeight)
 		xr.SetDrawColor(0, 0, 255, 255)
 		xr.DrawLine(0, 0, 200, 200)
 		xr.Present()
 
-                risc.fbw=uint32(1280)
-                risc.fbh=uint32(768)-1
+                risc.fbw=uint32(XWidth)
+                risc.fbh=uint32(XHeight)-1
 
 	        go func() {
 
 		   var event sdl.Event
+	             kc := []byte      {    0,   0,   0,   0,0x1C,0x32,0x21,0x23,0x24,0x2B,
+		     	   	       	 0x34,0x33,0x43,0x3B,0x42,0x4B,0x3A,0x31,0x44,0x4D, 
+		     	   	       	 0x15,0x2D,0x1B,0x2C,0x3C,0x2A,0x1D,0x22,0x35,0x1A, 
+		     	   	       	 0x16,0x1E,0x26,0x25,0x2E,0x36,0x3D,0x3E,0x46,0x45, 
+		     	   	       	 0x5A,0x76,0x66,0x0D,0x29,0x4E,0x55,0x54,0x5B,0x5D, 
+		     	   	       	 0x5D,0x4C,0x52,0x0E,0x41,0x49,0x4A,0x05,0x06,0x04,
+		     	   	       	 0x14,0x12,0x11,0x1F,0x14,0x59,0x11,0x27,   0,   0 }
 		   var running bool
 		   var mbl,mbm,mbr uint8
 		   running = true
@@ -1111,9 +1123,9 @@ func initfb(){
 		       	   switch t := event.(type) {
 			   case *sdl.QuitEvent:
 				running = false
-			   case *sdl.KeyUpEvent:
-				fmt.Printf("[%d ms] Keyboard\ttype:%d\tsym:%c\tmodifiers:%d\tstate:%d\trepeat:%d\n",
-					t.Timestamp, t.Type, t.Keysym.Sym, t.Keysym.Mod, t.State, t.Repeat)
+//			   case *sdl.KeyUpEvent:
+//				fmt.Printf("[%d ms] Keyboard\ttype:%d\tsym:%c\tmodifiers:%d\tstate:%d\trepeat:%d\n",
+//					t.Timestamp, t.Type, t.Keysym.Sym, t.Keysym.Mod, t.State, t.Repeat)
 
 //
 //        case SDL_WINDOWEVENT: {
@@ -1125,7 +1137,7 @@ func initfb(){
 //
 			   case *sdl.MouseMotionEvent: 
 			   	fmt.Printf("[%d ms] Mouse %d %d\n",t.Timestamp,t.X,t.Y)
-				mChan <- mmsg{ 8  | (mbm << 2) | (mbr << 1) | mbl,int16(t.X),int16(768-t.Y)}
+				mChan <- mmsg{ 8  | (mbm << 2) | (mbr << 1) | mbl,int16(t.X),int16(int32(risc.fbh)-t.Y)}
 			   case *sdl.MouseButtonEvent: 
 			   	fmt.Printf("[%d ms] Mouse %d %d %d %d\n",t.Timestamp,t.Button,t.State,t.X,t.Y)
 				switch t.Button {
@@ -1136,26 +1148,22 @@ func initfb(){
 				case 3:
 				     mbr = t.State
 				}
-				mChan <- mmsg{ 8 | (mbm << 2) | (mbr << 1) | mbl ,int16(t.X),int16(768-t.Y)}
+				mChan <- mmsg{ 8 | (mbm << 2) | (mbr << 1) | mbl ,int16(t.X),int16(int32(risc.fbh)-t.Y)}
 			    
+			   case *sdl.KeyDownEvent:
+			   	k:= t.Keysym.Scancode
+				if k > 223 { k = (k - 224) + 60 }
+			   	if k < 68 {
+				  kChan <- kmsg{ kc[k] }
+			   	}
+			   case *sdl.KeyUpEvent:
+			   	k:= t.Keysym.Scancode
+				if k > 223 { k = (k - 224) + 60 }
+			   	if k < 68 { 
+			   	  kChan <- kmsg{ 0xF0 }
+				  kChan <- kmsg{ kc[k] }
+				}
 
-
-//
-//        case SDL_MOUSEBUTTONDOWN:
-//        case SDL_MOUSEBUTTONUP: {
-//          bool down = event.button.state == SDL_PRESSED;
-//          risc_mouse_button(risc, event.button.button, down);
-//          break;
-//        }
-//
-//        case SDL_KEYDOWN:
-//        case SDL_KEYUP: {
-//          bool down = event.key.state == SDL_PRESSED;
-//          switch (map_keyboard_event(&event.key)) {
-//            case ACTION_RESET: {
-//              risc_reset(risc);
-//              break;
-//            }
 //            case ACTION_TOGGLE_FULLSCREEN: {
 //              fullscreen ^= true;
 //              if (fullscreen) {
@@ -1247,8 +1255,6 @@ type mmsg struct {
 
 type kmsg struct {
         a byte
-        b int8
-        c int8
 }
 
 
