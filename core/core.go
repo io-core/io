@@ -1035,7 +1035,7 @@ func initfb(){
 	                mChan <- mmsg{0,0,0}
 	                return
 	              }
-	              mChan <- mmsg{b1[0],int8(b1[1]),int8(b1[2])}
+	              mChan <- mmsg{ b1[0] & 247 ,int16(int8(b1[1])),int16(int8(b1[2]))}
 	            }
 	        }()
 
@@ -1081,39 +1081,199 @@ func initfb(){
                 sdl.Init(sdl.INIT_EVERYTHING)
 
                 window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-                        1280, 800, sdl.WINDOW_SHOWN)
+                        1280, 768, sdl.WINDOW_SHOWN)
                 if err != nil {
                         panic(err)
                 }
-//                defer window.Destroy()
 
 		xr, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to create renderer: %s\n", err)
-//			return 2
 		}
 
 		xr.Clear()
-		xt,_ =xr.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, 1280, 800)
-//              xt=xr.CreateTexture()
+		xt,_ =xr.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, 1280, 768)
 		xr.SetDrawColor(0, 0, 255, 255)
 		xr.DrawLine(0, 0, 200, 200)
 		xr.Present()
-//                surface, err := window.GetSurface()
-//                if err != nil { 
-//                        panic(err)
- //               }
-
 
                 risc.fbw=uint32(1280)
-                risc.fbh=uint32(800)-1
+                risc.fbh=uint32(768)-1
 
-//                rect := sdl.Rect{0, 0, 200, 200}
-//                surface.FillRect(&rect, 0xffff0000)
-//                window.UpdateSurface()
+	        go func() {
 
-//                sdl.Delay(1000)
-//                sdl.Quit()
+		   var event sdl.Event
+		   var running bool
+		   running = true
+		   for running {
+		       for event = sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+		       	   switch t := event.(type) {
+			   case *sdl.QuitEvent:
+				running = false
+			   case *sdl.KeyUpEvent:
+				fmt.Printf("[%d ms] Keyboard\ttype:%d\tsym:%c\tmodifiers:%d\tstate:%d\trepeat:%d\n",
+					t.Timestamp, t.Type, t.Keysym.Sym, t.Keysym.Mod, t.State, t.Repeat)
+
+//
+//        case SDL_WINDOWEVENT: {
+//          if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+//            display_scale = scale_display(window, &risc_rect, &display_rect);
+//          }
+//          break;
+//        }
+//
+			   case *sdl.MouseMotionEvent: 
+			   	fmt.Printf("[%d ms] Mouse %d %d\n",t.Timestamp,t.X,t.Y)
+//          int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
+//          int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
+//          int x = clamp(scaled_x, 0, risc_rect.w - 1);
+//          int y = clamp(scaled_y, 0, risc_rect.h - 1);
+//          bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
+//          if (mouse_is_offscreen != mouse_was_offscreen) {
+//            SDL_ShowCursor(mouse_is_offscreen);
+//            mouse_was_offscreen = mouse_is_offscreen;
+//          }
+				mChan <- mmsg{ 8 ,int16(t.X),int16(768-t.Y)}
+
+//          risc_mouse_moved(risc, x, risc_rect.h - y - 1);
+//          break;
+//        }
+//
+//        case SDL_MOUSEBUTTONDOWN:
+//        case SDL_MOUSEBUTTONUP: {
+//          bool down = event.button.state == SDL_PRESSED;
+//             SDL_Event event;
+//    while (SDL_PollEvent(&event)) {
+//      switch (event.type) {
+//        case SDL_QUIT: {
+//          done = true;
+//        }
+//
+//        case SDL_WINDOWEVENT: {
+//          if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+//            display_scale = scale_display(window, &risc_rect, &display_rect);
+//          }
+//          break;
+//        }
+//
+//        case SDL_MOUSEMOTION: {
+//          int scaled_x = (int)round((event.motion.x - display_rect.x) / display_scale);
+//          int scaled_y = (int)round((event.motion.y - display_rect.y) / display_scale);
+//          int x = clamp(scaled_x, 0, risc_rect.w - 1);
+//          int y = clamp(scaled_y, 0, risc_rect.h - 1);
+//          bool mouse_is_offscreen = x != scaled_x || y != scaled_y;
+//          if (mouse_is_offscreen != mouse_was_offscreen) {
+//            SDL_ShowCursor(mouse_is_offscreen);
+//            mouse_was_offscreen = mouse_is_offscreen;
+//          }
+//          risc_mouse_moved(risc, x, risc_rect.h - y - 1);
+//          break;
+//        }
+//
+//        case SDL_MOUSEBUTTONDOWN:
+//        case SDL_MOUSEBUTTONUP: {
+//          bool down = event.button.state == SDL_PRESSED;
+//          risc_mouse_button(risc, event.button.button, down);
+//          break;
+//        }
+//
+//        case SDL_KEYDOWN:
+//        case SDL_KEYUP: {
+//          bool down = event.key.state == SDL_PRESSED;
+//          switch (map_keyboard_event(&event.key)) {
+//            case ACTION_RESET: {
+//              risc_reset(risc);
+//              break;
+//            }
+//            case ACTION_TOGGLE_FULLSCREEN: {
+//              fullscreen ^= true;
+//              if (fullscreen) {
+//                SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+//              } else {
+//                SDL_SetWindowFullscreen(window, 0);
+//              }
+//              break;
+//            }
+//            case ACTION_QUIT: {
+//              SDL_PushEvent(&(SDL_Event){ .type=SDL_QUIT });
+//              break;
+//            }
+//            case ACTION_FAKE_MOUSE1: {
+//              risc_mouse_button(risc, 1, down);
+//              break;
+//            }
+//            case ACTION_FAKE_MOUSE2: {
+//              risc_mouse_button(risc, 2, down);
+//              break;
+//            }
+//            case ACTION_FAKE_MOUSE3: {
+//              risc_mouse_button(risc, 3, down);
+//              break;
+//            }
+//            case ACTION_OBERON_INPUT: {
+//              uint8_t ps2_bytes[MAX_PS2_CODE_LEN];
+//              int len = ps2_encode(event.key.keysym.scancode, down, ps2_bytes);
+//              risc_keyboard_input(risc, ps2_bytes, len);
+//              break;
+//            }
+//          }
+//        }
+//      }
+//    }
+// risc_mouse_button(risc, event.button.button, down);
+//          break;
+//        }
+//
+//        case SDL_KEYDOWN:
+//        case SDL_KEYUP: {
+//          bool down = event.key.state == SDL_PRESSED;
+//          switch (map_keyboard_event(&event.key)) {
+//            case ACTION_RESET: {
+//              risc_reset(risc);
+//              break;
+//            }
+//            case ACTION_TOGGLE_FULLSCREEN: {
+//              fullscreen ^= true;
+//              if (fullscreen) {
+//                SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+//              } else {
+//                SDL_SetWindowFullscreen(window, 0);
+//              }
+//              break;
+//            }
+//            case ACTION_QUIT: {
+//              SDL_PushEvent(&(SDL_Event){ .type=SDL_QUIT });
+//              break;
+//            }
+//            case ACTION_FAKE_MOUSE1: {
+//              risc_mouse_button(risc, 1, down);
+//              break;
+//            }
+//            case ACTION_FAKE_MOUSE2: {
+//              risc_mouse_button(risc, 2, down);
+//              break;
+//            }
+//            case ACTION_FAKE_MOUSE3: {
+//              risc_mouse_button(risc, 3, down);
+//              break;
+//            }
+//            case ACTION_OBERON_INPUT: {
+//              uint8_t ps2_bytes[MAX_PS2_CODE_LEN];
+//              int len = ps2_encode(event.key.keysym.scancode, down, ps2_bytes);
+//              risc_keyboard_input(risc, ps2_bytes, len);
+//              break;
+//            }
+//          }
+//        }
+//      }
+//    }
+			}
+		   }
+		}
+	        }()
+
+
+
 
 	}
 
@@ -1121,14 +1281,21 @@ func initfb(){
 
           for {
             m := <- mChan
-            if m.b > 0 {
-               m.b = m.b*2
-            }
-            mx := int32(risc.mouse & 0x00000FFF )+int32(m.b)
-            if m.c > 0 {
-               m.c = m.c*2
-            }
-            my := int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
+            mmf:=m.a & 8
+	    var mx, my int32
+            if mmf != 8 {
+              if m.b > 3 || m.b < -3 {
+                 m.b = m.b*2
+              }
+              mx = int32(risc.mouse & 0x00000FFF )+int32(m.b)
+              if m.c > 3 || m.b < -3 {
+                 m.c = m.c*2
+              } 
+              my = int32((risc.mouse & 0x00FFF000) >> 12)+int32(m.c)
+           }else{
+              mx = int32(m.b)
+              my = int32(m.c)
+	    }
             mbl := m.a & 1
             mbm :=  (m.a & 4 ) >> 2
             mbr :=  (m.a & 2 ) >> 1
@@ -1152,8 +1319,8 @@ func initfb(){
 
 type mmsg struct {
 	a byte
-	b int8
-	c int8
+	b int16
+	c int16
 }
 
 type kmsg struct {
