@@ -30,7 +30,7 @@ import (
 	"gofb/framebuffer"
 	"github.com/veandco/go-sdl2/sdl"	
 	"github.com/fogleman/gg"
-//	"image"
+	"github.com/davecheney/profile"
 	
 )
 
@@ -41,7 +41,7 @@ const MemSize=     0x00280000
 const MemWords=    (MemSize / 4)
 const ROMStart=    0xFFFFF800
 const ROMWords=    512
-const XWidth=	   1280
+const XWidth=	   1280+256
 const XHeight=	   768
 const XDepth=	   1
 const DisplayStart=0x000E7F00
@@ -57,7 +57,7 @@ type RISC struct {
   PC uint32
   R [16]uint32
   H uint32
-  Z, N, C, V bool
+  Z, N, C, V, halt bool
 
   OPC uint32
   OR [16]uint32
@@ -73,6 +73,7 @@ type RISC struct {
   key_cnt uint32
   fbw uint32
   fbh uint32
+  fbchg bool
   diskImage string
   frameDevice string
 }
@@ -485,6 +486,7 @@ func store_word(address, value uint32) {
           pxcg = uint32(0) 
           pxcb = uint32(0) 
 	}
+	
         fbo:=((address)-(DisplayStart))/4        
         fby:=fbo/(risc.fbw/32)
 	fbx:=((fbo*32)%risc.fbw)+uint32(pi)
@@ -494,14 +496,10 @@ func store_word(address, value uint32) {
 	  }
           if risc.frameDevice == "X" {
 		xr.SetDrawColor(byte(pxcr), byte(pxcg), byte(pxcb), 255)
-	//	xr.DrawPoint(int(fbx), int(risc.fbh-fby))
-        //        xr.Present()
                 xr.DrawPoint(int(fbx), int(risc.fbh-fby))
-        //        xr.Present()
-
 	  }
         }
- 
+        risc.fbchg = true
     }
 //    risc_update_damage(risc, address/4 - DisplayStart/4)
   } else {
@@ -817,7 +815,10 @@ func step() {
 
   if risc.icount % 1000 == 0 {
     if risc.frameDevice == "X" {
+      if risc.fbchg {
+        risc.fbchg = false
 	xr.Present()
+      }
     }
   }
 
@@ -1017,7 +1018,6 @@ func initfb(){
         if risc.frameDevice == "console" {
 
 		fb = framebuffer.NewFramebuffer()
-//		defer 	fb.Release()
 
 		fb.Init()
 
@@ -1065,11 +1065,9 @@ func initfb(){
 	              }
 	              if b2[16]==4 && b2[18]==4 && b2[20]<88 && kstate[b2[20]]!=1{
 	                kstate[b2[20]]=1
-	//                fmt.Println("press",b2[20])
 	                kChan <- kmsg{kc[b2[20]]}
 	              }else if b2[16]==1 && b2[20]==0 && b2[18]<88{
 	                kstate[b2[18]]=0
-	//                fmt.Println("release",b2[18])
 	                kChan <- kmsg{ 0xF0 }
 	                kChan <- kmsg{kc[b2[18]]}
 	              }
@@ -1123,23 +1121,13 @@ func initfb(){
 		       	   switch t := event.(type) {
 			   case *sdl.QuitEvent:
 				running = false
-//			   case *sdl.KeyUpEvent:
-//				fmt.Printf("[%d ms] Keyboard\ttype:%d\tsym:%c\tmodifiers:%d\tstate:%d\trepeat:%d\n",
-//					t.Timestamp, t.Type, t.Keysym.Sym, t.Keysym.Mod, t.State, t.Repeat)
+				risc.halt = true
 
-//
-//        case SDL_WINDOWEVENT: {
-//          if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
-//            display_scale = scale_display(window, &risc_rect, &display_rect);
-//          }
-//          break;
-//        }
-//
 			   case *sdl.MouseMotionEvent: 
-			   	fmt.Printf("[%d ms] Mouse %d %d\n",t.Timestamp,t.X,t.Y)
+//			   	fmt.Printf("[%d ms] Mouse %d %d\n",t.Timestamp,t.X,t.Y)
 				mChan <- mmsg{ 8  | (mbm << 2) | (mbr << 1) | mbl,int16(t.X),int16(int32(risc.fbh)-t.Y)}
 			   case *sdl.MouseButtonEvent: 
-			   	fmt.Printf("[%d ms] Mouse %d %d %d %d\n",t.Timestamp,t.Button,t.State,t.X,t.Y)
+//			   	fmt.Printf("[%d ms] Mouse %d %d %d %d\n",t.Timestamp,t.Button,t.State,t.X,t.Y)
 				switch t.Button {
 				case 1:
 				     mbl = t.State
@@ -1163,39 +1151,6 @@ func initfb(){
 			   	  kChan <- kmsg{ 0xF0 }
 				  kChan <- kmsg{ kc[k] }
 				}
-
-//            case ACTION_TOGGLE_FULLSCREEN: {
-//              fullscreen ^= true;
-//              if (fullscreen) {
-//                SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-//              } else {
-//                SDL_SetWindowFullscreen(window, 0);
-//              }
-//              break;
-//            }
-//            case ACTION_QUIT: {
-//              SDL_PushEvent(&(SDL_Event){ .type=SDL_QUIT });
-//              break;
-//            }
-//            case ACTION_FAKE_MOUSE1: {
-//              risc_mouse_button(risc, 1, down);
-//              break;
-//            }
-//            case ACTION_FAKE_MOUSE2: {
-//              risc_mouse_button(risc, 2, down);
-//              break;
-//            }
-//            case ACTION_FAKE_MOUSE3: {
-//              risc_mouse_button(risc, 3, down);
-//              break;
-//            }
-//            case ACTION_OBERON_INPUT: {
-//              uint8_t ps2_bytes[MAX_PS2_CODE_LEN];
-//              int len = ps2_encode(event.key.keysym.scancode, down, ps2_bytes);
-//              risc_keyboard_input(risc, ps2_bytes, len);
-//              break;
-//            }
-
 
 			}
 		   }
@@ -1239,7 +1194,6 @@ func initfb(){
             m := <- kChan
             risc.key_buf[risc.key_cnt]=m.a
             risc.key_cnt++
-//          fmt.Println(m.a)
           }
         }()
 
@@ -1259,6 +1213,8 @@ type kmsg struct {
 
 
 func main() {
+        defer profile.Start(profile.CPUProfile).Stop()
+        risc.halt = false
 	
         imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
         devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
@@ -1302,11 +1258,11 @@ func main() {
 
 	reset()
 //	for i:=0;i<TRACEMAX;i++{
-	for {
+	for !risc.halt {
 	  step()
 	}
 	fmt.Printf("%+v\n",risc.PC)
 
-        fb.Release()
+    //    fb.Release()
 }
 
