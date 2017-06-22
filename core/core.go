@@ -18,7 +18,11 @@
 package main
 
 import (
+        "log"
+	"unsafe"
+//	"math/rand"
 	"fmt"
+	"time"
 	"flag"
 	"context"
 	"os/signal"
@@ -447,7 +451,7 @@ func set_register(reg uint32, value uint32) {
 
 func load_word(address uint32) uint32{
   if (address < MemSize) {
-    msgtrace(&risc, fmt.Sprintf(" %08x from MEMORY LOCATION %08x ",RAM[address/4],address/4))
+//    msgtrace(&risc, fmt.Sprintf(" %08x from MEMORY LOCATION %08x ",RAM[address/4],address/4))
     return RAM[address/4]
   } else {
     return load_io(address)
@@ -463,7 +467,7 @@ func load_byte(address uint32) byte {
   }
   b:=byte(w >> (address % 4 * 8))
 
-  msgtrace(&risc, fmt.Sprintf(" %02x from MEMORY LOCATION %08x ",b,address/4))
+//  msgtrace(&risc, fmt.Sprintf(" %02x from MEMORY LOCATION %08x ",b,address/4))
   return b
 
 }
@@ -471,37 +475,12 @@ func load_byte(address uint32) byte {
 
 func store_word(address, value uint32) {
   if (address < DisplayStart) {
-    msgtrace(&risc, fmt.Sprintf(" %08x to MEMORY LOCATION %08x ",value,address/4))
+//    msgtrace(&risc, fmt.Sprintf(" %08x to MEMORY LOCATION %08x ",value,address/4))
     RAM[address/4] = value
   } else if (address < MemSize) {
-    msgtrace(&risc, fmt.Sprintf(" %08x to VIDEO LOCATION %08x ",value,address/4))
+//    msgtrace(&risc, fmt.Sprintf(" %08x to VIDEO LOCATION %08x ",value,address/4))
     RAM[address/4] = value
-
-    for pi:=0;pi<32;pi++{
-	pxcr:=uint32(238)
-        pxcg:=uint32(223) 
-        pxcb:=uint32(204) 
-	if value & (1 << uint32(pi) ) != 0 { 
-	  pxcr = uint32(0) 
-          pxcg = uint32(0) 
-          pxcb = uint32(0) 
-	}
-	
-        fbo:=((address)-(DisplayStart))/4        
-        fby:=fbo/(risc.fbw/32)
-	fbx:=((fbo*32)%risc.fbw)+uint32(pi)
-        if int(fby) < int(risc.fbh) && int(fbx) < int(risc.fbw) {
-          if risc.frameDevice == "console" {
-	    fb.SetPixel(int(fbx),int(risc.fbh-fby),pxcr,pxcg,pxcb,255)
-	  }
-          if risc.frameDevice == "X" {
-		xr.SetDrawColor(byte(pxcr), byte(pxcg), byte(pxcb), 255)
-                xr.DrawPoint(int(fbx), int(risc.fbh-fby))
-	  }
-        }
-        risc.fbchg = true
-    }
-//    risc_update_damage(risc, address/4 - DisplayStart/4)
+    vChan <- vmsg{ address, value} 
   } else {
     store_io(address, value)
   }
@@ -793,7 +772,7 @@ var trace bool
 
 func step() {
   
-  trace = true
+//  trace = true
 
 
   var ir uint32
@@ -810,17 +789,9 @@ func step() {
 
 //  fmt.Printf("%s %x, %x ","step",risc.PC,ir)
   risc.PC=risc.PC+1
-  rtrace(&risc,ir)
+//  rtrace(&risc,ir)
   risc.icount++
 
-  if risc.icount % 1000 == 0 {
-    if risc.frameDevice == "X" {
-      if risc.fbchg {
-        risc.fbchg = false
-	xr.Present()
-      }
-    }
-  }
 
   if ir & pbit == 0 {
     // Register instructions
@@ -1010,11 +981,15 @@ var window *sdl.Window
 var xi *sdl.Surface
 var xt *sdl.Texture
 var xr *sdl.Renderer
+var pixels []uint32
+var texture *sdl.Texture
+var xfbinit bool = false
 
 func initfb(){
 
         mChan := make(chan mmsg)
         kChan := make(chan kmsg)
+        vChan = make(chan vmsg)
         if risc.frameDevice == "console" {
 
 		fb = framebuffer.NewFramebuffer()
@@ -1078,27 +1053,6 @@ func initfb(){
 
 	}
         if risc.frameDevice == "X" {
-
-                sdl.Init(sdl.INIT_EVERYTHING)
-
-                window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-                        XWidth, XHeight, sdl.WINDOW_SHOWN)
-                if err != nil {
-                        panic(err)
-                }
-
-		sdl.ShowCursor(sdl.DISABLE)
-
-		xr, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create renderer: %s\n", err)
-		}
-
-		xr.Clear()
-		xt,_ =xr.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, XWidth, XHeight)
-		xr.SetDrawColor(0, 0, 255, 255)
-		xr.DrawLine(0, 0, 200, 200)
-		xr.Present()
 
                 risc.fbw=uint32(XWidth)
                 risc.fbh=uint32(XHeight)-1
@@ -1197,8 +1151,96 @@ func initfb(){
           }
         }()
 
+        fbchg:=false
+        go func() {
+
+           if risc.frameDevice == "X" {
+
+               sdl.Init(sdl.INIT_EVERYTHING)
+
+	       window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED,
+               sdl.WINDOWPOS_UNDEFINED, XWidth, XHeight, sdl.WINDOW_SHOWN)
+    	       if err != nil {
+                  log.Fatal(err)
+    	       }
+//    defer window.Destroy()
+
+      	       xr, err = sdl.CreateRenderer(window, -1, 0)
+    	       if err != nil {
+                 log.Fatal(err)
+    	       }
+//    defer renderer.Destroy()
+
+      	       texture, err = xr.CreateTexture(sdl.PIXELFORMAT_ARGB8888,
+               sdl.TEXTUREACCESS_STATIC, XWidth, XHeight)
+
+    	       if err != nil {
+                 log.Fatal(err)
+    	       }
+//    defer texture.Destroy()
+
+      	       pixels = make([]uint32, XWidth*XHeight)
+	       xfbinit = true
+
+		sdl.ShowCursor(sdl.DISABLE)
 
 
+          }
+
+	  
+          for {
+                v := <- vChan 
+	        address:=v.a
+	        value:=v.v
+    	        for pi:=0;pi<32;pi++{
+	        	pxcr:=uint32(238)
+            		pxcg:=uint32(223) 
+        		pxcb:=uint32(204) 
+			pxcx:=uint32(0x00FFFFFF)
+			if value & (1 << uint32(pi) ) != 0 { 
+	  	   	    pxcr = uint32(0) 
+          	   	    pxcg = uint32(0) 
+          	   	    pxcb = uint32(0) 
+			    pxcx = uint32(0)
+			}
+	
+			fbo:=((address)-(DisplayStart))/4        
+        		fby:=fbo/(risc.fbw/32)
+			fbx:=((fbo*32)%risc.fbw)+uint32(pi)
+        		if int(fby) < int(risc.fbh) && int(fbx) < int(risc.fbw) {
+          	   	    if risc.frameDevice == "console" {
+	    	      	        fb.SetPixel(int(fbx),int(risc.fbh-fby),pxcr,pxcg,pxcb,255)
+	  	   	    }
+          	   	    if risc.frameDevice == "X" {
+          	  		pixels[((risc.fbh-fby)*XWidth)+fbx] = pxcx
+				fbchg = true 
+	  	   	    }
+        		}
+	        }
+	  }
+	}()
+
+        go func() {
+
+           if risc.frameDevice == "X" {
+	      for {
+			if xfbinit {
+			   if fbchg {
+			          fbchg = false
+        	  		  texture.Update(nil, unsafe.Pointer(&pixels[0]), XWidth*4)
+        	  		  window.UpdateSurface()
+
+        	  //		  xr.Clear()
+        	  		  xr.Copy(texture, nil, nil)
+        	  		  xr.Present()
+		           }
+		        }
+				  time.Sleep(100000)
+		        
+	      }
+	   }
+        }()
+       
 }
 
 type mmsg struct {
@@ -1211,10 +1253,18 @@ type kmsg struct {
         a byte
 }
 
+type vmsg struct {
+        a, v uint32
+}
+
+var vChan chan vmsg
+
 
 func main() {
         defer profile.Start(profile.CPUProfile).Stop()
         risc.halt = false
+	
+	
 	
         imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
         devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
@@ -1257,6 +1307,22 @@ func main() {
 	
 
 	reset()
+
+	go func() {
+	  
+	  if risc.frameDevice == "X" {
+             for {
+	        if risc.fbchg {
+        	  risc.fbchg = false
+		  xr.Present()
+      		}
+		time.Sleep(10 * time.Millisecond)
+	      }
+	  }
+
+
+	}()
+
 //	for i:=0;i<TRACEMAX;i++{
 	for !risc.halt {
 	  step()
