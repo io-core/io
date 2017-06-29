@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"time"
 	"flag"
-	"context"
+//	"context"
 	"os/signal"
 	"os"
 	"os/exec"
@@ -35,7 +35,10 @@ import (
 	"github.com/veandco/go-sdl2/sdl"	
 	"github.com/fogleman/gg"
 	"github.com/davecheney/profile"
-	
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
+	"bazil.org/fuse/fuseutil"
+	"golang.org/x/net/context"
 )
 
 const TRACEMIN = 800000
@@ -1235,7 +1238,7 @@ func initfb(){
         	  		  xr.Present()
 		           }
 		        }
-				  time.Sleep(100000)
+				  time.Sleep(50000)
 		        
 	      }
 	   }
@@ -1259,36 +1262,313 @@ type vmsg struct {
 
 var vChan chan vmsg
 
+type RFS_FS struct {
+	root *RFS_D
+}
+
+func (f *RFS_FS) Root() (fs.Node, error) {
+	return f.root, nil
+}
+
+var inode uint64
+
+type RFS_D struct {
+	inode uint64
+}
+
+func (d *RFS_D) Attr(ctx context.Context, a *fuse.Attr) error {
+	a.Inode = d.inode
+	a.Mode = os.ModeDir | 0444
+	return nil
+}
+func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
+        files := RFS_Scan(RFS_DiskAdr(d.inode))
+	if files != nil {
+		for _, f := range files {
+			if f.N == name {
+				return &RFS_F{inode: uint64(f.S)}, nil
+			}
+		}
+	}
+	return nil, fuse.ENOENT
+}
+
+func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+
+	var result []fuse.Dirent
+
+        files := RFS_Scan(RFS_DiskAdr(d.inode))
+	if files != nil {
+		for _, f := range files {
+			result = append(result, fuse.Dirent{Inode: uint64(f.S), Type: fuse.DT_File, Name: f.N})
+		}
+	}
+	return result, nil
+}
+
+func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {	return nil,nil,fuse.ENOSYS  }
+func (d *RFS_D) Remove(ctx context.Context, req *fuse.RemoveRequest) error          {	return fuse.ENOSYS       }
+func (d *RFS_D) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {	return nil, fuse.ENOSYS  }
+
+type RFS_F struct {
+	inode uint64
+}
+
+func (f *RFS_F) Attr(ctx context.Context, a *fuse.Attr) error {
+	a.Inode = f.inode
+	a.Mode = 0555
+
+        var fh RFS_FileHeader
+        RFS_K_GetFileHeader(RFS_DiskAdr(f.inode), & fh)
+
+	ecount:=0
+	for i:=0;i<12;i++{
+	  if fh.Ext[i]!=0 { ecount++ }
+	} 
+	scount:=0
+	for i:=0;i<12;i++{
+	  if fh.Sec[i]!=0 { scount++ }
+	} 
+	a.Size = (uint64(fh.Aleng) * RFS_SectorSize) + uint64(fh.Bleng) - RFS_HeaderSize
+        fname:=string(fh.Name[:FindNameEnd(fh.Name[:])])
+	log.Println("Requested Attr for File", fname, "has Aleng", fh.Aleng, "and Bleng", fh.Bleng, "and ecount", ecount, "and scount", scount)
+	return nil
+}
+
+func (f *RFS_F) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	fuseutil.HandleRead(req, resp, nil)
+	return nil
+}
+
+func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
+
+        var fh RFS_FileHeader
+        RFS_K_GetFileHeader(RFS_DiskAdr(f.inode), & fh)
+	var rv []byte
+	if fh.Aleng==0{
+	  rv = append(rv,fh.fill[:fh.Bleng-352]...)
+	}else{
+	  for i:=0;i<=int(fh.Aleng+1);i++{
+	    fsec := RFS_K_Read(fh.Sec[i])
+	    if i==0 {
+	          rv = append(rv,fsec[352:]...)
+	    }
+	    if i>0 && i < int(fh.Aleng) {
+	          rv = append(rv,fsec...)
+	    }
+	    if i == int(fh.Aleng) {
+	          rv = append(rv,fsec[:fh.Bleng]...)
+	    }
+	}}
+	return rv, nil
+}
+
+func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {	return fuse.ENOSYS   }
+func (f *RFS_F) Flush(ctx context.Context, req *fuse.FlushRequest) error {	return nil   }
+func (f *RFS_F) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {	return f, nil   }
+func (f *RFS_F) Release(ctx context.Context, req *fuse.ReleaseRequest) error {	return nil   }
+func (f *RFS_F) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {	return nil   }
+
+
+const RFS_FnLength    = 32
+const RFS_SecTabSize   = 64
+const RFS_ExTabSize   = 12
+const RFS_SectorSize   = 1024
+const RFS_IndexSize   = 256    //SectorSize / 4
+const RFS_HeaderSize  = 352
+const RFS_DirRootAdr  = 29
+const RFS_DirPgSize   = 24
+const RFS_N = 12               //DirPgSize / 2
+const RFS_DirMark    = 0x9B1EA38D
+const RFS_HeaderMark = 0x9BA71D86
+const RFS_FillerSize = 52
+
+type    RFS_DiskAdr         int32
+type    RFS_FileName       [RFS_FnLength]byte
+type    RFS_SectorTable    [RFS_SecTabSize]RFS_DiskAdr
+type    RFS_ExtensionTable [RFS_ExTabSize]RFS_DiskAdr
+type    RFS_EntryHandler   uint32 //= PROCEDURE (name: FileName; sec: DiskAdr; VAR continue: BOOLEAN);
+
+type  RFS_FileHeader struct { // (*first page of each file on disk*)
+        Mark uint32
+        Name [32]byte
+        Aleng, Bleng, Date int32
+        Ext  RFS_ExtensionTable
+        Sec RFS_SectorTable
+        fill [RFS_SectorSize - RFS_HeaderSize]byte
+}
+
+type    RFS_FileHd *RFS_FileHeader
+type    RFS_IndexSector [RFS_IndexSize]RFS_DiskAdr
+type    RFS_DataSector [RFS_SectorSize]byte
+
+type    RFS_DirEntry struct { //  (*B-tree node*)
+        Name [32]byte
+        Adr  RFS_DiskAdr  // (*sec no of file header*)
+        P    RFS_DiskAdr  // (*sec no of descendant in directory*)
+}
+
+type    RFS_DirPage struct {
+        Mark  uint32
+        M     int32
+        P0    RFS_DiskAdr //  (*sec no of left descendant in directory*)
+//        fill  [RFS_FillerSize]byte
+        E  [RFS_DirPgSize]RFS_DirEntry
+}
+
+var RFS_k int32
+var RFS_A [2000]RFS_DiskAdr
+
+func RFS_Aquire(){
+}
+
+func RFS_Release(){
+}
+
+type sbuf []byte
+
+func RFS_K_Read( dpg RFS_DiskAdr) sbuf {
+
+     RFS_Aquire()
+
+      x:=(dpg/29)+262144
+      _,err := disk.file.Seek( (int64(x)*1024) - int64(disk.offset*512),0 )
+      if err!= nil {	fmt.Println("Disk Seek Error --->",err)      }
+      bytes := make([]byte, 1024)
+      _,err = disk.file.Read(bytes)
+      if err!= nil {        fmt.Println("Disk Read Error",err,x)      }
+
+     RFS_Release()
+
+      return sbuf(bytes)
+}
+
+
+func (bytes sbuf) Int32At( i int) int32 {
+     return int32(uint32(bytes[(i*4)+0]) | (uint32(bytes[(i*4)+1]) << 8) | (uint32(bytes[(i*4)+2]) << 16) | (uint32(bytes[(i*4)+3]) << 24))
+} 
+
+func (bytes sbuf) Uint32At( i int) uint32 {
+     return uint32(bytes[(i*4)+0]) | (uint32(bytes[(i*4)+1]) << 8) | (uint32(bytes[(i*4)+2]) << 16) | (uint32(bytes[(i*4)+3]) << 24)
+} 
+
+func (bytes sbuf) DiskAdrAt( i int) RFS_DiskAdr {
+     return RFS_DiskAdr(uint32(bytes[(i*4)+0]) | (uint32(bytes[(i*4)+1]) << 8) | (uint32(bytes[(i*4)+2]) << 16) | (uint32(bytes[(i*4)+3]) << 24))
+} 
+
+func RFS_K_GetFileHeader( dpg RFS_DiskAdr, a * RFS_FileHeader){
+
+      sector := RFS_K_Read( dpg )
+
+      a.Mark =sector.Uint32At(0)    
+
+      if a.Mark == 0x9BA71D86 {  
+      	 for i:=0;i<32;i++{
+            a.Name[i]=sector[i+4]
+         }
+         a.Aleng=sector.Int32At(9)
+         a.Bleng=sector.Int32At(10)    
+         a.Date =sector.Int32At(11)    
+      	 for i:=0;i<RFS_ExTabSize;i++{
+            a.Ext[i]=sector.DiskAdrAt(i+12)
+         }
+      	 for i:=0;i<RFS_SecTabSize;i++{
+            a.Sec[i]=sector.DiskAdrAt(i+24)
+         }
+      
+	 for i:=0;i<RFS_SectorSize - RFS_HeaderSize;i++{
+           a.fill[i]=sector[i+RFS_HeaderSize] 
+	 }
+      }
+}
+
+
+func RFS_K_GetDirSector( dpg RFS_DiskAdr, a * RFS_DirPage){
+
+      sector := RFS_K_Read( dpg )
+
+      a.Mark =sector.Uint32At(0)    
+      a.M    =sector.Int32At(1)    
+      a.P0   =sector.DiskAdrAt(2)    
+
+   if a.Mark==0x9b1ea38d {  
+
+      for e := 0; int32(e)<a.M;e++{
+          i := 16 + (e*10)
+          for x:=0;x<32;x++ {
+            a.E[e].Name[x]=sector[i*4+x]
+	  } 
+	  a.E[e].Adr = sector.DiskAdrAt(i+8)    
+	  a.E[e].P   = sector.DiskAdrAt(i+9)    
+      }
+    }
+
+
+}
+
+
+func FindNameEnd(s []byte) int {
+  var i int
+  for i=0;(i<len(s)&&(s[i]>32 && s[i]<127));i++ {}
+  return i
+
+}
+
+type RFS_FI struct {
+     N string
+     S RFS_DiskAdr
+}
+
+func RFS_Scan(dpg RFS_DiskAdr) []RFS_FI {
+
+    var a RFS_DirPage
+    var files []RFS_FI
+
+    RFS_K_GetDirSector(dpg, & a)
+    if a.P0 != 0 { files = append(files, RFS_Scan( a.P0 )...) }
+    
+    for n:=0;int32(n)<a.M;n++ {
+      files=append(files,RFS_FI{string(a.E[n].Name[:FindNameEnd(a.E[n].Name[:])]),a.E[n].Adr})
+      if a.E[n].P != 0 {
+        files=append(files, RFS_Scan(a.E[n].P)...)
+      }
+    }     
+    return files
+}
+
 
 func main() {
         defer profile.Start(profile.CPUProfile).Stop()
+
         risc.halt = false
 	
 	
 	
         imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
         devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
+        mountpoint := flag.String("m", "/mnt/risc", "Mount Point for fuse filesystem")
 	
 	flag.Parse()
 
         risc.diskImage=*imagePtr
 	risc.frameDevice=*devicePtr
 
+	if risc.frameDevice == "console" {
 
-	ctx := context.Background()
+	  ctx := context.Background()
 
-	// trap Ctrl+C and call cancel on the context
-	ctx, cancel := context.WithCancel(ctx)
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	defer func() {
-		signal.Stop(c)
+	  // trap Ctrl+C and call cancel on the context
+	  ctx, cancel := context.WithCancel(ctx)
+	  fsc := make(chan os.Signal, 1)
+	  signal.Notify(fsc, os.Interrupt)
+	  defer func() {
+		signal.Stop(fsc)
 		cancel()
-	}()
+	  }()
 
-	go func() {
+	  go func() {
 		select {
-		case <-c:
+		case <-fsc:
 	          cmd := exec.Command("stty", "sane")
 	          cmd.Stdin = os.Stdin
 	          _, _ = cmd.Output()
@@ -1296,17 +1576,50 @@ func main() {
 		case <-ctx.Done():
 		}
 		cancel()
-	}()
+	  }()
 
-        cmd := exec.Command("stty", "-echo")
-        cmd.Stdin = os.Stdin
-        _, _ = cmd.Output()
+          cmd := exec.Command("stty", "-echo")
+          cmd.Stdin = os.Stdin
+           _, _ = cmd.Output()
+
+	}
 
 	initfb()
+	reset()
+
+
+	if *mountpoint != "-" {
+
+	   go func() {
+
+	      c, err := fuse.Mount(*mountpoint)
+	      if err != nil { log.Fatal(err) }
+	      defer c.Close()
+	      if p := c.Protocol(); !p.HasInvalidate() {
+		log.Panicln("kernel FUSE support is too old to have invalidations: version %v", p)
+	      }
+	      srv := fs.New(c, nil)
+	      filesys := &RFS_FS{
+		&RFS_D{  inode: 29 }}
+
+	      log.Println("About to serve fs")
+	      if err := srv.Serve(filesys); err != nil {
+		log.Panicln(err)
+	      }
+	      // Check if the mount process has an error to report.
+	      <-c.Ready
+	      if err := c.MountError; err != nil {
+		log.Panicln(err)
+	      }
+	   }()
+	}
+
 
 	
 
-	reset()
+
+
+
 
 	go func() {
 	  
