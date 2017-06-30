@@ -1321,17 +1321,22 @@ func (f *RFS_F) Attr(ctx context.Context, a *fuse.Attr) error {
         var fh RFS_FileHeader
         RFS_K_GetFileHeader(RFS_DiskAdr(f.inode), & fh)
 
+
 	ecount:=0
 	for i:=0;i<12;i++{
 	  if fh.Ext[i]!=0 { ecount++ }
 	} 
 	scount:=0
-	for i:=0;i<12;i++{
+	for i:=0;i<64;i++{
 	  if fh.Sec[i]!=0 { scount++ }
 	} 
+	ieq:="-"
+	if fh.Sec[0]==RFS_DiskAdr(f.inode){
+	  ieq="*"
+	}
 	a.Size = (uint64(fh.Aleng) * RFS_SectorSize) + uint64(fh.Bleng) - RFS_HeaderSize
         fname:=string(fh.Name[:FindNameEnd(fh.Name[:])])
-	log.Println("Requested Attr for File", fname, "has Aleng", fh.Aleng, "and Bleng", fh.Bleng, "and ecount", ecount, "and scount", scount)
+	log.Println("Requested Attr for File", fname, "has bleng:ecount:aleng:scount:size",fh.Bleng,ecount,fh.Aleng,scount,a.Size,ieq)
 	return nil
 }
 
@@ -1345,21 +1350,29 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
         var fh RFS_FileHeader
         RFS_K_GetFileHeader(RFS_DiskAdr(f.inode), & fh)
 	var rv []byte
-	if fh.Aleng==0{
-	  rv = append(rv,fh.fill[:fh.Bleng-352]...)
-	}else{
-	  for i:=0;i<=int(fh.Aleng+1);i++{
+
+
+//	if fh.Aleng==0{
+//	  rv = append(rv,fh.fill[:fh.Bleng-352]...)
+//	}else{
+	  for i:=0;i<=int(fh.Aleng);i++{
+
+	    log.Println("Reading chunk",i,"at sector",fh.Sec[i])
 	    fsec := RFS_K_Read(fh.Sec[i])
 	    if i==0 {
-	          rv = append(rv,fsec[352:]...)
+	       	  if fh.Aleng==0 {
+	            rv = append(rv,fsec[352:fh.Bleng]...)
+		  }else{
+	            rv = append(rv,fsec[352:]...)
+		  }
 	    }
-	    if i>0 && i < int(fh.Aleng) {
+	    if i > 0 && i < int(fh.Aleng) {
 	          rv = append(rv,fsec...)
 	    }
-	    if i == int(fh.Aleng) {
+	    if i > 0 && i == int(fh.Aleng) {
 	          rv = append(rv,fsec[:fh.Bleng]...)
 	    }
-	}}
+	} //}
 	return rv, nil
 }
 
@@ -1433,7 +1446,7 @@ func RFS_K_Read( dpg RFS_DiskAdr) sbuf {
 
       x:=(dpg/29)+262144
       _,err := disk.file.Seek( (int64(x)*1024) - int64(disk.offset*512),0 )
-      if err!= nil {	fmt.Println("Disk Seek Error --->",err)      }
+      if err!= nil {	fmt.Println("Disk Seek Error --->",err,dpg/29)      }
       bytes := make([]byte, 1024)
       _,err = disk.file.Read(bytes)
       if err!= nil {        fmt.Println("Disk Read Error",err,x)      }
@@ -1475,6 +1488,7 @@ func RFS_K_GetFileHeader( dpg RFS_DiskAdr, a * RFS_FileHeader){
       	 for i:=0;i<RFS_SecTabSize;i++{
             a.Sec[i]=sector.DiskAdrAt(i+24)
          }
+//	 a.Sec[0]=dpg
       
 	 for i:=0;i<RFS_SectorSize - RFS_HeaderSize;i++{
            a.fill[i]=sector[i+RFS_HeaderSize] 
