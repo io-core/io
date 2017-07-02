@@ -54,7 +54,7 @@ func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
         if files != nil {
                 for _, f := range files {
                         if f.N == name {
-                                return &RFS_F{inode: uint64(f.S)}, nil
+                                return &RFS_F{inode: uint64(f.S), disk: d.disk}, nil
                         }
                 }
         }
