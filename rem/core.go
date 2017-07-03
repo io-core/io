@@ -973,20 +973,6 @@ func step() {
 }
 
 
-type mmsg struct {
-	a byte
-	b int16
-	c int16
-}
-
-type kmsg struct {
-        a byte
-}
-
-type vmsg struct {
-        a, v uint32
-}
-
 var vChan chan [2]uint32
 
 

@@ -212,26 +212,26 @@ func Initfb(vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt *uin
         	  		  xr.Present()
 		           }
 		        }
-				  time.Sleep(50000)
+			time.Sleep(100 * time.Millisecond)   //time.Sleep(50000)
 		        
 	      }
 	   
         }()
 
-	go func() {
-	  
-	  
-             for {
-	        if fbchg {
-        	  fbchg = false
-		  xr.Present()
-      		}
-		time.Sleep(10 * time.Millisecond)
-	      }
-	  
-
-
-	}()
+//	go func() {
+//	  
+//	  
+//             for {
+//	        if fbchg {
+//        	  fbchg = false
+//		  xr.Present()
+//      		}
+//		time.Sleep(10 * time.Millisecond)
+//	      }
+//	  
+//
+//
+//	}()
 
 	return fbw, fbh       
 }
