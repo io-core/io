@@ -37,8 +37,8 @@ type kmsg struct {
 
 var fb *framebuffer.Framebuffer
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt *uint32 ) (uint32, uint32){
-	var fbw, fbh uint32
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32 ) {
+
 //	var fbchg bool
         mChan := make(chan mmsg)
         kChan := make(chan kmsg)
@@ -49,8 +49,8 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt *ui
                 fb.Init()
 
                 const S = 1024
-                fbw=uint32(fb.Xres)
-                fbh=uint32(fb.Yres)-1
+                *fbw=uint32(fb.Xres)
+                *fbh=uint32(fb.Yres)-1
 //                risc.fbw=1024
 //                risc.fbh=768
 
@@ -144,7 +144,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt *ui
      //   fbchg = false
 
         fmt.Println("Launching Graphics Update Handler")
-        go func() {
+    //    go func() {
           for {
                 v := <- vChan
                 address:=v[0]
@@ -162,20 +162,20 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt *ui
                         }
 
                         fbo:=((address)-(0x000E7F00))/4
-                        fby:=fbo/(fbw/32)
-                        fbx:=((fbo*32)%fbw)+uint32(pi)
-                        if int(fby) < int(fbh) && int(fbx) < int(fbw) {
+                        fby:=fbo/(*fbw/32)
+                        fbx:=((fbo*32)%*fbw)+uint32(pi)
+                        if int(fby) < int(*fbh) && int(fbx) < int(*fbw) {
                          
-                                fb.SetPixel(int(fbx),int(fbh-fby),pxcr,pxcg,pxcb,255)
+                                fb.SetPixel(int(fbx),int(*fbh-fby),pxcr,pxcg,pxcb,255)
                             
                         }
                 }
           }
-        }()
+      //  }()
 
 
 
-	return fbw, fbh
+	//return fbw, fbh
 }
 
 

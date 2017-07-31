@@ -49,6 +49,7 @@ func (d *RFS_D) Attr(ctx context.Context, a *fuse.Attr) error {
         a.Mode = os.ModeDir | 0444
         return nil
 }
+
 func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
         files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode))
         if files != nil {
@@ -99,13 +100,7 @@ func (f *RFS_F) Attr(ctx context.Context, a *fuse.Attr) error {
         for i:=0;i<64;i++{
           if fh.Sec[i]!=0 { scount++ }
         }
-//      ieq:="-"
-//      if fh.Sec[0]==RFS_DiskAdr(f.inode){
-//        ieq="*"
-//      }
         a.Size = (uint64(fh.Aleng) * RFS_SectorSize) + uint64(fh.Bleng) - RFS_HeaderSize
-//        fname:=string(fh.Name[:FindNameEnd(fh.Name[:])])
-//      log.Println("Requested Attr for File", fname, "has bleng:ecount:aleng:scount:size",fh.Bleng,ecount,fh.Aleng,scount,a.Size,ieq)
         return nil
 }
 
@@ -120,13 +115,7 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
         RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
         var rv []byte
 
-
-//      if fh.Aleng==0{
-//        rv = append(rv,fh.fill[:fh.Bleng-352]...)
-//      }else{
           for i:=0;i<=int(fh.Aleng);i++{
-
-//          log.Println("Reading chunk",i,"at sector",fh.Sec[i])
             fsec := RFS_K_Read(f.disk,fh.Sec[i])
             if i==0 {
                   if fh.Aleng==0 {
@@ -141,7 +130,7 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
             if i > 0 && i == int(fh.Aleng) {
                   rv = append(rv,fsec[:fh.Bleng]...)
             }
-        } //}
+        } 
         return rv, nil
 }
 
@@ -214,7 +203,7 @@ func RFS_K_Read( disk *RFS_FS, dpg RFS_DiskAdr) sbuf {
 
       x:=(dpg/29)+262144
       _,err := disk.file.Seek( (int64(x)*1024) - int64(disk.offset*512),0 )
-      if err!= nil {    fmt.Println("Disk Seek Error --->",err,dpg/29)      }
+      if err!= nil {    fmt.Println("Disk Seek Error --->",err,"address",(int64(x)*1024),"offset",int64(disk.offset*512),"page",dpg/29)      }
       bytes := make([]byte, 1024)
       _,err = disk.file.Read(bytes)
       if err!= nil {        fmt.Println("Disk Read Error",err,x)      }
@@ -336,7 +325,6 @@ func ServeRFS( mountpoint *string, f *os.File, o uint32 ) {
 	      if err := srv.Serve(filesys); err != nil {
 		log.Panicln(err)
 	      }
-	      // Check if the mount process has an error to report.
 	      <-c.Ready
 	      if err := c.MountError; err != nil {
 		log.Panicln(err)

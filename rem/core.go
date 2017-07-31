@@ -21,6 +21,7 @@ import (
         "./frfs"
         "./cdisp"
         "./xdisp"
+        "./odisp"
 
 	"fmt"
 //	"time"
@@ -58,7 +59,7 @@ type RISC struct {
   PC uint32
   R [16]uint32
   H uint32
-  Z, N, C, V, halt bool
+  Z, N, C, V, halt, pause bool
 
   OPC uint32
   OR [16]uint32
@@ -973,29 +974,11 @@ func step() {
 }
 
 
-var vChan chan [2]uint32
 
-
-func main() {
-        defer profile.Start(profile.CPUProfile).Stop()
-
-        risc.halt = false
-	
-	
-	
-        imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
-        devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
-        mountpoint := flag.String("m", "/mnt/risc", "Mount Point for fuse filesystem")
-	
-	flag.Parse()
-
-        risc.diskImage=*imagePtr
-	risc.frameDevice=*devicePtr
-
+func grabControlC(){
 	if risc.frameDevice == "console" {
 
 	  ctx := context.Background()
-
 	  // trap Ctrl+C and call cancel on the context
 	  ctx, cancel := context.WithCancel(ctx)
 	  fsc := make(chan os.Signal, 1)
@@ -1020,26 +1003,48 @@ func main() {
           cmd := exec.Command("stty", "-echo")
           cmd.Stdin = os.Stdin
            _, _ = cmd.Output()
-
 	}
+}
+
+var vChan chan [2]uint32
+
+func main() {
+        defer profile.Start(profile.CPUProfile).Stop()
+
+        risc.halt = false
+	risc.pause = true
+		
+        imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
+        devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
+        mountpoint := flag.String("m", "/mnt/risc", "Mount Point for fuse filesystem")
+	
+	flag.Parse()
+
+        risc.diskImage=*imagePtr
+	risc.frameDevice=*devicePtr
+
+	grabControlC()
 
         vChan = make(chan [2]uint32 )
 
+	reset()
+        frfs.ServeRFS( mountpoint, disk.file, disk.offset )
+
+	go func(){
+		
+		for !risc.halt {
+	    	    step()
+	        }
+	}()
+
         if risc.frameDevice == "console" {
-	  risc.fbw,risc.fbh = cdisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt )
+	  cdisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt, &risc.fbw, &risc.fbh )
+	}else if risc.frameDevice == "opengl" {
+	  odisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt, &risc.fbw, &risc.fbh )
 	}else if risc.frameDevice == "X" {
 	  risc.fbw,risc.fbh = xdisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt )
 	}
-	fmt.Println("Graphics configured for",risc.fbw,"x",risc.fbh)
 
-	reset()
-
-        frfs.ServeRFS( mountpoint, disk.file, disk.offset )
-
-	for !risc.halt {
-	  step()
-	}
-	fmt.Printf("%+v\n",risc.PC)
 
 
 }
