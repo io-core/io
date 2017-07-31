@@ -20,7 +20,6 @@ package main
 import (
         "./frfs"
         "./cdisp"
-        "./xdisp"
         "./odisp"
 
 	"fmt"
@@ -1027,11 +1026,11 @@ func main() {
 
         vChan = make(chan [2]uint32 )
 
-	reset()
+	
         frfs.ServeRFS( mountpoint, disk.file, disk.offset )
 
 	go func(){
-		
+		reset()
 		for !risc.halt {
 	    	    step()
 	        }
@@ -1041,9 +1040,8 @@ func main() {
 	  cdisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt, &risc.fbw, &risc.fbh )
 	}else if risc.frameDevice == "opengl" {
 	  odisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt, &risc.fbw, &risc.fbh )
-	}else if risc.frameDevice == "X" {
-	  risc.fbw,risc.fbh = xdisp.Initfb( vChan, &risc.mouse, &risc.key_buf, &risc.key_cnt )
 	}
+	
 
 
 
