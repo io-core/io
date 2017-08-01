@@ -38,7 +38,8 @@ func PanicOn( err error ){
 }
 
 
-func createWindow(fbw, fbh int) *glfw.Window {
+
+func createWindow(w,h int) *glfw.Window {
 
         glfw.WindowHint(glfw.ContextVersionMajor, 3)
         glfw.WindowHint(glfw.ContextVersionMinor, 2)
@@ -46,7 +47,8 @@ func createWindow(fbw, fbh int) *glfw.Window {
         glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
         glfw.WindowHint(glfw.Decorated, glfw.False)
 
-        window, err := glfw.CreateWindow(fbw, fbh, "REM", nil, nil ) //glfw.GetPrimaryMonitor(), nil)
+//        window, err := glfw.CreateWindow(1920, 1200, "REM", nil, nil ) //glfw.GetPrimaryMonitor(), nil)
+        window, err := glfw.CreateWindow(w, h, "REM", nil, nil ) //glfw.GetPrimaryMonitor(), nil)
 
         PanicOn(err)
 
@@ -55,17 +57,18 @@ func createWindow(fbw, fbh int) *glfw.Window {
         err = gl.Init()
         PanicOn(err)
 
-	window.SetSize(1600,900)
-
-	w,h:=window.GetFramebufferSize()
-	fmt.Println("Window size:",w,h)
+	nw,nh:=window.GetFramebufferSize()
+	fmt.Println("Window size:",nw,nh)
+	ofbw = uint32(nw)
+	ofbh = uint32(nh)
 
 	return window
 
 }
 
-var mptr, kcptr *uint32
+var mptr, kcptr  *uint32
 var kbptr *[16]byte
+var ofbw, ofbh uint32
 var mbl int
 var mbm int
 var mbr int
@@ -92,7 +95,7 @@ var cubeVertices = []float32{
 func cpos(w *glfw.Window, xpos float64, ypos float64) {
         
         mx := int32(int16(xpos))
-        my := int32(int16(838-ypos))  //768
+        my := int32(int16(ofbh-uint32(ypos)))  //768
 
         *mptr = uint32(mbr)<<24|uint32(mbm)<<25|uint32(mbl)<<26| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
 }
@@ -158,9 +161,9 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
 			}
 
 
-    if (action == glfw.Press){
-        fmt.Println("Pressed",key,"scancode",scancode,"pcscan",sc,"extended",scx)
-    }
+//    if (action == glfw.Press){
+//        fmt.Println("Pressed",key,"scancode",scancode,"pcscan",sc,"extended",scx)
+//    }
 //    if (action == glfw.Release){
 //        fmt.Println("Release",key,"scancode",scancode,"pcscan",sc,"extended",scx)
 //    }
@@ -178,18 +181,25 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad
-        *fbw=1600 
-        *fbh=838
+     //   *fbw=1920 //1600 
+     //   *fbh=1200 //838
 
 	mptr = mouse
 	kbptr = key_buf
 	kcptr = key_cnt
+     //   fbwptr = fbw       
+//	fbhptr = fbh
 
         err := glfw.Init()
 	PanicOn( err )        
         defer glfw.Terminate()
 
-	window := createWindow(int(*fbw), int(*fbh))
+	window := createWindow(1920,1200)
+	*fbw = ofbw
+	*fbh = ofbh
+	window.Destroy()
+        window = createWindow(int(ofbw),int(ofbh))
+
 
         glprog := makeprog()
         gl.UseProgram(glprog)

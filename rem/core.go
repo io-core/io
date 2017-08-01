@@ -23,7 +23,7 @@ import (
         "./odisp"
 
 	"fmt"
-//	"time"
+	"time"
 	"flag"
 	"context"
 	"os/signal"
@@ -38,7 +38,7 @@ import (
 const TRACEMIN = 800000
 const TRACEMAX = 800000
 
-const MemSize=     0x00280000
+const MemSize=     0x00480000
 const MemWords=    (MemSize / 4)
 const ROMStart=    0xFFFFF800
 const ROMWords=    512
@@ -208,6 +208,18 @@ func rtrace(risc * RISC, ir uint32){
 }
 
 
+func opendisk(){
+        f,err:=os.OpenFile(risc.diskImage, os.O_RDWR, 0644)
+        if err != nil {
+          panic(err)
+        }else{
+          disk.file=f
+        }
+        disk.state = diskCommand
+        disk.offset = 0x80002
+
+}
+
 func reset() {
         risc.icount=0
 	risc.PC=ROMStart/4
@@ -227,21 +239,9 @@ func reset() {
 	     }
            }
         }
-//	f,err:=os.OpenFile("Oberon-2016-08-02.dsk", os.O_RDWR, 0644)
-        f,err:=os.OpenFile(risc.diskImage, os.O_RDWR, 0644)
-        if err != nil {
-          panic(err)
-        }else{
-	  disk.file=f
-	}
-	disk.state = diskCommand
-	disk.offset = 0x80002
-//        disk.offset = 0
 	RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
 	RAM[DisplayStart/4+1] = risc.fbw
 	RAM[DisplayStart/4+2] = risc.fbh
-//	risc.fbw=1600
-//	risc.fbh=890
 }
 
 
@@ -1026,10 +1026,12 @@ func main() {
 
         vChan = make(chan [2]uint32 )
 
-	
+	opendisk()	
         frfs.ServeRFS( mountpoint, disk.file, disk.offset )
 
 	go func(){
+		//reset()
+		time.Sleep(time.Second)
 		reset()
 		for !risc.halt {
 	    	    step()
