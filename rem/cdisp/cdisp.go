@@ -37,7 +37,7 @@ type kmsg struct {
 
 var fb *framebuffer.Framebuffer
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32 ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32 ) {
 
 //	var fbchg bool
         mChan := make(chan mmsg)
@@ -53,6 +53,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
                 *fbh=uint32(fb.Yres)-1
 //                risc.fbw=1024
 //                risc.fbh=768
+        readyChan <- [2]uint32{uint32(fb.Xres),uint32(fb.Yres)}
 
 	fmt.Println("Opening Mouse")
                 fm, err := os.Open("/dev/input/mice")

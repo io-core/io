@@ -177,7 +177,7 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
      }
 }
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32 ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32 ) {
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad
@@ -197,6 +197,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	window := createWindow(1920,1200)
 	*fbw = ofbw
 	*fbh = ofbh
+	readyChan <- [2]uint32{ofbw,ofbh}
 	window.Destroy()
         window = createWindow(int(ofbw),int(ofbh))
 
@@ -254,6 +255,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
         go func() {
           for {
                 v := <- vChan
+		if verbose { fmt.Println("video msg:",v)}
                 address:=v[0]
                 value:=v[1]
                 for pi:=0;pi<32;pi++{
