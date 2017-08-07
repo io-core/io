@@ -20,6 +20,7 @@ package board
 import (
 	"fmt"
 	"os"
+	"time"
 	"io/ioutil"
 	"strings"
 	"strconv"
@@ -296,7 +297,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       // Millisecond counter
 //      if trace { fmt.Printf(" MS COUNTER") }
 //      risc.progress--
-//      return risc.current_tick
+      return uint32(time.Now().Unix())
     
     case 4: 
       // Switches
