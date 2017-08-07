@@ -13,6 +13,8 @@
 // OR PERFORMANCE OF THIS SOFTWARE.
 //
 
+// +build linux
+
 package cdisp
 
 import (

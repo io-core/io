@@ -34,7 +34,7 @@ import (
 //	"io/ioutil"
 //	"strings"
 //	"strconv"
-	"github.com/davecheney/profile"
+//	"github.com/davecheney/profile"
 )
 
 
@@ -74,7 +74,7 @@ func grabControlC(mb *board.BOARD){
 var vChan chan [2]uint32
 
 func main() {
-        defer profile.Start(profile.CPUProfile).Stop()
+//        defer profile.Start(profile.CPUProfile).Stop()
 
 //        risc.halt = false
 //	risc.pause = true
