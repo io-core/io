@@ -297,7 +297,8 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       // Millisecond counter
 //      if trace { fmt.Printf(" MS COUNTER") }
 //      risc.progress--
-      return uint32(time.Now().Unix())
+//	fmt.Println(uint32(time.Now().UnixNano() / int64(time.Millisecond)))
+      return uint32(time.Now().UnixNano() / int64(time.Millisecond))
     
     case 4: 
       // Switches
