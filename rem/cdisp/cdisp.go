@@ -18,7 +18,7 @@ package cdisp
 import (
 	"os"
 	"fmt"
-	"gofb/framebuffer"
+	"github.com/blackspace/gofb/framebuffer"
 
 
 )
