@@ -57,6 +57,7 @@ type BOARD struct {
   Fbchg bool
   DiskImage string
   FrameDevice string
+  StartTime uint32
 }
 
 
@@ -125,6 +126,7 @@ func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
 	board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
 	board.RAM[DisplayStart/4+1] = fbw
 	board.RAM[DisplayStart/4+2] = fbh
+	board.StartTime=uint32(time.Now().UnixNano() / int64(time.Millisecond))
         if verbose {fmt.Printf("%s"," board reset ")}
 
 }
@@ -297,9 +299,10 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       // Millisecond counter
 //      if trace { fmt.Printf(" MS COUNTER") }
 //      risc.progress--
-//	fmt.Println(uint32(time.Now().UnixNano() / int64(time.Millisecond)))
-      return uint32(time.Now().UnixNano() / int64(time.Millisecond))
-    
+//	fmt.Println(uint32(time.Now().UnixNano() / int64(time.Millisecond))-board.StartTime)
+      return uint32(time.Now().UnixNano() / int64(time.Millisecond)) - board.StartTime
+//	return 0  
+  
     case 4: 
       // Switches
 //      if trace { fmt.Printf(" SWITCHES") }
@@ -394,6 +397,13 @@ func (board *BOARD) Load_io(address uint32) uint32 {
 
 func (board *BOARD) Store_io(address, value uint32) {
   switch (address - IOStart) {
+
+    case 0:
+	if value > 0 && value < 1001 {
+	  fmt.Println("sleeping",value,"Milliseconds")
+	  time.Sleep(time.Millisecond * time.Duration(value))
+	}
+
     case 4: 
 //      msgtrace(&risc, fmt.Sprintf(" %08x -> LED CONTROL ",value))
       // LED control
