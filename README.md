@@ -3,6 +3,8 @@ Integrated Oberon
 
 <img src="https://github.com/charlesap/io/blob/master/cowhead.png">
 
+<a href="https://github.com/io-core/io/wiki">io project wiki</a>
+
 This project may eventually integrate modern capabilities into Oberon, a classic
 operating system and language.
 
