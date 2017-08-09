@@ -208,8 +208,11 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	*fbh = ofbh
 	readyChan <- [2]uint32{ofbw,ofbh}
 	window.Destroy()
-        window = createWindow(int(ofbw),int(ofbh),false)
-
+	if runtime.GOOS == "darwin" {
+          window = createWindow(int(ofbw),int(ofbh),true)
+	}else{
+          window = createWindow(int(ofbw),int(ofbh),false)
+	}
 
         glprog := makeprog()
         gl.UseProgram(glprog)
