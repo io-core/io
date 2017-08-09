@@ -39,14 +39,17 @@ func PanicOn( err error ){
 
 
 
-func createWindow(w,h int) *glfw.Window {
+func createWindow(w,h int,b bool) *glfw.Window {
 
         glfw.WindowHint(glfw.ContextVersionMajor, 3)
         glfw.WindowHint(glfw.ContextVersionMinor, 2)
         glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
         glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-        glfw.WindowHint(glfw.Decorated, glfw.False)
-
+	if b {
+          glfw.WindowHint(glfw.Decorated, glfw.True)
+	}else{
+          glfw.WindowHint(glfw.Decorated, glfw.False)
+	}
 //        window, err := glfw.CreateWindow(1920, 1200, "REM", nil, nil ) //glfw.GetPrimaryMonitor(), nil)
         window, err := glfw.CreateWindow(w, h, "REM", nil, nil ) //glfw.GetPrimaryMonitor(), nil)
 
@@ -61,6 +64,11 @@ func createWindow(w,h int) *glfw.Window {
 	fmt.Println("Window size:",nw,nh)
 	ofbw = uint32(nw)
 	ofbh = uint32(nh)
+	if (w < nw || h < nh ) {
+	  ofd = false
+	}else{
+	  ofd = true
+	}
 
 	return window
 
@@ -69,6 +77,7 @@ func createWindow(w,h int) *glfw.Window {
 var mptr, kcptr  *uint32
 var kbptr *[16]byte
 var ofbw, ofbh uint32
+var ofd bool
 var mbl int
 var mbm int
 var mbr int
@@ -194,12 +203,12 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	PanicOn( err )        
         defer glfw.Terminate()
 
-	window := createWindow(1920,1200)
+	window := createWindow(1920,1200,false)
 	*fbw = ofbw
 	*fbh = ofbh
 	readyChan <- [2]uint32{ofbw,ofbh}
 	window.Destroy()
-        window = createWindow(int(ofbw),int(ofbh))
+        window = createWindow(int(ofbw),int(ofbh),ofd)
 
 
         glprog := makeprog()
