@@ -215,7 +215,7 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
      }
 }
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32 ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string ) {
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad

@@ -84,6 +84,7 @@ func main() {
         mountpoint := flag.String("m", "/mnt/risc", "Mount Point for fuse filesystem")
         corecount := flag.Int("c", 5, "Number of cores")
         verbosity := flag.Int("v", 5, "verbosity level")
+        geometry := flag.String("g", "1024x768x1", "Geometry (<width>x<height>x<bpp>)")
 	
 	flag.Parse()
 
@@ -124,9 +125,9 @@ func main() {
 	}()
 
         if mb.FrameDevice == "console" {
-	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan )
+	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry )
 	}else if mb.FrameDevice == "opengl" {
-	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan )
+	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry )
 	}
 	
 

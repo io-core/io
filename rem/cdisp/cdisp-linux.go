@@ -39,7 +39,7 @@ type kmsg struct {
 
 var fb *framebuffer.Framebuffer
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32 ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string ) {
 
 //	var fbchg bool
         mChan := make(chan mmsg)
