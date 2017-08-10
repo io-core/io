@@ -231,8 +231,16 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
         err := glfw.Init()
 	PanicOn( err )        
         defer glfw.Terminate()
+	wmax:=1024
+	hmax:=760
+	hasborder:=true
+	if geometry == "-" {
+          wmax=1920
+          hmax=1200
+	  hasborder=false
+ 	} 
 
-	window := createWindow(1920,1200,false)
+	window := createWindow(wmax,hmax,false)
 	*fbw = ofbw
 	*fbh = ofbh
 	readyChan <- [2]uint32{ofbw,ofbh}
@@ -240,7 +248,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	if runtime.GOOS == "darwin" {
           window = createWindow(int(ofbw),int(ofbh),true)
 	}else{
-          window = createWindow(int(ofbw),int(ofbh),false)
+          window = createWindow(int(ofbw),int(ofbh),hasborder)
 	}
 
         glprog := makeprog()
