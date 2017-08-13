@@ -96,9 +96,20 @@ func (board *BOARD) Opendisk(){
         }else{
           board.Disk.File=f
         }
-        board.Disk.state = diskCommand
-        board.Disk.Offset = 0x80002
 
+	sig:=make([]byte,4)
+	n,err:=f.Read(sig)
+        if err != nil {
+          panic(err)
+        }else{
+	  fmt.Println("disk image signature:",sig,n)
+          board.Disk.state = diskCommand
+	  if sig[0]==141 && sig[1]==163 && sig[2]==30 && sig[3]==155{
+            board.Disk.Offset = 0x80002
+	  }else{
+	    board.Disk.Offset = 0
+	  }
+	}
 }
 
 var verbose bool
