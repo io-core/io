@@ -3,20 +3,25 @@ Integrated Oberon
 
 <img src="https://github.com/charlesap/io/blob/master/cowhead.png">
 
-<a href="https://github.com/io-core/io/wiki">io project wiki</a>
+For more information go to the <a href="https://github.com/io-core/io/wiki">io project wiki</a>
 
 This project may eventually integrate modern capabilities into Oberon, a classic
 operating system and language.
 
-Meanwhile, in oberon-risc-ethz you will find patches to Peter De Wachter's 
-Oberon Risc Emulator and changes to Display.Mod and Input.Mod to support large screens
-in emulation (as shown in the above screenshot.)
+To run the risc v5 emulator (REM) you can download the binary for your platform or you can compile from source.
 
-You will also find Linker.Mod, which allows OberonV5 (2013) to compile its own boot 
-track from source code to a binary file, making the
-system almost self-hosted. An additional tool (such as 'dd' on the host) is 
-required to install the boot
-track.
+# Emulated - Binary
+* Download the Linux REM binary, Mac REM binary, or Windows REM binary
+* Download the RISC os disc image
+* Download the RISC os firmware file
+* run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m -
+# Emulated - From Source
+* install go
+* go get the risc emulator (rem) project dependencies
+* git clone https://github.com/io-core/io.git
+* go build rem.go
+* run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m -
+
 
 
 Copyright
