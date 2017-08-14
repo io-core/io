@@ -1,7 +1,6 @@
 language: go
 before_install:
- sudo apt-get -qq update
- sudo apt-get install -y xorg-dev
+  - sudo apt-get install -y xorg-dev
 script: go get github.com/blackspace/gofb/framebuffer && go get bazil.org/fuse && go get bazil.org/fuse/fs && go get bazil.org/fuse/fuseutil && go get golang.org/x/net/context && go build rem/rem.go
 notifications:
   email: false
