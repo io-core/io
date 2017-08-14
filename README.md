@@ -2,7 +2,7 @@ Integrated Oberon
 =================
 
 <img src="https://github.com/charlesap/io/blob/master/cowhead.png">
-<img src="https://travis-ci.org/io-core/io.svg?branch=master">
+<a href="https://travis-ci.org/io-core/io">Travis CI Status for io-core/io</a> <img src="https://travis-ci.org/io-core/io.svg?branch=master">
 
 For more information go to the <a href="https://github.com/io-core/io/wiki">io project wiki</a>
 
