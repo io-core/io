@@ -18,11 +18,11 @@
 package main
 
 import (
-        "./frfs"
-        "./cdisp"
-        "./odisp"
-	"./risc5"
-	"./board"
+        "github.com/io-core/io/rem/frfs"
+        "github.com/io-core/io/rem/cdisp"
+        "github.com/io-core/io/rem/odisp"
+	"github.com/io-core/io/rem/risc5"
+	"github.com/io-core/io/rem/board"
 
 	"fmt"
 //	"time"

@@ -18,7 +18,7 @@
 package risc5
 
 import (
-	"../board"
+	"github.com/io-core/io/rem/board"
 	"fmt"
 )
 
