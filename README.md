@@ -2,6 +2,7 @@ Integrated Oberon
 =================
 
 <img src="https://github.com/charlesap/io/blob/master/cowhead.png">
+<img src="https://travis-ci.org/io-core/io.svg?branch=master">
 
 For more information go to the <a href="https://github.com/io-core/io/wiki">io project wiki</a>
 
@@ -19,14 +20,14 @@ To run the risc v5 emulator (REM) you can download the binary for your platform 
 * install go
 * go get the risc emulator (rem) project dependencies
 
-go get github.com/go-gl/gl/v3.2-core/gl
-go get github.com/go-gl/glfw/v3.2/glfw
-go get github.com/go-gl/mathgl/mgl32
-go get github.com/blackspace/gofb/framebuffer
-go get golang.org/x/net/context
-go get bazil.org/fuse
-go get bazil.org/fuse/fs
-go get bazil.org/fuse/fuseutil
+- go get github.com/go-gl/gl/v3.2-core/gl
+- go get github.com/go-gl/glfw/v3.2/glfw
+- go get github.com/go-gl/mathgl/mgl32
+- go get github.com/blackspace/gofb/framebuffer
+- go get golang.org/x/net/context
+- go get bazil.org/fuse
+- go get bazil.org/fuse/fs
+- go get bazil.org/fuse/fuseutil
 
 
 * git clone https://github.com/io-core/io.git
