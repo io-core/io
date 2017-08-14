@@ -18,6 +18,17 @@ To run the risc v5 emulator (REM) you can download the binary for your platform 
 # Emulated - From Source
 * install go
 * go get the risc emulator (rem) project dependencies
+
+go get github.com/go-gl/gl/v3.2-core/gl
+go get github.com/go-gl/glfw/v3.2/glfw
+go get github.com/go-gl/mathgl/mgl32
+go get github.com/blackspace/gofb/framebuffer
+go get golang.org/x/net/context
+go get bazil.org/fuse
+go get bazil.org/fuse/fs
+go get bazil.org/fuse/fuseutil
+
+
 * git clone https://github.com/io-core/io.git
 * go build rem.go
 * run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m -
