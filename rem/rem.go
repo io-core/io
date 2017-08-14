@@ -128,6 +128,9 @@ func main() {
 	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry )
 	}else if mb.FrameDevice == "opengl" {
 	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry )
+        }else if mb.FrameDevice == "headless" {
+          os.Exit(1)
+	  bleargh
 	}
 	
 
