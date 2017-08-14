@@ -18,7 +18,7 @@
 package risc5
 
 import (
-	board "../board"
+	"../board"
 	"fmt"
 )
 
