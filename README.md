@@ -12,10 +12,11 @@ operating system and language.
 To run the risc v5 emulator (REM) you can download the binary for your platform or you can compile from source.
 
 # Emulated - Binary
-* Download the Linux REM binary, Mac REM binary, or Windows REM binary
-* Download the RISC os disc image
-* Download the RISC os firmware file
-* run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m -
+* Download the <a href="https://github.com/io-core/io/raw/master/rem/rem.amd64">Linux REM binary</a>, <a href="https://github.com/io-core/io/raw/master/rem/rem.darwin">Mac REM binary</a>, or Windows REM binary
+* Make the binary exeutable (e.g. chmod 755 rem.amd64 or chmod 755 rem.darwin)
+* Download the <a href="https://github.com/io-core/io/raw/master/rem/Oberon-2016-08-02.dsk">RISC os disc image</a>
+* Download the <a href="https://github.com/io-core/io/raw/master/rem/risc-boot.inc">RISC os firmware file</a>
+* run the emulator -- ./rem.amd64 -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m - -g 1024x768x1
 # Emulated - From Source
 * install go
 * go get the risc emulator (rem) project dependencies
