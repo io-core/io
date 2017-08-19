@@ -25,7 +25,7 @@ import (
 	"github.com/io-core/io/rem/board"
 
 	"fmt"
-//	"time"
+	"time"
 	"flag"
 	"context"
 	"os/signal"
@@ -85,7 +85,8 @@ func main() {
         corecount := flag.Int("c", 5, "Number of cores")
         verbosity := flag.Int("v", 5, "verbosity level")
         geometry := flag.String("g", "1024x768x1", "Geometry (<width>x<height>x<bpp>)")
-	
+	haltPtr := flag.Bool("halt", false, "Begin in halt state")	
+
 	flag.Parse()
 
 	var mb *board.BOARD
@@ -118,8 +119,12 @@ func main() {
 		
 		step:=0
 		for {
-	            for i:=0;i<*corecount;i++{ cores[i].Step(mb,verbose) }
-	    	    step++
+			if *haltPtr {
+				time.Sleep(100 * time.Millisecond)
+			}else{
+	            		for i:=0;i<*corecount;i++{ cores[i].Step(mb,verbose) }
+	    	    		step++
+			}
 	        }
 		os.Exit(0)
 	}()
