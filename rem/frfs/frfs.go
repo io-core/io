@@ -84,6 +84,22 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 
         _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
 
+        fmt.Println("smap len:",len(smap),"for",len(smap)*64,"sectors")
+	for i:=0; i<len(smap); i++{
+		
+		for j := 0; j < 64 ; j++ {
+		  if ((smap[i]) & (1 << uint(j) ))!=0{
+                    fmt.Printf("x")
+		  }else{
+                    fmt.Printf(".")
+		  }
+		}
+		fmt.Printf("\n") 
+	}
+
+		
+	
+
 //	f := &File{Node: Node{name: req.Name, inode: NewInode()}}
 //	files := []*File{f}
 //	if d.files != nil {
@@ -318,6 +334,18 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
     var files []RFS_FI
 
     RFS_K_GetDirSector(disk, dpg, & a)
+
+    if smap != nil {
+	s:=dpg/29
+	e:=s/64
+	r:=s%64
+//	if e >= len(*smap){
+//	  fmt.Printf("Sector mark beyond end of sector bitmap\n")
+//	}else{
+	  smap[e] = smap[e] | (1<<uint(r))
+//	}
+    }
+
     if a.P0 != 0 { 
 	fnames := RFS_Scan( disk, a.P0, smap )
 	files = append( files, fnames...)
