@@ -51,7 +51,7 @@ func (d *RFS_D) Attr(ctx context.Context, a *fuse.Attr) error {
 }
 
 func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
-        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode))
+        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil)
         if files != nil {
                 for _, f := range files {
                         if f.N == name {
@@ -65,8 +65,9 @@ func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
 func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
         var result []fuse.Dirent
-
-        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode))
+	
+	
+        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil)
         if files != nil {
                 for _, f := range files {
                         result = append(result, fuse.Dirent{Inode: uint64(f.S), Type: fuse.DT_File, Name: f.N})
@@ -75,8 +76,27 @@ func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
         return result, nil
 }
 
-func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {   return nil,nil,fuse.ENOSYS  }
+func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+
+	fmt.Println("Creating File",req.Name)
+
+	var smap RFS_AllocMap 
+
+        _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
+
+//	f := &File{Node: Node{name: req.Name, inode: NewInode()}}
+//	files := []*File{f}
+//	if d.files != nil {
+//		files = append(files, *d.files...)
+//	}
+//	d.files = &files
+//	return f, f, nil
+
+	return nil,nil,fuse.ENOSYS  
+}
+
 func (d *RFS_D) Remove(ctx context.Context, req *fuse.RemoveRequest) error          {   return fuse.ENOSYS       }
+
 func (d *RFS_D) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {   return nil, fuse.ENOSYS  }
 
 type RFS_F struct {
@@ -136,7 +156,9 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 
 func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {    return fuse.ENOSYS   }
 func (f *RFS_F) Flush(ctx context.Context, req *fuse.FlushRequest) error {      return nil   }
-func (f *RFS_F) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {  return f, nil   }
+
+func (f *RFS_F) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {	return f, nil   }
+
 func (f *RFS_F) Release(ctx context.Context, req *fuse.ReleaseRequest) error {  return nil   }
 func (f *RFS_F) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {      return nil   }
 
@@ -152,6 +174,9 @@ const RFS_N = 12               //DirPgSize / 2
 const RFS_DirMark    = 0x9B1EA38D
 const RFS_HeaderMark = 0x9BA71D86
 const RFS_FillerSize = 52
+const RFS_NUMSECTORS = 1220   // RISC.img size / 1024
+
+type 	RFS_AllocMap	[ RFS_NUMSECTORS / 64 ]uint64
 
 type    RFS_DiskAdr         int32
 type    RFS_FileName       [RFS_FnLength]byte
@@ -287,18 +312,22 @@ type RFS_FI struct {
      S RFS_DiskAdr
 }
 
-func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr) []RFS_FI {
+func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
 
     var a RFS_DirPage
     var files []RFS_FI
 
     RFS_K_GetDirSector(disk, dpg, & a)
-    if a.P0 != 0 { files = append( files, RFS_Scan( disk, a.P0 )...) }
+    if a.P0 != 0 { 
+	fnames := RFS_Scan( disk, a.P0, smap )
+	files = append( files, fnames...)
+    }
 
     for n:=0;int32(n)<a.M;n++ {
       files=append(files,RFS_FI{string(a.E[n].Name[:FindNameEnd(a.E[n].Name[:])]),a.E[n].Adr})
       if a.E[n].P != 0 {
-        files=append(files, RFS_Scan(disk, a.E[n].P)...)
+	fnames :=  RFS_Scan(disk, a.E[n].P, smap)
+        files=append(files, fnames...)
       }
     }
     return files
