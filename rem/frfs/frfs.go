@@ -78,26 +78,58 @@ func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
 
-	fmt.Println("Creating File",req.Name)
+	fsn:=fs.Node(nil)
+	fsh:=fs.Handle(nil)
+	fserr:=fuse.ENOSYS
+
+	fmt.Println("Inserting File",req.Name)
 
 	var smap RFS_AllocMap 
 
         _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
 
         fmt.Println("smap len:",len(smap),"for",len(smap)*64,"sectors")
+
+	found:=0
 	for i:=0; i<len(smap); i++{
-		
-		for j := 0; j < 64 ; j++ {
-		  if ((smap[i]) & (1 << uint(j) ))!=0{
-                    fmt.Printf("x")
+		if found == 0 && i > 0 && smap[i] != 0xffffffffffffffff {
+			found = i
+		}
+	}
+	if found > 0 {
+		fbit:=64
+		for j := 0; j < 64 && fbit == 64 ; j++ {
+		  if ((smap[found]) & (1 << uint(j) ))!=0{
 		  }else{
-                    fmt.Printf(".")
+		    fbit=j
 		  }
 		}
-		fmt.Printf("\n") 
-	}
+		if fbit != 64{
+			nsec:=(found*64) + fbit
+		        fmt.Println("Inserting File",req.Name,"starting at sector",nsec)
 
+			//h:=false
+			h,U := RFS_Insert( req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec*29) )
+			if h {  // root overflow
+				fmt.Println("overflow, ascending at entry",U)
+			}
+		}	
+	}
 		
+//  PROCEDURE Insert*(name: FileName; fad: DiskAdr);
+//    VAR  oldroot: DiskAdr;
+//      h: BOOLEAN; U: DirEntry;
+//      a: DirPage;
+//  BEGIN h := FALSE;
+//    insert(name, DirRootAdr, h, U, fad);
+//    IF h THEN (*root overflow*)
+//      Kernel.GetSector(DirRootAdr, a); ASSERT(a.mark = DirMark);
+//      Kernel.AllocSector(DirRootAdr, oldroot); Kernel.PutSector(oldroot, a);
+//      a.mark := DirMark; a.m := 1; a.p0 := oldroot; a.e[0] := U;
+//      Kernel.PutSector(DirRootAdr, a)
+//    END
+//  END Insert;
+
 	
 
 //	f := &File{Node: Node{name: req.Name, inode: NewInode()}}
@@ -108,7 +140,7 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 //	d.files = &files
 //	return f, f, nil
 
-	return nil,nil,fuse.ENOSYS  
+	return fsn,fsh,fserr
 }
 
 func (d *RFS_D) Remove(ctx context.Context, req *fuse.RemoveRequest) error          {   return fuse.ENOSYS       }
@@ -292,6 +324,7 @@ func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
          }
       }
 }
+
 func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
 
       sector := RFS_K_Read( disk, dpg )
@@ -311,10 +344,66 @@ func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
           a.E[e].P   = sector.DiskAdrAt(i+9)
       }
     }
-
-
 }
 
+func RFS_Insert( name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (h bool, v uint32) {
+
+//    (*h = "tree has become higher and v is ascending element"*)
+//    VAR ch: CHAR;
+//      i, j, L, R: INTEGER;
+//      dpg1: DiskAdr;
+//      u: DirEntry;
+//      a: DirPage;
+//
+//  BEGIN (*~h*) Kernel.GetSector(dpg0, a); ASSERT(a.mark = DirMark);
+//    L := 0; R := a.m; (*binary search*)
+//    WHILE L < R DO
+//      i := (L+R) DIV 2;
+//      IF name <= a.e[i].name THEN R := i ELSE L := i+1 END
+//    END ;
+//    IF (R < a.m) & (name = a.e[R].name) THEN
+//      a.e[R].adr := fad; Kernel.PutSector(dpg0, a)  (*replace*)
+//    ELSE (*not on this page*)
+//      IF R = 0 THEN dpg1 := a.p0 ELSE dpg1 := a.e[R-1].p END ;
+//      IF dpg1 = 0 THEN (*not in tree, insert*)
+//        u.adr := fad; u.p := 0; h := TRUE; j := 0;
+//        REPEAT ch := name[j]; u.name[j] := ch; INC(j)
+//        UNTIL ch = 0X;
+//        WHILE j < FnLength DO u.name[j] := 0X; INC(j) END ;
+//      ELSE
+//        insert(name, dpg1, h, u, fad)
+//      END ;
+//      IF h THEN (*insert u to the left of e[R]*)
+//        IF a.m < DirPgSize THEN
+//          h := FALSE; i := a.m;
+//          WHILE i > R DO DEC(i); a.e[i+1] := a.e[i] END ;
+//          a.e[R] := u; INC(a.m)
+//        ELSE (*split page and assign the middle element to v*)
+//          a.m := N; a.mark := DirMark;
+//          IF R < N THEN (*insert in left half*)
+//            v := a.e[N-1]; i := N-1;
+//            WHILE i > R DO DEC(i); a.e[i+1] := a.e[i] END ;
+//            a.e[R] := u; Kernel.PutSector(dpg0, a);
+//            Kernel.AllocSector(dpg0, dpg0); i := 0;
+//            WHILE i < N DO a.e[i] := a.e[i+N]; INC(i) END
+//          ELSE (*insert in right half*)
+//            Kernel.PutSector(dpg0, a);
+//            Kernel.AllocSector(dpg0, dpg0); DEC(R, N); i := 0;
+//            IF R = 0 THEN v := u
+//            ELSE v := a.e[N];
+//              WHILE i < R-1 DO a.e[i] := a.e[N+1+i]; INC(i) END ;
+//              a.e[i] := u; INC(i)
+//            END ;
+//            WHILE i < N DO a.e[i] := a.e[N+i]; INC(i) END
+//          END ;
+//          a.p0 := v.p; v.p := dpg0
+//        END ;
+//        Kernel.PutSector(dpg0, a)
+//      END
+//    END
+
+	return false, 0
+}
 
 func FindNameEnd(s []byte) int {
   var i int
@@ -328,6 +417,20 @@ type RFS_FI struct {
      S RFS_DiskAdr
 }
 
+func secBitSet( smap *RFS_AllocMap, dpg RFS_DiskAdr){
+    if smap != nil {
+        s:=dpg/29
+        e:=s/64
+        r:=s%64
+//      if e >= len(*smap){
+//        fmt.Printf("Sector mark beyond end of sector bitmap\n")
+//      }else{
+          smap[e] = smap[e] | (1<<uint(r))
+//      }
+    }
+
+}
+
 func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
 
     var a RFS_DirPage
@@ -335,16 +438,7 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
 
     RFS_K_GetDirSector(disk, dpg, & a)
 
-    if smap != nil {
-	s:=dpg/29
-	e:=s/64
-	r:=s%64
-//	if e >= len(*smap){
-//	  fmt.Printf("Sector mark beyond end of sector bitmap\n")
-//	}else{
-	  smap[e] = smap[e] | (1<<uint(r))
-//	}
-    }
+    secBitSet( smap, dpg )
 
     if a.P0 != 0 { 
 	fnames := RFS_Scan( disk, a.P0, smap )
@@ -353,6 +447,23 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
 
     for n:=0;int32(n)<a.M;n++ {
       files=append(files,RFS_FI{string(a.E[n].Name[:FindNameEnd(a.E[n].Name[:])]),a.E[n].Adr})
+      secBitSet(smap, a.E[n].Adr)
+      if smap != nil {
+        var fh RFS_FileHeader
+        RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh)
+	  for e:=0;(e<RFS_SecTabSize && e <= int(fh.Aleng));e++{
+                if fh.Sec[e]!=0{
+	  	   secBitSet( smap, fh.Sec[e] )
+		}
+	  }
+          for e:=0;e<RFS_ExTabSize;e++{
+		if fh.Ext[e]!=0{
+		   fmt.Println("Can't handle an ext entry in a file handle! Egads!")
+		}
+	  }
+      }
+
+
       if a.E[n].P != 0 {
 	fnames :=  RFS_Scan(disk, a.E[n].P, smap)
         files=append(files, fnames...)
