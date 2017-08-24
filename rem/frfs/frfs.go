@@ -109,7 +109,7 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 		        fmt.Println("Inserting File",req.Name,"starting at sector",nsec)
 
 			//h:=false
-			h,U := RFS_Insert( req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec*29) )
+			h,U := RFS_Insert(d.disk, req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec*29) )
 			if h {  // root overflow
 				fmt.Println("overflow, ascending at entry",U)
 			}
@@ -346,7 +346,7 @@ func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
     }
 }
 
-func RFS_Insert( name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (h bool, v uint32) {
+func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (h bool, v RFS_DirEntry) {
 
 //    (*h = "tree has become higher and v is ascending element"*)
 //    VAR ch: CHAR;
@@ -356,11 +356,63 @@ func RFS_Insert( name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (h bool, v uin
 //      a: DirPage;
 //
 //  BEGIN (*~h*) Kernel.GetSector(dpg0, a); ASSERT(a.mark = DirMark);
+
+    var a RFS_DirPage
+    var u RFS_DirEntry
+    RFS_K_GetDirSector(disk, dpg0, &a)
+
+    L :=int32(0) // binary search current directory page
+    R :=a.M
+    for L < R {
+	i:= (L+R)/2
+	if name <= string(a.E[i].Name[:]) {
+	  R = i
+	}else{
+	  L = i+1
+	}
+    }
+
+
 //    L := 0; R := a.m; (*binary search*)
 //    WHILE L < R DO
 //      i := (L+R) DIV 2;
 //      IF name <= a.e[i].name THEN R := i ELSE L := i+1 END
 //    END ;
+
+    if (R < a.M) && (name == string(a.E[R].Name[:])) {  // is already on page
+
+	fmt.Println("File already exists")
+
+    }else{  // not on this page
+	var dpg1 RFS_DiskAdr
+	if R == 0 {
+	  dpg1 = a.P0 
+	}else{
+	  dpg1 = a.E[R-1].P
+	}
+	if dpg1 == 0 { // can place here
+
+          fmt.Println("Preparing directory entry for insert")
+
+	  u.Adr = fad
+	  u.P = 0
+	  h = true
+	  for j:=0;j<len(name);j++{
+		u.Name[j]=name[j]
+	  }
+	  for j:=len(name);j<RFS_FnLength;j++{
+		u.Name[j]=0x00
+	  }
+
+	}else{  // go look at another page
+	    h, u = RFS_Insert(disk,name,dpg1,fad)
+	}
+	if h {
+
+
+	}
+    }
+
 //    IF (R < a.m) & (name = a.e[R].name) THEN
 //      a.e[R].adr := fad; Kernel.PutSector(dpg0, a)  (*replace*)
 //    ELSE (*not on this page*)
@@ -402,7 +454,7 @@ func RFS_Insert( name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (h bool, v uin
 //      END
 //    END
 
-	return false, 0
+	return h, v
 }
 
 func FindNameEnd(s []byte) int {
