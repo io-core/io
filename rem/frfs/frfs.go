@@ -127,7 +127,7 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 			
 			fhdr.Sec[0]=RFS_DiskAdr(nsec*29)
 
-
+			RFS_K_PutFileHeader( d.disk, RFS_DiskAdr(nsec*29), &fhdr)
 
 			//h:=false
 			h,U := RFS_Insert(d.disk, req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec*29) )
@@ -347,48 +347,40 @@ func (bytes sbuf) DiskAdrAt( i int) RFS_DiskAdr {
      return RFS_DiskAdr(uint32(bytes[(i*4)+0]) | (uint32(bytes[(i*4)+1]) << 8) | (uint32(bytes[(i*4)+2]) << 16) | (uint32(bytes[(i*4)+3]) << 24))
 }
 
+func (bytes sbuf) PutWordAt( i int, w uint32) {
+        bytes[i*4]=byte(w & 0xFF)
+        bytes[(i*4)+1]=byte((w >> 8) & 0xFF)
+        bytes[(i*4)+2]=byte((w >> 16) & 0xFF)
+        bytes[(i*4)+3]=byte((w >> 24) & 0xFF)
+}
+
 func RFS_K_PutFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
 
-	bytes := make([]byte, 1024)
-
-	bytes[0]=byte(RFS_HeaderMark & 0xFF)
-        bytes[1]=byte((RFS_HeaderMark >> 8) & 0xFF) 
-        bytes[2]=byte((RFS_HeaderMark >> 16) & 0xFF) 
-        bytes[3]=byte((RFS_HeaderMark >> 24) & 0xFF) 
+	sector := sbuf(make([]byte, 1024))
+	
+	sector.PutWordAt(0,RFS_HeaderMark)
 
          for i:=0;i<32;i++{
-            bytes[i+4]=a.Name[i]
+            sector[i+4]=a.Name[i]
          }
 
-	bytes[36]=byte(a.Aleng & 0xFF)
-        bytes[37]=byte((a.Aleng >> 8) & 0xFF) 
-        bytes[38]=byte((a.Aleng >> 16) & 0xFF)
-        bytes[39]=byte((a.Aleng >> 24) & 0xFF)
-
-        bytes[40]=byte(a.Bleng & 0xFF)
-        bytes[41]=byte((a.Bleng >> 8) & 0xFF) 
-        bytes[42]=byte((a.Bleng >> 16) & 0xFF)
-        bytes[43]=byte((a.Bleng >> 24) & 0xFF)
-
-        bytes[44]=byte(a.Date & 0xFF)
-        bytes[45]=byte((a.Date >> 8) & 0xFF)
-        bytes[46]=byte((a.Date >> 16) & 0xFF)
-        bytes[47]=byte((a.Date >> 24) & 0xFF)
+        sector.PutWordAt(9,uint32(a.Aleng))
+        sector.PutWordAt(10,uint32(a.Bleng))
+        sector.PutWordAt(11,uint32(a.Date))
 
          for i:=0;i<RFS_ExTabSize;i++{
-            bytes[i+(12*4)]=byte(a.Ext[i] & 0xFF)
-            bytes[i+(12*4)+1]=byte((a.Ext[i] >> 8) & 0xFF)
-            bytes[i+(12*4)+2]=byte((a.Ext[i] >> 16) & 0xFF)
-            bytes[i+(12*4)+3]=byte((a.Ext[i] >> 24) & 0xFF)
+            sector.PutWordAt(12+i,uint32(a.Ext[i]))
          }
          for i:=0;i<RFS_SecTabSize;i++{
-            bytes[i+(24*4)]=byte(a.Ext[i] & 0xFF)
-            bytes[i+(24*4)+1]=byte((a.Sec[i] >> 8) & 0xFF)
-            bytes[i+(24*4)+2]=byte((a.Sec[i] >> 16) & 0xFF)
-            bytes[i+(24*4)+3]=byte((a.Sec[i] >> 24) & 0xFF)
+            sector.PutWordAt(24+i,uint32(a.Sec[i]))
          }
 
-	RFS_K_Write( disk, dpg, bytes )
+         for i:=0;i<(RFS_SectorSize - RFS_HeaderSize);i++{
+            sector[RFS_HeaderSize+i]=a.fill[i]
+         }
+        
+        fmt.Println("writing file header sector",dpg/29)
+	RFS_K_Write( disk, dpg, sector )
 
 }
 
@@ -411,12 +403,35 @@ func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
          for i:=0;i<RFS_SecTabSize;i++{
             a.Sec[i]=sector.DiskAdrAt(i+24)
          }
-//       a.Sec[0]=dpg
-
          for i:=0;i<RFS_SectorSize - RFS_HeaderSize;i++{
            a.fill[i]=sector[i+RFS_HeaderSize]
          }
       }
+}
+
+func RFS_K_PutDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
+
+        sector := sbuf(make([]byte, 1024))
+
+        sector.PutWordAt(0,a.Mark)
+        sector.PutWordAt(1,uint32(a.M))
+        sector.PutWordAt(2,uint32(a.P0))
+
+   if a.Mark == RFS_DirMark {
+
+      for e := 0; int32(e)<a.M;e++{
+          i := 16 + (e*10)
+          for x:=0;x<32;x++ {
+            sector[(i*4)+x]=a.E[e].Name[x]
+          } 
+          sector.PutWordAt(i+8,uint32(a.E[e].Adr))  
+          sector.PutWordAt(i+9,uint32(a.E[e].P))  
+      }
+
+      fmt.Println("writing directory sector",dpg/29)
+      RFS_K_Write( disk, dpg, sector )
+
+   }
 }
 
 func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
@@ -427,12 +442,12 @@ func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
       a.M    =sector.Int32At(1)
       a.P0   =sector.DiskAdrAt(2)
 
-   if a.Mark==0x9b1ea38d {
+   if a.Mark == RFS_DirMark {
 
       for e := 0; int32(e)<a.M;e++{
           i := 16 + (e*10)
           for x:=0;x<32;x++ {
-            a.E[e].Name[x]=sector[i*4+x]
+            a.E[e].Name[x]=sector[(i*4)+x]
           }
           a.E[e].Adr = sector.DiskAdrAt(i+8)
           a.E[e].P   = sector.DiskAdrAt(i+9)
@@ -516,7 +531,7 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
                 fmt.Println("splitting directory page")
  
 	    }
-//	    RFS_K_PutSector(dpg0,a)
+	    RFS_K_PutDirSector(disk,dpg0,&a)
 	}
     }
 
