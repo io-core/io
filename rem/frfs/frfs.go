@@ -457,20 +457,14 @@ func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
 
 func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (h bool, v RFS_DirEntry) {
 
-//    (*h = "tree has become higher and v is ascending element"*)
-//    VAR ch: CHAR;
-//      i, j, L, R: INTEGER;
-//      dpg1: DiskAdr;
-//      u: DirEntry;
-//      a: DirPage;
-//
-//  BEGIN (*~h*) Kernel.GetSector(dpg0, a); ASSERT(a.mark = DirMark);
+  var a RFS_DirPage
+  var u RFS_DirEntry
+  h = false  //    (*h = "tree has become higher and v is ascending element"*)
 
-    var a RFS_DirPage
-    var u RFS_DirEntry
-    h = false
-    RFS_K_GetDirSector(disk, dpg0, &a)
-
+  RFS_K_GetDirSector(disk, dpg0, &a)
+  if a.Mark != RFS_DirMark {
+	fmt.Println("Directory sector load did not have directory mark")
+  }else{
     L :=int32(0) // binary search current directory page
     R :=a.M
     for L < R {
@@ -481,17 +475,10 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
 	  L = i+1
 	}
     }
-
-
-//    L := 0; R := a.m; (*binary search*)
-//    WHILE L < R DO
-//      i := (L+R) DIV 2;
-//      IF name <= a.e[i].name THEN R := i ELSE L := i+1 END
-//    END ;
-
-    if (R < a.M) && (name == string(a.E[R].Name[:])) {  // is already on page
-
-	fmt.Println("File already exists")
+    if (R < a.M) && (name == string(a.E[R].Name[:])) {  // is already on page, replace
+        a.E[R].Adr = fad
+	RFS_K_PutDirSector(disk,dpg0, &a) 
+	fmt.Println("File already exists -- Replacing")
 
     }else{  // not on this page
 	var dpg1 RFS_DiskAdr
@@ -530,29 +517,6 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
 	    }else{ // split page and assign the middle element to v
                 fmt.Println("splitting directory page")
  
-	    }
-	    RFS_K_PutDirSector(disk,dpg0,&a)
-	}
-    }
-
-//    IF (R < a.m) & (name = a.e[R].name) THEN
-//      a.e[R].adr := fad; Kernel.PutSector(dpg0, a)  (*replace*)
-//    ELSE (*not on this page*)
-//      IF R = 0 THEN dpg1 := a.p0 ELSE dpg1 := a.e[R-1].p END ;
-//      IF dpg1 = 0 THEN (*not in tree, insert*)
-//        u.adr := fad; u.p := 0; h := TRUE; j := 0;
-//        REPEAT ch := name[j]; u.name[j] := ch; INC(j)
-//        UNTIL ch = 0X;
-//        WHILE j < FnLength DO u.name[j] := 0X; INC(j) END ;
-//      ELSE
-//        insert(name, dpg1, h, u, fad)
-//      END ;
-//      IF h THEN (*insert u to the left of e[R]*)
-//        IF a.m < DirPgSize THEN
-//          h := FALSE; i := a.m;
-//          WHILE i > R DO DEC(i); a.e[i+1] := a.e[i] END ;
-//          a.e[R] := u; INC(a.m)
-//        ELSE (*split page and assign the middle element to v*)
 //          a.m := N; a.mark := DirMark;
 //          IF R < N THEN (*insert in left half*)
 //            v := a.e[N-1]; i := N-1;
@@ -571,12 +535,14 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
 //            WHILE i < N DO a.e[i] := a.e[N+i]; INC(i) END
 //          END ;
 //          a.p0 := v.p; v.p := dpg0
-//        END ;
-//        Kernel.PutSector(dpg0, a)
-//      END
-//    END
 
-	return h, v
+            }
+            RFS_K_PutDirSector(disk,dpg0,&a)
+        }
+    }
+
+  }
+  return h, v
 }
 
 func FindNameEnd(s []byte) int {
