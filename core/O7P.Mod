@@ -947,7 +947,12 @@ MODULE O7P; (*N. Wirth 1.7.97 / 15.12.2013 / CP 6.3.2014 Oberon compiler for Obe
       IF (S.class = Texts.Name) & (S.s[0] = "s") THEN newSF := TRUE END;
       IF (S.class = Texts.Name) & (S.s[0] = "r") THEN arch := 0X END;
       IF (S.class = Texts.Name) & (S.s[0] = "a") THEN arch := 1X END;
-      IF (S.class = Texts.Name) & (S.s[0] = "i") THEN arch := 2X END
+      IF (S.class = Texts.Name) & (S.s[0] = "i") THEN arch := 2X END;
+      IF (S.class = Texts.Name) & (S.s[0] = "v") THEN arch := 3X END;
+      IF (S.class = Texts.Name) & (S.s[0] = "R") THEN arch := 4X END;
+      IF (S.class = Texts.Name) & (S.s[0] = "A") THEN arch := 5X END;
+      IF (S.class = Texts.Name) & (S.s[0] = "I") THEN arch := 6X END;
+      IF (S.class = Texts.Name) & (S.s[0] = "V") THEN arch := 7X END
     END
   END Option;
 
@@ -984,7 +989,7 @@ MODULE O7P; (*N. Wirth 1.7.97 / 15.12.2013 / CP 6.3.2014 Oberon compiler for Obe
     Oberon.Collect(0)
   END Compile;
 
-BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "O7 Compiler  4.6.2014");
+BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "O7 Compiler  4.11.2018");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   NEW(dummy); dummy.class := O7B.Var; dummy.type := O7B.intType; arch:= 0X;
   expression := expression0; Type := Type0; FormalType := FormalType0
