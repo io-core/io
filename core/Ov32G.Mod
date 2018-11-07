@@ -1,6 +1,6 @@
-MODULE Oi32G; (* NW  10.10.2013 CP 7.11.2018 i32 code generator in Oberon-07*)
+MODULE Ov32G; (* NW  10.10.2013 CP 7.11.2018 32-bit RISCV code generator in Oberon-07*)
   IMPORT SYSTEM, Files, O7S, O7B, OXG;
-  (*Code generator for Oberon compiler for Intel 32-bit processor.
+  (*Code generator for Oberon compiler for 32-bit RISCV processor.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)
 
@@ -1068,7 +1068,7 @@ MODULE Oi32G; (* NW  10.10.2013 CP 7.11.2018 i32 code generator in Oberon-07*)
     END ;
     size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*4;  (*varsize includes type descriptors*)
 
-    O7B.MakeFileName(name, modid, ".i32"); (*write code file*)
+    O7B.MakeFileName(name, modid, ".v32"); (*write code file*)
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.WriteByte(R, version);
     Files.WriteInt(R, size);
     obj := O7B.topScope.next;
@@ -1121,4 +1121,4 @@ MODULE Oi32G; (* NW  10.10.2013 CP 7.11.2018 i32 code generator in Oberon-07*)
 
 BEGIN
   relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13
-END Oi32G.
+END Ov32G.

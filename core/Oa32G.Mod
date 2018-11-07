@@ -1,4 +1,4 @@
-MODULE Oa32G; (* NW  10.10.2013 CP 6.3.2014 arm 32-bit code generator in Oberon-07*)
+MODULE Oa32G; (* NW  10.10.2013 CP 2014,2018 arm 32-bit code generator in Oberon-07*)
   IMPORT SYSTEM, Files, O7S, O7B, OXG;
   (*Code generator for Oberon compiler for arm 32-bit processor.
      Procedural interface to Parser O7P; result in array "code".
