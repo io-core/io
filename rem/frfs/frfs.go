@@ -133,6 +133,8 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 			h,U := RFS_Insert(d.disk, req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec*29) )
 			if h {  // root overflow
 				fmt.Println("overflow, ascending at entry",U)
+			}else{
+				fserr = 0
 			}
 		}	
 	}
@@ -224,7 +226,44 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
         return rv, nil
 }
 
-func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {    return fuse.ENOSYS   }
+func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+        fserr := fuse.ENOSYS
+        var fh RFS_FileHeader
+        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
+
+	if (req.FileFlags & fuse.OpenWriteOnly)>0 {
+        	if (req.FileFlags & fuse.OpenAppend)>0 {
+        	  fmt.Println("Don't know how to append")
+		}else{
+		  if len(req.Data) <= (RFS_SectorSize - RFS_HeaderSize) {
+                     fsec := RFS_K_Read(f.disk,fh.Sec[0])
+		     for i:= 0; i < len(req.Data); i++ {
+                       fsec[RFS_HeaderSize + i] = req.Data[i]
+		     }
+		     fh.Aleng = 0
+		     fh.Bleng = RFS_HeaderSize + int32(len(req.Data))
+
+		     fsec.PutWordAt(9,uint32(fh.Aleng))
+		     fsec.PutWordAt(10,uint32(fh.Bleng))
+		     //fsec.PutWordAt(11,uint32(fh.Date))
+
+		     RFS_K_Write( f.disk, fh.Sec[0], fsec)
+
+		  }else{
+
+                    fmt.Println("write too big")
+
+		  }
+        	  //var rv []byte
+
+        	  fmt.Println("fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data))
+        	  return nil
+
+        	}
+        }
+        return fserr   
+}
+
 func (f *RFS_F) Flush(ctx context.Context, req *fuse.FlushRequest) error {      return nil   }
 
 func (f *RFS_F) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {	return f, nil   }
