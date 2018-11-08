@@ -227,12 +227,14 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 }
 
 func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-        fserr := fuse.ENOSYS
+        var fserr error
+        fserr = fuse.EIO
         var fh RFS_FileHeader
         RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
 
 	if (req.FileFlags & fuse.OpenWriteOnly)>0 {
         	if (req.FileFlags & fuse.OpenAppend)>0 {
+                  fserr = fuse.ENOSYS
         	  fmt.Println("Don't know how to append")
 		}else{
 		  l := len(req.Data)
@@ -284,14 +286,12 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
                     
                   }
-
-        	  //var rv []byte
-
-        	  fmt.Println("fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data))
-        	  return nil
+		  resp.Size = l
+        	  fserr = nil
 
         	}
         }
+        fmt.Println("fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
         return fserr   
 }
 
