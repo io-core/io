@@ -256,9 +256,9 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                 fmt.Println("Have too many sectors... trimming!")
 	}
 
-        rc:= 0
-	for seqn:= 0; seqn <= newAleng ; seqn ++ {
-		if seqn == 0 || seqn >= ( rc + int(osz) + RFS_HeaderSize )/ RFS_SectorSize {
+        rc:= int32(0)
+	for seqn:= int32(0); seqn <= newAleng ; seqn ++ {
+		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
 	                if seqn > 0 {
 	                        fsec = RFS_K_Read(f.disk,fh.Sec[seqn])
 	                }else{
@@ -269,70 +269,28 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                 fsec.PutWordAt(10,uint32(fh.Bleng))
 			}
 			if seqn==0 && ((osz + RFS_HeaderSize)/RFS_SectorSize) == 0 {
-				for i:=0; i < (RFS_SectorSize - (osz+RFS_HeaderSize)) &&  rc < len(req.Data) ; i++ {
+				for i:=int32(0); i < (RFS_SectorSize - (osz+RFS_HeaderSize)) &&  rc < int32(len(req.Data)) ; i++ {
 					fsec[ (osz+RFS_HeaderSize) + i ] = req.Data[ rc ]
                                 	rc = rc + 1
 				}
 			}
-
+                        if seqn > 0 && appendOp && seqn == origAleng {
+                                for i:=int32(0); i < (RFS_SectorSize - origBleng) &&  rc < int32(len(req.Data)) ; i++ {
+                                        fsec[ origBleng + i ] = req.Data[ rc ]
+                                        rc = rc + 1
+                                }
+			} else if seqn > 0 {
+                                for i:=int32(0); i < RFS_SectorSize &&  rc < int32(len(req.Data)) ; i++ {
+                                        fsec[ i ] = req.Data[ rc ] 
+                                        rc = rc + 1
+                                }
+			}
 
                         RFS_K_Write( f.disk, fh.Sec[seqn], fsec)
-                        
-
-
-
-                       csz := RFS_SectorSize
-                       wo:= 0
-                       if seqn > 0 {
-                         fsec = RFS_K_Read(f.disk,fh.Sec[seqn])
-		       }else{
-                         csz = RFS_SectorSize - RFS_HeaderSize
-                         wo = RFS_HeaderSize
-                       }
-		       if (req.FileFlags & fuse.OpenAppend)>0 {
-			 dx:=0
-                         if seqn>0 {
-			   dx= (RFS_SectorSize - RFS_HeaderSize) + ( (seqn - 1) * RFS_SectorSize )
-			 }
-			 lft:= int(osz) - dx
-			 wo = wo + lft
-		       
-		         if wo > RFS_SectorSize{
-			   wo = RFS_SectorSize
-			   csz = 0
-		         }else{
-			   csz = csz - lft
-		         }
-                       } 
-
-		       if rdl - rc < csz {
-                         csz = rdl - rc
-                       }
-                       
-		       for i:= 0; i < csz; i++ {
-                         fsec[wo + i] = req.Data[rc+i]
-		       }
-                       rc = rc + csz
-                       
-                       if seqn == 0 {
-		         fh.Aleng = int32(newAleng)
-		         fh.Bleng = RFS_HeaderSize + int32(csz)
-
-		         fsec.PutWordAt(9,uint32(fh.Aleng))
-		         fsec.PutWordAt(10,uint32(fh.Bleng))
-		         //fsec.PutWordAt(11,uint32(fh.Date))
-                       }
-
-		       RFS_K_Write( f.disk, fh.Sec[seqn], fsec)
-                       seqn = seqn + 1
-
-                       rc = rdl
-
-		    
 		}
                     
         }
-	resp.Size = l
+	resp.Size = len(req.Data)
         fserr = nil
         
         fmt.Println("fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
