@@ -80,6 +80,36 @@ func name_is_good(name string) bool {
 	return true
 }
 
+func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
+
+   var smap RFS_AllocMap
+   slist := make([]RFS_DiskAdr,0,n)
+
+   _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
+   fmt.Println("smap len:",len(smap),"for",len(smap)*64,"sectors")
+   found:=0
+   for i:=0; i<len(smap); i++{
+           if found == 0 && i > 0 && smap[i] != 0xffffffffffffffff {
+                   found = i
+           }
+   }
+   if found > 0 {
+                fbit:=64
+                for j := 0; j < 64 && fbit == 64 ; j++ {
+                  if ((smap[found]) & (1 << uint(j) ))!=0{
+                  }else{
+                    fbit=j
+                  }
+                }
+                if fbit != 64{
+                        nsec:=(found*64) + fbit
+                        slist[0]=RFS_DiskAdr(nsec)
+                }
+   }
+
+   return slist
+}
+
 
 func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
 
@@ -101,28 +131,35 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 	fhdr.Date = 0
 	
 
-	var smap RFS_AllocMap 
+	//var smap RFS_AllocMap 
 
-        _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
+        slist := RFS_FindNFreeSectors(1, d) 
 
-        fmt.Println("smap len:",len(smap),"for",len(smap)*64,"sectors")
+        //_ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
+	//
+        //fmt.Println("smap len:",len(smap),"for",len(smap)*64,"sectors")
+	//
+	//found:=0
+	//for i:=0; i<len(smap); i++{
+	//	if found == 0 && i > 0 && smap[i] != 0xffffffffffffffff {
+	//		found = i
+	//	}
+	//}
+	//if found > 0 {
+	//	fbit:=64
+	//	for j := 0; j < 64 && fbit == 64 ; j++ {
+	//	  if ((smap[found]) & (1 << uint(j) ))!=0{
+	//	  }else{
+	//	    fbit=j
+	//	  }
+	//	}
+	//	if fbit != 64{
+	//		nsec:=(found*64) + fbit
+        //        }
+        //}
 
-	found:=0
-	for i:=0; i<len(smap); i++{
-		if found == 0 && i > 0 && smap[i] != 0xffffffffffffffff {
-			found = i
-		}
-	}
-	if found > 0 {
-		fbit:=64
-		for j := 0; j < 64 && fbit == 64 ; j++ {
-		  if ((smap[found]) & (1 << uint(j) ))!=0{
-		  }else{
-		    fbit=j
-		  }
-		}
-		if fbit != 64{
-			nsec:=(found*64) + fbit
+        if len(slist)>0{
+			nsec := slist[0]
 		        fmt.Println("Inserting File",req.Name,"starting at sector",nsec)
 			
 			fhdr.Sec[0]=RFS_DiskAdr(nsec*29)
@@ -136,7 +173,7 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 			}else{
 				fserr = 0
 			}
-		}	
+		
 	}
 		
 //  PROCEDURE Insert*(name: FileName; fad: DiskAdr);
@@ -250,7 +287,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	newBleng := (newl + RFS_HeaderSize) % RFS_SectorSize
 
 	if origAleng < newAleng {
-                fmt.Println("Don't have enough sectors... truncating!")
+                fmt.Println("Need",newAleng-origAleng,"more sectors... truncating!")
                 newAleng = origAleng
 	}else if origAleng > newAleng{
                 fmt.Println("Have too many sectors... trimming!")
@@ -642,6 +679,7 @@ func secBitSet( smap *RFS_AllocMap, dpg RFS_DiskAdr){
     }
 
 }
+
 
 func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
 
