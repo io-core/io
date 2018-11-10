@@ -281,8 +281,8 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         	}else{
                         fmt.Println("found sector(s)",slist,"for the file")
 			for i:=origAleng+1;i<=newAleng;i++{
-				fh.Sec[i]=slist[i-(origAleng+1)]
-				fsec.PutWordAt(int(24+i),uint32(slist[i-(origAleng+1)]))
+				fh.Sec[i]=slist[i-(origAleng+1)]*29
+				fsec.PutWordAt(int(24+i),uint32(slist[i-(origAleng+1)])*29)
 			}
         	}
 
@@ -320,7 +320,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                         rc = rc + 1
                                 }
 			}
-
+			fmt.Println("Writing chunk",seqn,"to sector",fh.Sec[seqn])
                         RFS_K_Write( f.disk, fh.Sec[seqn], fsec)
 		}
                     
