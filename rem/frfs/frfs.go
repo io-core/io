@@ -91,8 +91,6 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    var slist []RFS_DiskAdr
 
    _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
-   fmt.Println("smap len:",len(smap),"for",len(smap)*64,"sectors")
-   
    startat:=0
    for ith:=0;ith<n;ith++{
    	found:=0
@@ -131,8 +129,6 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
     var attr = fuse.Attr{Inode: 0, Mode: 0777, Size: 0}
 
     fsn := &RFS_F{inode: 0,disk: d.disk}
-    fmt.Println("Inserting File",req.Name)
-
     if name_is_good(req.Name){
         var fhdr RFS_FileHeader
 
@@ -150,8 +146,6 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
                         fmt.Println("Failed to find one free sector for the file header")
 	}else{
 			nsec := slist[0]
-		        fmt.Println("Inserting File",req.Name,"starting at sector id",nsec*29)
-		        	
 			fhdr.Sec[0]=RFS_DiskAdr(nsec*29)
 
 			fsn.inode=uint64(nsec*29)
@@ -315,8 +309,6 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 		newAleng = 63
 	}
 
-	fmt.Println("Write operation begin")
-
 	if origAleng < newAleng {
                 
                 
@@ -325,7 +317,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         	if len(slist)!=int(newAleng-origAleng){
         	        fmt.Println("Failed to find",newAleng-origAleng,"free sector(s) for the file")
         	}else{
-                        fmt.Println("found sector(s)",slist,"for the file")
+                        //fmt.Println("found sector(s)",slist,"for the file")
 			for i:=origAleng+1;i<=newAleng;i++{
                                 if i < int32(len(fh.Sec)){
 				  fh.Sec[i]=slist[i-(origAleng+1)]*29
@@ -370,7 +362,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                         rc = rc + 1
                                 }
 			}
-			fmt.Println("Writing chunk",seqn,"to sector",fh.Sec[seqn]/29)
+			//fmt.Println("Writing chunk",seqn,"to sector",fh.Sec[seqn]/29)
                         RFS_K_Write( f.disk, fh.Sec[seqn], fsec)
 		}
                     
@@ -378,7 +370,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	resp.Size = len(req.Data)
         fserr = nil
         
-        fmt.Println("Write operation end. fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
+        //fmt.Println("Write operation end. fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
         return fserr   
 }
 
@@ -535,8 +527,6 @@ func RFS_K_PutFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
          for i:=0;i<(RFS_SectorSize - RFS_HeaderSize);i++{
             sector[RFS_HeaderSize+i]=a.fill[i]
          }
-        
-        fmt.Println("writing file header sector",dpg/29)
 	RFS_K_Write( disk, dpg, sector )
 
 }
@@ -586,8 +576,6 @@ func RFS_K_PutDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
           sector.PutWordAt(i+8,uint32(a.E[e].Adr))  
           sector.PutWordAt(i+9,uint32(a.E[e].P))  
       }
-
-      fmt.Println("writing directory sector",dpg/29)
       RFS_K_Write( disk, dpg, sector )
 
    }
@@ -736,8 +724,6 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
     var a RFS_DirPage
     var files []RFS_FI
 
-    fmt.Print("<",dpg)
-
     RFS_K_GetDirSector(disk, dpg, & a)
 
     secBitSet( smap, dpg )
@@ -775,8 +761,6 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
       }
       }
     }
-    fmt.Print(">")
-
     return files
 }
 
