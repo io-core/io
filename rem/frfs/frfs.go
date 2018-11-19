@@ -126,24 +126,16 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
 
 
 func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
-    var fserr error
-    fserr = fuse.EIO
 
-    var attr fuse.Attr
-    var xfsn inode
+    var fserr error = fuse.EIO
+    var attr = fuse.Attr{Inode: 0, Mode: 0777, Size: 0}
 
-    fsn:=fs.Node(&xfsn)
-    fsh:=fs.Handle(&xfsn)
-    
-
- 
-  
-
+    fsn := &RFS_F{inode: 0,disk: d.disk}
     fmt.Println("Inserting File",req.Name)
 
-    var fhdr RFS_FileHeader
-
     if name_is_good(req.Name){
+        var fhdr RFS_FileHeader
+
 	for i:=0;i<len(req.Name);i++{
 	    fhdr.Name[i]=req.Name[i]
 	}
@@ -158,10 +150,18 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
                         fmt.Println("Failed to find one free sector for the file header")
 	}else{
 			nsec := slist[0]
-		        fmt.Println("Inserting File",req.Name,"starting at sector",nsec)
-			
+		        fmt.Println("Inserting File",req.Name,"starting at sector id",nsec*29)
+		        	
 			fhdr.Sec[0]=RFS_DiskAdr(nsec*29)
-			xfsn=inode(nsec)
+
+			fsn.inode=uint64(nsec*29)
+			attr.Inode=uint64(nsec*29)
+			resp.Node=fuse.NodeID(nsec*29)
+			//resp.Generation=1
+			//resp.EntryValid=0
+			resp.Attr=attr
+                        //resp.Handle=fuse.HandleID(nsec)
+                        //resp.Flags=0
 
 			RFS_K_PutFileHeader( d.disk, RFS_DiskAdr(nsec*29), &fhdr)
 
@@ -175,13 +175,17 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 		
 	}
 
-        //attr.Inode = fsn.inode
-        attr.Mode = 0555
-        attr.Size = 0
+	//_ = fsn.Attr(ctx, &attr)
 
-	_ = fsn.Attr(ctx, &attr)
-        fmt.Println("create response:",resp)
-		
+        //fmt.Println("create response:",resp)
+    }
+    //fsh, fserr := d.Lookup(ctx,req.Name)
+
+    var smap RFS_AllocMap
+    _ = RFS_Scan(d.disk,29,&smap)
+
+    return fsn,fsn,fserr
+
 //  PROCEDURE Insert*(name: FileName; fad: DiskAdr);
 //    VAR  oldroot: DiskAdr;
 //      h: BOOLEAN; U: DirEntry;
@@ -205,9 +209,11 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 //	}
 //	d.files = &files
 //	return f, f, nil
-    }
 
-    return fsn,fsh,fserr
+    //fsh, fserr := d.Lookup(ctx,req.Name)
+    //fsn = d
+    //return fsn,fsh,fserr
+    //return fsn,resp,fserr
 }
 
 func (d *RFS_D) Remove(ctx context.Context, req *fuse.RemoveRequest) error          {   return fuse.ENOSYS       }
@@ -285,6 +291,10 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
         var fh RFS_FileHeader
         RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
+        
+	if fh.Sec[0]==0{
+		fmt.Println("File header self-sector is zero for f.inode",f.inode)
+	}
        
         appendOp := (req.FileFlags & fuse.OpenAppend) > 0
 	
@@ -304,6 +314,8 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         if newAleng > 63 {
 		newAleng = 63
 	}
+
+	fmt.Println("Write operation begin")
 
 	if origAleng < newAleng {
                 
@@ -366,7 +378,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	resp.Size = len(req.Data)
         fserr = nil
         
-        fmt.Println("fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
+        fmt.Println("Write operation end. fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
         return fserr   
 }
 
@@ -551,6 +563,8 @@ func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
          for i:=0;i<RFS_SectorSize - RFS_HeaderSize;i++{
            a.fill[i]=sector[i+RFS_HeaderSize]
          }
+      }else{
+	fmt.Println("sector",dpg,"has no header mark in GetFileHeader")
       }
 }
 
@@ -722,6 +736,8 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
     var a RFS_DirPage
     var files []RFS_FI
 
+    fmt.Print("<",dpg)
+
     RFS_K_GetDirSector(disk, dpg, & a)
 
     secBitSet( smap, dpg )
@@ -759,6 +775,8 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
       }
       }
     }
+    fmt.Print(">")
+
     return files
 }
 
