@@ -29,6 +29,7 @@ type RFS_FS struct {
         root *RFS_D
 	file *os.File
 	offset uint32
+        size int64
 }
 
 func (f *RFS_FS) Root() (fs.Node, error) {
@@ -82,11 +83,14 @@ func name_is_good(name string) bool {
 }
 
 func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
-
-   var smap RFS_AllocMap
+   smsz := int64(d.disk.size)
+   if d.disk.offset == 0 {
+	smsz = smsz -(262144*1024)
+   }
+   var smap = make(RFS_AllocMap,smsz/64)
    var slist []RFS_DiskAdr
 
-   _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
+   _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), smap)
 
    startat:=0
    for ith:=0;ith<n;ith++{
@@ -381,11 +385,12 @@ const RFS_N = 12               //DirPgSize / 2
 const RFS_DirMark    = 0x9B1EA38D
 const RFS_HeaderMark = 0x9BA71D86
 const RFS_FillerSize = 52
-const RFS_NUMSECTORS = 1220   // RISC.img size / 1024
+
+var rfs_numsectors = 1220   // RISC.img size / 1024
 
 // 141G max volume size (2^32)/29 sectors, 1k sector size   // 565Y max volume size 2^62 sectors, 4k sector size, div 29
 
-type 	RFS_AllocMap	[ RFS_NUMSECTORS / 64 ]uint64
+type 	RFS_AllocMap	[]uint64
 
 type    RFS_DiskAdr         int32
 type    RFS_FileName       [RFS_FnLength]byte           // 672 data bytes in zeroth sector of file
@@ -731,7 +736,7 @@ type RFS_FI struct {
      S RFS_DiskAdr
 }
 
-func secBitSet( smap *RFS_AllocMap, dpg RFS_DiskAdr){
+func secBitSet( smap RFS_AllocMap, dpg RFS_DiskAdr){
     if smap != nil {
         s:=dpg/29
         e:=s/64
@@ -746,7 +751,7 @@ func secBitSet( smap *RFS_AllocMap, dpg RFS_DiskAdr){
 }
 
 
-func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
+func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap RFS_AllocMap ) []RFS_FI {
 
     var a RFS_DirPage
     var files []RFS_FI
@@ -797,7 +802,16 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
 func ServeRFS( mountpoint *string, f *os.File, o uint32 ) {
 	if *mountpoint != "-" {
 
-	   go func() {
+	   
+
+	   fi, err := f.Stat()
+	   if err != nil {
+	     fmt.Println(err)
+	   }else{
+
+           go func() {
+              sz := fi.Size()
+	      fmt.Println("The volume is %d bytes", sz)
 
 	      c, err := fuse.Mount(*mountpoint)
 	      if err != nil { log.Fatal(err) }
@@ -806,7 +820,7 @@ func ServeRFS( mountpoint *string, f *os.File, o uint32 ) {
 		log.Panicln("kernel FUSE support is too old to have invalidations: version %v", p)
 	      }
 	      srv := fs.New(c, nil)
-	      filesys := &RFS_FS{ &RFS_D{  inode: 29, disk: nil},f,o}
+	      filesys := &RFS_FS{ &RFS_D{  inode: 29, disk: nil},f,o,sz}
 	      filesys.root.disk=filesys
 	     
 
@@ -819,5 +833,6 @@ func ServeRFS( mountpoint *string, f *os.File, o uint32 ) {
 		log.Panicln(err)
 	      }
 	   }()
+           }
 	}
 }
