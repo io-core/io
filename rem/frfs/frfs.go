@@ -1,5 +1,5 @@
 //
-// Copyright © 2017 Charles Perkins
+// Copyright © 2017,2018 Charles Perkins
 //
 // Permission to use, copy, modify, and/or distribute this software for any purpose with
 // or without fee is hereby granted, provided that the above copyright notice and this
@@ -16,7 +16,6 @@
 package frfs
 
 import (
-
 	"log"
 	"os"
 	"fmt"
@@ -25,7 +24,6 @@ import (
         "bazil.org/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
-
 
 type RFS_FS struct {
         root *RFS_D
@@ -37,7 +35,6 @@ func (f *RFS_FS) Root() (fs.Node, error) {
         return f.root, nil
 }
 
-//var inode uint64
 type inode uint64
 
 func (i *inode) Attr(ctx context.Context, attr *fuse.Attr) error {
@@ -71,7 +68,6 @@ func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
         var result []fuse.Dirent
 	
-	
         files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil)
         if files != nil {
                 for _, f := range files {
@@ -91,6 +87,7 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    var slist []RFS_DiskAdr
 
    _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap)
+
    startat:=0
    for ith:=0;ith<n;ith++{
    	found:=0
@@ -168,15 +165,7 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 			}
 		
 	}
-
-	//_ = fsn.Attr(ctx, &attr)
-
-        //fmt.Println("create response:",resp)
     }
-    //fsh, fserr := d.Lookup(ctx,req.Name)
-
-    var smap RFS_AllocMap
-    _ = RFS_Scan(d.disk,29,&smap)
 
     return fsn,fsn,fserr
 
@@ -194,20 +183,6 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 //    END
 //  END Insert;
 
-	
-
-//	f := &File{Node: Node{name: req.Name, inode: NewInode()}}
-//	files := []*File{f}
-//	if d.files != nil {
-//		files = append(files, *d.files...)
-//	}
-//	d.files = &files
-//	return f, f, nil
-
-    //fsh, fserr := d.Lookup(ctx,req.Name)
-    //fsn = d
-    //return fsn,fsh,fserr
-    //return fsn,resp,fserr
 }
 
 func (d *RFS_D) Remove(ctx context.Context, req *fuse.RemoveRequest) error          {   return fuse.ENOSYS       }
@@ -224,17 +199,8 @@ func (f *RFS_F) Attr(ctx context.Context, a *fuse.Attr) error {
         a.Mode = 0777
 
         var fh RFS_FileHeader
-        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
-
-
-        ecount:=0
-        for i:=0;i<12;i++{
-          if fh.Ext[i]!=0 { ecount++ }
-        }
-        scount:=0
-        for i:=0;i<64;i++{
-          if fh.Sec[i]!=0 { scount++ }
-        }
+        var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
+        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, & xtbuf)
         a.Size = (uint64(fh.Aleng) * RFS_SectorSize) + uint64(fh.Bleng) - RFS_HeaderSize
         return nil
 }
@@ -252,12 +218,21 @@ func (f *RFS_F) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.Read
 func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 
         var fh RFS_FileHeader
-        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
+	var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
+
+        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, & xtbuf)
+
         var rv []byte
 
           for i:=0;i<=int(fh.Aleng);i++{
-           if fh.Sec[i]>0 {
-            fsec := RFS_K_Read(f.disk,fh.Sec[i])
+	   sn:=RFS_DiskAdr(0)
+	   if i < RFS_SecTabSize {
+	    sn = fh.Sec[i]
+	   }else{
+	    sn = xtbuf[ i - RFS_SecTabSize ]
+	   }
+           if sn>0 {
+            fsec := RFS_K_Read(f.disk,sn)
             if i==0 {
                   if fh.Aleng==0 {
                     rv = append(rv,fsec[RFS_HeaderSize:fh.Bleng]...)
@@ -284,7 +259,8 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         fserr = fuse.EIO
 
         var fh RFS_FileHeader
-        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh)
+        var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
+        RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, & xtbuf)
         
 	if fh.Sec[0]==0{
 		fmt.Println("File header self-sector is zero for f.inode",f.inode)
@@ -319,12 +295,15 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         	}else{
                         //fmt.Println("found sector(s)",slist,"for the file")
 			for i:=origAleng+1;i<=newAleng;i++{
-                                if i < int32(len(fh.Sec)){
+                                if i < RFS_SecTabSize {
 				  fh.Sec[i]=slist[i-(origAleng+1)]*29
+				  fsec.PutWordAt(int(24+i),uint32(slist[i-(origAleng+1)])*29)
 				}else{
-				  fmt.Println("Sec has",len(fh.Sec),"but need",i)
+				  xtbuf[ i - RFS_SecTabSize ] = slist[i-(origAleng+1)]*29
+				  //fmt.Println("Sec has",len(fh.Sec),"but need",i)
+                                  // TODO: Flush extension table sectors back to disk
 				}
-				fsec.PutWordAt(int(24+i),uint32(slist[i-(origAleng+1)])*29)
+				
 			}
         	}
 
@@ -335,9 +314,16 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
         rc:= int32(0)
 	for seqn:= int32(0); seqn <= newAleng ; seqn ++ {
+                sn := RFS_DiskAdr(0)
+	        if seqn < RFS_SecTabSize {
+	            sn = fh.Sec[seqn]
+	        }else{
+	            sn = xtbuf[ seqn - RFS_SecTabSize ]
+	        }
+
 		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
 	                if seqn > 0 {
-	                        fsec = RFS_K_Read(f.disk,fh.Sec[seqn])
+	                        fsec = RFS_K_Read(f.disk,sn)
 	                }else{
                                 fh.Aleng = int32(newAleng)
                                 fh.Bleng = int32(newBleng)
@@ -363,7 +349,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                 }
 			}
 			//fmt.Println("Writing chunk",seqn,"to sector",fh.Sec[seqn]/29)
-                        RFS_K_Write( f.disk, fh.Sec[seqn], fsec)
+                        RFS_K_Write( f.disk, sn, fsec)
 		}
                     
         }
@@ -379,15 +365,17 @@ func (f *RFS_F) Flush(ctx context.Context, req *fuse.FlushRequest) error {      
 func (f *RFS_F) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {	return f, nil   }
 
 func (f *RFS_F) Release(ctx context.Context, req *fuse.ReleaseRequest) error {  return nil   }
+
 func (f *RFS_F) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {      return nil   }
 
-const RFS_FnLength    = 32
-const RFS_SecTabSize   = 64
-const RFS_ExTabSize   = 12
-const RFS_SectorSize   = 1024
-const RFS_IndexSize   = 256    //SectorSize / 4
-const RFS_HeaderSize  = 352
-const RFS_DirRootAdr  = 29
+// 32-bit oberon file system                                // 64-bit oberon filesystem
+const RFS_FnLength    = 32                                  // 255 + a zero byte = 256
+const RFS_SecTabSize   = 64                                 // 64 -- 62 bit integer, top two bits flag for 0, 1, 2, or 3 level indirect
+const RFS_ExTabSize   = 12                                  // maximum file size: 64 * 512 * 512 * 512 * 4096 = 32T
+const RFS_SectorSize   = 1024                               // 4096
+const RFS_IndexSize   = 256    //SectorSize / 4             // 512  -- SectorSize / 8
+const RFS_HeaderSize  = 352                                 // 1024
+const RFS_DirRootAdr  = 29                                  // 29
 const RFS_DirPgSize   = 24
 const RFS_N = 12               //DirPgSize / 2
 const RFS_DirMark    = 0x9B1EA38D
@@ -395,10 +383,12 @@ const RFS_HeaderMark = 0x9BA71D86
 const RFS_FillerSize = 52
 const RFS_NUMSECTORS = 1220   // RISC.img size / 1024
 
+// 141G max volume size (2^32)/29 sectors, 1k sector size   // 565Y max volume size 2^62 sectors, 4k sector size, div 29
+
 type 	RFS_AllocMap	[ RFS_NUMSECTORS / 64 ]uint64
 
 type    RFS_DiskAdr         int32
-type    RFS_FileName       [RFS_FnLength]byte
+type    RFS_FileName       [RFS_FnLength]byte           // 672 data bytes in zeroth sector of file
 type    RFS_SectorTable    [RFS_SecTabSize]RFS_DiskAdr  // 65,184 byte max file size without using extension table
 type    RFS_ExtensionTable [RFS_ExTabSize]RFS_DiskAdr   // 3,210,912 max file size with addition of extension table
 type    RFS_EntryHandler   uint32 //= PROCEDURE (name: FileName; sec: DiskAdr; VAR continue: BOOLEAN);
@@ -531,7 +521,7 @@ func RFS_K_PutFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
 
 }
 
-func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
+func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader, x * [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr){
 
       sector := RFS_K_Read( disk, dpg )
 
@@ -741,7 +731,8 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
       secBitSet(smap, a.E[n].Adr)
       if smap != nil {
         var fh RFS_FileHeader
-        RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh)
+        var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
+        RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh, & xtbuf)
 	  for e:=0;(e<RFS_SecTabSize && e <= int(fh.Aleng));e++{
                 if fh.Sec[e]!=0{
 	  	   secBitSet( smap, fh.Sec[e] )
@@ -750,6 +741,7 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, smap *RFS_AllocMap ) []RFS_FI {
           for e:=0;e<RFS_ExTabSize;e++{
 		if fh.Ext[e]!=0{
 		   fmt.Println("Can't handle an ext entry in a file handle! Egads!")
+		   // TODO: scan exTab as well
 		}
 	  }
       }
