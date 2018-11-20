@@ -544,19 +544,21 @@ func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader, x *
            a.fill[i]=sector[i+RFS_HeaderSize]
          }
       }else{
-	fmt.Println("sector",dpg,"has no header mark in GetFileHeader")
+	fmt.Println("sector",dpg/29,"has no header mark in GetFileHeader")
       }
 }
 
 func RFS_K_PutDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
 
-        sector := sbuf(make([]byte, 1024))
+   if a.Mark != RFS_DirMark {
+	fmt.Println("Asked to write a dirpage that does not have dirmark!")
+   }else{
 
-        sector.PutWordAt(0,a.Mark)
-        sector.PutWordAt(1,uint32(a.M))
-        sector.PutWordAt(2,uint32(a.P0))
+      sector := sbuf(make([]byte, 1024))
 
-   if a.Mark == RFS_DirMark {
+      sector.PutWordAt(0,a.Mark)
+      sector.PutWordAt(1,uint32(a.M))
+      sector.PutWordAt(2,uint32(a.P0))
 
       for e := 0; int32(e)<a.M;e++{
           i := 16 + (e*10)
@@ -566,6 +568,7 @@ func RFS_K_PutDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
           sector.PutWordAt(i+8,uint32(a.E[e].Adr))  
           sector.PutWordAt(i+9,uint32(a.E[e].P))  
       }
+
       RFS_K_Write( disk, dpg, sector )
 
    }
@@ -620,28 +623,24 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
     }else{  // not on this page
 	var dpg1 RFS_DiskAdr
 	if R == 0 {
-	  dpg1 = a.P0 
+	    dpg1 = a.P0 
 	}else{
-	  dpg1 = a.E[R-1].P
+	    dpg1 = a.E[R-1].P
 	}
 	if dpg1 == 0 { // can place here
-
-//          fmt.Println("Preparing directory entry for insert")
-
-	  u.Adr = fad
-	  u.P = 0
-	  h = true
-	  for j:=0;j<len(name);j++{
+	    u.Adr = fad
+	    u.P = 0
+	    h = true
+	    for j:=0;j<len(name);j++{
 		u.Name[j]=name[j]
-	  }
-	  for j:=len(name);j<RFS_FnLength;j++{
+	    }
+	    for j:=len(name);j<RFS_FnLength;j++{
 		u.Name[j]=0x00
-	  }
-
+	    }
 	}else{  // go look at another page
-//            fmt.Println("bounce to", dpg1/29)
 	    h, u = RFS_Insert(disk,name,dpg1,fad)
 	}
+
 	if h { // insert u to the left of e[R]
 	    if a.M < RFS_DirPgSize {
 		h = false
@@ -650,31 +649,69 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
 		}
 		a.E[R] = u
 		a.M++
+                RFS_K_PutDirSector(disk,dpg0,&a)
 		fmt.Println("directory entry inserted")
 	    }else{ // split page and assign the middle element to v
                 fmt.Println("splitting directory page")
- 
-//          a.m := N; a.mark := DirMark;
-//          IF R < N THEN (*insert in left half*)
-//            v := a.e[N-1]; i := N-1;
-//            WHILE i > R DO DEC(i); a.e[i+1] := a.e[i] END ;
-//            a.e[R] := u; Kernel.PutSector(dpg0, a);
-//            Kernel.AllocSector(dpg0, dpg0); i := 0;
-//            WHILE i < N DO a.e[i] := a.e[i+N]; INC(i) END
-//          ELSE (*insert in right half*)
-//            Kernel.PutSector(dpg0, a);
-//            Kernel.AllocSector(dpg0, dpg0); DEC(R, N); i := 0;
-//            IF R = 0 THEN v := u
-//            ELSE v := a.e[N];
-//              WHILE i < R-1 DO a.e[i] := a.e[N+1+i]; INC(i) END ;
-//              a.e[i] := u; INC(i)
-//            END ;
-//            WHILE i < N DO a.e[i] := a.e[N+i]; INC(i) END
-//          END ;
-//          a.p0 := v.p; v.p := dpg0
+                
+	        slist := RFS_FindNFreeSectors(2, disk.root)
+	        if len(slist)!=2{
+                        fmt.Println("Failed to find another sector for the directory page split")
+	        }else{
+                        nsec := slist[1]*29
+			fmt.Println("Parent Directory Sector:",dpg0/29,"Split to:",nsec/29)
+	                a.M = RFS_N
+			a.Mark = RFS_DirMark
+	                if R < RFS_N {       // (*insert in left half*)
+			  fmt.Println("Inserting in left half")
+	                  v = a.E[RFS_N-1]
+			  i := int32(RFS_N-1)
+	                  for ;i > R;  {
+				 i = i - 1
+				 a.E[i+1] = a.E[i] 
+			  }
+	                  a.E[R] = u
+			  RFS_K_PutDirSector(disk,dpg0, &a)
+	                  //Kernel.AllocSector(dpg0, dpg0)
+                          //tdpg0 = nsec*29
+			  i = 0
+	                  for ;i < RFS_N; { 
+				a.E[i] = a.E[i+RFS_N]
+				i = i + 1
+			  }
+	                }else{           // (*insert in right half*)
+                          fmt.Println("Inserting in right half")
+	                  RFS_K_PutDirSector(disk,dpg0, &a)
+                          //tdpg0 = nsec*29
+	    //            Kernel.AllocSector(dpg0, dpg0)
+			  R = R - RFS_N
+			  i := int32(0)
+	                  if R == 0 {
+				v = u
+			  }else{
+	                        v  = a.E[RFS_N]
+	                        for ;i < R-1; {
+					a.E[i] = a.E[RFS_N+1+i]
+					i = i + 1
+				}
+	                        a.E[i] = u
+				i = i + 1
+	                  }
+	                  for  ;i < RFS_N; {
+				a.E[i] = a.E[RFS_N+i]
+				i = i + 1
+			  }
+	                }
+	                a.P0 = v.P
+			v.P = nsec
+			a.Mark = RFS_DirMark
+            
 
+		
+                        RFS_K_PutDirSector(disk,nsec,&a)
+                }
             }
-            RFS_K_PutDirSector(disk,dpg0,&a)
+            
         }
     }
 
