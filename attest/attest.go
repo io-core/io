@@ -32,8 +32,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 //	"bytes"
-	"golang.org/x/crypto/ssh"
+//	"golang.org/x/crypto/ssh"
 	
 )
 
@@ -48,18 +50,24 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Println("hashing",&inFilePtr,"attesting",&aMessagePtr,"in",&formatPtr,"format")
+	fmt.Println("hashing",*inFilePtr,"attesting",*aMessagePtr,"in",*formatPtr,"format")
 
 	message := []byte("message to be signed")
 	hashed := sha256.Sum256(message)
 
 	pk, _ := ioutil.ReadFile(os.Getenv("HOME") + "/.ssh/id_rsa")
-	signer, err := ssh.ParsePrivateKey(pk)
-	s,_:=NewSignerFromSigner(signer)
+        privPem, _ := pem.Decode(pk)
+        privPemBytes := privPem.Bytes
+	parsedKey, _ := x509.ParsePKCS1PrivateKey(privPemBytes)
 
-	signature, err := rsa.SignPKCS1v15(rand.Reader, s, crypto.SHA256, hashed[:])
+        //key, err := x509.ParsePKCS1PrivateKey(pk);
+        //if err != nil {
+        //    fmt.Println(err)
+        //}
+
+	signature, err := rsa.SignPKCS1v15(rand.Reader, parsedKey, crypto.SHA256, hashed[:])
 	if err != nil {
-	    panic(err)
+	    fmt.Println(err)
 	}
 
 	fmt.Println("signature is",signature)
