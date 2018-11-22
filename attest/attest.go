@@ -19,7 +19,7 @@ package main
 
 import (
 	"fmt"
-//	"time"
+	"time"
 	"flag"
 	"os"
 	"io/ioutil"
@@ -51,6 +51,17 @@ func main() {
 
 	message, _ := ioutil.ReadFile(*inFilePtr)  //[]byte("message to be signed")
 	hashed := sha256.Sum256(message)
+
+	cl:="(*"
+	cr:="*)"
+	if *formatPtr == "go" || *formatPtr == "c" {
+        	cl="//"
+        	cr="//"
+	}
+        if *formatPtr == "bash" || *formatPtr == "csharp" {
+                cl=" #"
+                cr="# "
+        }
 	
 	pk, _ := ioutil.ReadFile(*pkeyPtr)
         bk, _ := ioutil.ReadFile(*bkeyPtr)
@@ -64,17 +75,18 @@ func main() {
 	if err != nil {
 	    fmt.Println(err)
 	}
+	now := fmt.Sprint(time.Now().Format("2006-01-02 15:04:05"))
         spaces:="                                                                                                    "
 	encoded:=base64.StdEncoding.EncodeToString(signature)
-        fmt.Println("(*----Attest-1.0.0------------------------------------------------------------------------*)")
+        fmt.Println(cl+"----Attest-1.0.0------------------------------------------------------------------------"+cr)
         al:=strings.Split(*aMessagePtr,":")
 	for _,v := range al{
-		fmt.Println("(*",v,spaces[:85-len(v)],"*)")
+		fmt.Println(cl,v,spaces[:85-len(v)],cr)
 	}
-        fmt.Println("(*----------------------------------------------------------------------------------------*)")
-        fmt.Println("(*",encoded[0:86],"*)\n(*",encoded[86:172],"*)\n(*",encoded[172:258],"*)\n(*",encoded[258:],"*)")
-        fmt.Println("(*--------------------------------------------------------------------------------------  *)")
-        fmt.Println("(*",bks[0:86],"*)\n(*",bks[86:172],"*)\n(*",bks[172:258],"*)\n(*",bks[258:344],"*)\n(*",bks[344:],spaces[:85-len(bks[344:])],"*)")
-	fmt.Println("(*----------------------------------------------------------------------------------------*)")
-
+	fmt.Println(cl,now,spaces[:85-len(now)],cr)
+        fmt.Println(cl+"----------------------------------------------------------------------------------------"+cr)
+        fmt.Println(cl,encoded[0:86],cr+"\n"+cl,encoded[86:172],cr+"\n"+cl,encoded[172:258],cr+"\n"+cl,encoded[258:],cr)
+        fmt.Println(cl+"----------------------------------------------------------------------------------------"+cr)
+        fmt.Println(cl,bks[0:86],cr+"\n"+cl,bks[86:172],cr+"\n"+cl,bks[172:258],cr+"\n"+cl,bks[258:344],cr+"\n"+cl,bks[344:],spaces[:85-len(bks[344:])],cr)
+        fmt.Println(cl+"----------------------------------------------------------------------------------------"+cr)
 }
