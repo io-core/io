@@ -21,12 +21,9 @@ import (
 	"fmt"
 //	"time"
 	"flag"
-//	"context"
-//	"os/signal"
 	"os"
-//	"os/exec"
 	"io/ioutil"
-//	"strings"
+	"strings"
 //	"strconv"
 	"crypto"
 	"crypto/rand"
@@ -34,9 +31,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-//	"bytes"
-//	"golang.org/x/crypto/ssh"
-	
+	"encoding/base64"
 )
 
 
@@ -45,31 +40,36 @@ import (
 func main() {
 		
         inFilePtr := flag.String("i", "-", "input file")
-        aMessagePtr := flag.String("a", "reviewed", "attest message")
+        aMessagePtr := flag.String("a", "signed", "attest message")
         formatPtr := flag.String("f", "oberon", "attest comment style")
+	pkeyPtr :=  flag.String("p", os.Getenv("HOME") + "/.ssh/id_rsa", "path to rsa private key file")
+        bkeyPtr :=  flag.String("b", os.Getenv("HOME") + "/.ssh/id_rsa.pub", "path to rsa public key file")
 
 	flag.Parse()
 
 	fmt.Println("hashing",*inFilePtr,"attesting",*aMessagePtr,"in",*formatPtr,"format")
 
-	message := []byte("message to be signed")
+	message, _ := ioutil.ReadFile(*inFilePtr)  //[]byte("message to be signed")
 	hashed := sha256.Sum256(message)
-
-	pk, _ := ioutil.ReadFile(os.Getenv("HOME") + "/.ssh/id_rsa")
+	
+	pk, _ := ioutil.ReadFile(*pkeyPtr)
+        bk, _ := ioutil.ReadFile(*bkeyPtr)
+	bks:=strings.TrimSpace(string(bk))
         privPem, _ := pem.Decode(pk)
         privPemBytes := privPem.Bytes
 	parsedKey, _ := x509.ParsePKCS1PrivateKey(privPemBytes)
 
-        //key, err := x509.ParsePKCS1PrivateKey(pk);
-        //if err != nil {
-        //    fmt.Println(err)
-        //}
 
 	signature, err := rsa.SignPKCS1v15(rand.Reader, parsedKey, crypto.SHA256, hashed[:])
 	if err != nil {
 	    fmt.Println(err)
 	}
 
-	fmt.Println("signature is",signature)
+	encoded:=base64.StdEncoding.EncodeToString(signature)
+        fmt.Println("(*  --------------------------------------------------------------------------------------  *)")
+        fmt.Println("(* ",bks[0:86]," *)\n(* ",bks[86:172]," *)\n(* ",bks[172:258]," *)\n(* ",bks[258:344]," *)\n(* ",bks[344:]," *)")
+	fmt.Println("(*  --------------------------------------------------------------------------------------  *)")
+	fmt.Println("(* ",encoded[0:86]," *)\n(* ",encoded[86:172]," *)\n(* ",encoded[172:258]," *)\n(* ",encoded[258:]," *)")
+        fmt.Println("(*  --------------------------------------------------------------------------------------  *)")
 
 }
