@@ -86,6 +86,7 @@ var ofd bool
 var mbl int
 var mbm int
 var mbr int
+var ctl bool
 var hdpi bool
 
 var cubeVertices = []float32{
@@ -125,9 +126,14 @@ func cbtn(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.
 	switch button {
 	case glfw.MouseButton1 :
 		if action==glfw.Press {
-			mbl=1
+			if ctl {
+				mbm=1
+			}else{
+				mbl=1
+			}
 		}else{
-			mbl=0
+			mbm=0
+			mbl=0	
 		}
         case glfw.MouseButton2 :
                 if action==glfw.Press {
@@ -197,6 +203,9 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
 				  scx = false
 				  sc =  kc[k] 
 			   	}
+				if key == glfw.KeyLeftControl{
+				  ctl = true
+				}
 			   case glfw.Release:
 			   	k:= ckey
 				
@@ -204,6 +213,9 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
 			   	  scx = true //kChan <- kmsg{ 0xF0 }
 				  sc =  kc[k] 
 				}
+                                if key == glfw.KeyLeftControl{
+                                  ctl = false
+                                }
 
 			}
 
