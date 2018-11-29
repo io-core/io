@@ -39,7 +39,7 @@ func PanicOn( err error ){
 
 
 
-func createWindow(w,h int,b bool) *glfw.Window {
+func createWindow(w,h int,b,hidpi bool) *glfw.Window {
 
         glfw.WindowHint(glfw.ContextVersionMajor, 3)
         glfw.WindowHint(glfw.ContextVersionMinor, 2)
@@ -62,8 +62,13 @@ func createWindow(w,h int,b bool) *glfw.Window {
 
 	nw,nh:=window.GetFramebufferSize()
 	fmt.Println("Window size:",nw,nh)
-	ofbw = uint32(nw)
-	ofbh = uint32(nh)
+	if hidpi{
+	  ofbw = uint32(nw)/2
+	  ofbh = uint32(nh)/2
+	}else{
+          ofbw = uint32(nw)
+          ofbh = uint32(nh)
+	}
 	if (w < nw || h < nh ) {
 	  ofd = false
 	}else{
@@ -81,6 +86,7 @@ var ofd bool
 var mbl int
 var mbm int
 var mbr int
+var hdpi bool
 
 var cubeVertices = []float32{
         //  X, Y, Z, U, V
@@ -105,7 +111,10 @@ func cpos(w *glfw.Window, xpos float64, ypos float64) {
         
         mx := int32(int16(xpos))
         my := int32(int16(ofbh-uint32(ypos)))  //768
-
+	if hdpi{
+          mx = mx * 2
+          my = my * 2
+	}
         *mptr = uint32(mbr)<<24|uint32(mbm)<<25|uint32(mbl)<<26| (uint32(my)<<12 & 0x00FFF000) | (uint32(mx) & 0x00000FFF)
 }
 
@@ -215,13 +224,14 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
      }
 }
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string, hidpi bool ) {
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad
      //   *fbw=1920 //1600 
      //   *fbh=1200 //838
 
+	hdpi = hidpi
 	mptr = mouse
 	kbptr = key_buf
 	kcptr = key_cnt
@@ -240,15 +250,15 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	  hasborder=false
  	} 
 
-	window := createWindow(wmax,hmax,false)
+	window := createWindow(wmax,hmax,false,hidpi)
 	*fbw = ofbw
 	*fbh = ofbh
 	readyChan <- [2]uint32{ofbw,ofbh}
 	window.Destroy()
 	if runtime.GOOS == "darwin" {
-          window = createWindow(int(ofbw),int(ofbh),true)
+          window = createWindow(int(ofbw),int(ofbh),true,hidpi)
 	}else{
-          window = createWindow(int(ofbw),int(ofbh),hasborder)
+          window = createWindow(int(ofbw),int(ofbh),hasborder,hidpi)
 	}
 
         glprog := makeprog()

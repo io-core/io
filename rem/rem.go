@@ -86,6 +86,7 @@ func main() {
         verbosity := flag.Int("v", 5, "verbosity level")
         geometry := flag.String("g", "1024x768x1", "Geometry (<width>x<height>x<bpp>)")
 	haltPtr := flag.Bool("halt", false, "Begin in halt state")	
+        hidpiPtr := flag.Bool("hidpi", false, "high dpi")
 
 	flag.Parse()
 
@@ -130,9 +131,9 @@ func main() {
 	}()
 
         if mb.FrameDevice == "console" {
-	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry )
+	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry, *hidpiPtr )
 	}else if mb.FrameDevice == "opengl" {
-	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry )
+	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry, *hidpiPtr )
         }else if mb.FrameDevice == "headless" {
           readyChan <- [2]uint32{1024,768}
           for {}
