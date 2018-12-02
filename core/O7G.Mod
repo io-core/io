@@ -1,18 +1,25 @@
-MODULE O7G; (* NW  10.10.2013 CP 6.3.2014 RISC code generator in Oberon-07*)
-  IMPORT SYSTEM, Files, O7S, O7B, OXG, Or32G, Oa32G, Oi32G;
+MODULE O7G; (* NW  10.10.2013 CP 2014,2018 RISC code generator in Oberon-07*)
+  IMPORT SYSTEM, Files, O7S, O7B, OXG, Or32G, Oa32G, Oi32G, Ov32G, Or64G, Oa64G, Oi64G, Ov64G;
   (*Retargeting Code generator for Oberon compiler.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)
 
-  CONST WordSize* = 4; 
+  CONST WordSize* = 4; Or32 = 0; Oa32 = 1; Oi32 = 2; Ov32 = 3; Or64 = 4; Oa64 = 5; Oi64 = 6; Ov64 = 7; 
   VAR arch: CHAR;
 
   PROCEDURE GetPC*(): LONGINT;
   VAR t: LONGINT;
   BEGIN
-    IF arch = 0X THEN t:= Or32G.GetPC() END;
-    IF arch = 1X THEN t:= Oa32G.GetPC() END;
-    IF arch = 2X THEN t:= Oi32G.GetPC() END;
+    CASE arch OF
+      Or32: t:= Or32G.GetPC() END |
+      Oa32: t:= Oa32G.GetPC() END |
+      Oi32: t:= Oi32G.GetPC() END |
+      Ov32: t:= Oi32G.GetPC() END |
+      Or64: t:= Or64G.GetPC() END |
+      Oa64: t:= Oa64G.GetPC() END |
+      Oi64: t:= Oi64G.GetPC() END |
+      Ov64: t:= Ov64G.GetPC() END 
+    END ;
     RETURN t 
   END GetPC;
 
