@@ -550,9 +550,9 @@ MODULE Graphics;   (*NW 21.12.89 / 18.11.201 / 8.4.2016*)
   BEGIN
     dst.x := src.x; dst.y := src.y; dst.w := src.w; dst.h := src.h; dst.col := src.col;
     dst(Caption).pos := T.len + 1; dst(Caption).len := src(Caption).len;
-    Texts.Write(TW, 0DX); Texts.OpenReader(R, T, src(Caption).pos);
+    Texts.Write(TW, 0AX); Texts.OpenReader(R, T, src(Caption).pos);
     Texts.Read(R, ch); TW.fnt := R.fnt;
-    WHILE ch > 0DX DO Texts.Write(TW, ch); Texts.Read(R, ch) END ;
+    WHILE ch > 0AX DO Texts.Write(TW, ch); Texts.Read(R, ch) END ;
     Texts.Append(T, TW.buf)
   END CopyCaption;
 
@@ -582,7 +582,7 @@ MODULE Graphics;   (*NW 21.12.89 / 18.11.201 / 8.4.2016*)
 
   PROCEDURE ReadCaption(obj: Object; VAR R: Files.Rider; VAR C: Context);
     VAR ch: CHAR; fno: BYTE; len: INTEGER;
-  BEGIN obj(Caption).pos := T.len + 1; Texts.Write(TW, 0DX);
+  BEGIN obj(Caption).pos := T.len + 1; Texts.Write(TW, 0AX);
     Files.ReadByte(R, fno); TW.fnt := C.font[fno]; len := 0; Files.Read(R, ch);
     WHILE ch > 0DX DO Texts.Write(TW, ch); INC(len); Files.Read(R, ch) END ;
     obj(Caption).len := len; Texts.Append(T, TW.buf)
@@ -684,3 +684,4 @@ BEGIN Texts.OpenWriter(W); Texts.OpenWriter(TW);  Texts.OpenWriter(XW);
   MacMethod.selectable := MacroSelectable; MacMethod.change := ChangeMacro;
   MacMethod.read := ReadMacro; MacMethod.write := WriteMacro; (*MacMethod.print := PrintMacro*)
 END Graphics.
+Signature not found!

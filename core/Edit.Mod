@@ -1,7 +1,8 @@
 MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
+             (*CP 12.2018 changed to adopt NL instead of CR *)
   IMPORT Files, Fonts, Texts, Display, Viewers, Oberon, MenuViewers, TextFrames;
 
-  CONST CR = 0DX; maxlen = 32;
+  CONST CR = 0DX; NL = 0AX; maxlen = 32;
     StandardMenu = "System.Close System.Copy System.Grow Edit.Search Edit.Store";
 
   VAR W: Texts.Writer;

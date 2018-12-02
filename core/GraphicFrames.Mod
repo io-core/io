@@ -1,4 +1,5 @@
 MODULE GraphicFrames; (*NW 18.4.88 / 18.11.2013*)
+                      (*CP 12.2018 changed to adopt NL instead of CR *)
   IMPORT SYSTEM, Display, Viewers, Input, Fonts, Texts, Graphics, Oberon, MenuViewers;
 
   CONST (*update message ids*)
@@ -213,7 +214,7 @@ MODULE GraphicFrames; (*NW 18.4.88 / 18.11.2013*)
       cap: Graphics.Caption;
       pat: INTEGER;
       R: Texts.Reader;
-  BEGIN Texts.Write(W, 0DX);
+  BEGIN Texts.Write(W, 0AX);
     NEW(cap); cap.len := end - beg;
     cap.pos := Graphics.T.len + 1; cap.do := Graphics.CapMethod;
     Texts.OpenReader(R, T, beg); Texts.Read(R, ch); W.fnt := R.fnt; W.col := R.col; w := 0;
@@ -320,7 +321,7 @@ MODULE GraphicFrames; (*NW 18.4.88 / 18.11.2013*)
   END Edit;
 
   PROCEDURE NewCaption(F: Frame; col: INTEGER; font: Fonts.Font);
-  BEGIN Texts.Write(W, 0DX);
+  BEGIN Texts.Write(W, 0AX);
     NEW(newcap); newcap.x := F.mark.x - F.x; newcap.y := F.mark.y - F.y + font.minY;
     newcap.w := 0; newcap.h := font.height; newcap.col := col;
     newcap.pos := Graphics.T.len + 1; newcap.len := 0; newcap.do := Graphics.CapMethod;
@@ -527,3 +528,4 @@ BEGIN DW := Display.Width - 8; DH := Display.Height - 8; CL := 0;
   Crosshair.Fade := FlipCross; Crosshair.Draw := FlipCross;
   Graphics.InstallDrawMethods(DrawLine, DrawCaption, DrawMacro)
 END GraphicFrames.
+Signature not found!
