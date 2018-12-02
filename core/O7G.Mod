@@ -1,5 +1,5 @@
 MODULE O7G; (* NW  10.10.2013 CP 2014,2018 RISC code generator in Oberon-07*)
-  IMPORT SYSTEM, Files, O7S, O7B, OXG, Or32G, Oa32G, Oi32G; (*, Ov32G, Or64G, Oa64G, Oi64G, Ov64G; *)
+  IMPORT SYSTEM, Files, O7S, O7B, OXG, Or32G, Oa32G, Oi32G, Ov32G; (*, Or64G, Oa64G, Oi64G, Ov64G; *)
   (*Retargeting Code generator for Oberon compiler.
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)
@@ -12,9 +12,9 @@ MODULE O7G; (* NW  10.10.2013 CP 2014,2018 RISC code generator in Oberon-07*)
   BEGIN
       IF arch = 0X THEN t:= Or32G.GetPC() END;
       IF arch = 1X THEN t:= Oa32G.GetPC() END;
-      IF arch = 2X THEN t:= Oi32G.GetPC() END 
- (*   IF arch = 3X THEN t:= Ov32G.GetPC() END;
-      IF arch = 4X THEN t:= Or64G.GetPC() END;
+      IF arch = 2X THEN t:= Oi32G.GetPC() END; 
+      IF arch = 3X THEN t:= Ov32G.GetPC() END
+ (*   IF arch = 4X THEN t:= Or64G.GetPC() END;
       IF arch = 5X THEN t:= Oa64G.GetPC() END;
       IF arch = 6X THEN t:= Oi64G.GetPC() END;
       IF arch = 7X THEN t:= Ov64G.GetPC() END *)
