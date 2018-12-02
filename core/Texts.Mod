@@ -1,4 +1,5 @@
 MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
+              (*CP 12.2018 changed to adopt NL instead of CR *)
   IMPORT Files, Fonts;
 
   CONST (*scanner symbol classes*)
@@ -12,7 +13,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
     (* TextBlock = TextTag "1" offset run {run} "0" len {AsciiCode}.
       run = fnt [name] col voff len. *)
 
-    TAB = 9X; CR = 0DX; maxD = 9;
+    TAB = 9X; CR = 0DX; NL = 0AX;  maxD = 9;
     TextTag = 0F1X;
     replace* = 0; insert* = 1; delete* = 2; unmark* = 3;  (*op-codes*)
 
@@ -339,7 +340,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
       x: REAL;
   BEGIN ch := S.nextCh; i := 0;
     WHILE ~S.eot & (ch <= " ") DO
-      IF ch = CR THEN INC(S.line) END ;
+      IF (ch = CR) OR (ch = NL) THEN INC(S.line) END ;
       Read(S, ch)
     END ;
     IF ("A" <= ch) & (ch <= "Z") OR ("a" <= ch) & (ch <= "z") THEN (*name*)
@@ -430,7 +431,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
   END Write;
 
   PROCEDURE WriteLn* (VAR W: Writer);
-  BEGIN Write(W, CR)
+  BEGIN Write(W, NL)
   END WriteLn;
 
   PROCEDURE WriteString* (VAR W: Writer; s: ARRAY OF CHAR);
