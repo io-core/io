@@ -1,8 +1,9 @@
 MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
+                   (*CP 12.2018 changed to adopt NL instead of CR *)
   IMPORT Modules, Input, Display, Viewers, Fonts, Texts, Oberon, MenuViewers;
 
   CONST replace* = 0; insert* = 1; delete* = 2; unmark* = 3; (*message id*)
-    BS = 8X; TAB = 9X; CR = 0DX; DEL = 7FX;
+    BS = 8X; TAB = 9X; CR = 0DX; NL = 0AX; DEL = 7FX;
 
   TYPE Line = POINTER TO LineDesc;
     LineDesc = RECORD
@@ -110,7 +111,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     VAR R: Texts.Reader; X, Y: INTEGER; len: LONGINT);
     VAR patadr, NX,  dx, x, y, w, h: INTEGER;
   BEGIN NX := F.X + F.W;
-    WHILE (nextCh # CR) & (R.fnt # NIL) DO
+    WHILE (nextCh # CR) (nextCh # NL)& (R.fnt # NIL) DO
       Fonts.GetPat(R.fnt, nextCh, dx, x, y, w, h, patadr);
       IF (X + x + w <= NX) & (h # 0) THEN
         Display.CopyPattern(R.col, patadr, X + x, Y + y, Display.invert)
@@ -127,7 +128,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     IF pos > T.len THEN pos := T.len
     ELSIF pos > 0 THEN
       DEC(pos); Texts.OpenReader(R, T, pos);
-      REPEAT Texts.Read(R, nextCh); INC(pos) UNTIL R.eot OR (nextCh = CR)
+      REPEAT Texts.Read(R, nextCh); INC(pos) UNTIL R.eot OR (nextCh = CR) OR (nextCh = NL)
     ELSE pos := 0
     END
   END Validate;
@@ -632,7 +633,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       IF F.hasSel THEN
         NEW(TBuf); Texts.OpenBuf(TBuf); Texts.Delete(F.text, F.selbeg.pos, F.selend.pos, TBuf)
       END
-    ELSIF (20X <= ch) & (ch <= DEL) OR (ch = CR) OR (ch = TAB) THEN
+    ELSIF (20X <= ch) & (ch <= DEL) OR (ch = CR) OR (ch = NL) OR (ch = TAB) THEN
       KW.fnt := fnt; KW.col := col; KW.voff := voff; Texts.Write(KW, ch);
       Texts.Insert(F.text, F.carloc.pos, KW.buf);
       SetCaret(F, F.carloc.pos + 1)
@@ -854,3 +855,19 @@ BEGIN NEW(TBuf); NEW(DelBuf);
   ScrollMarker.Fade := FlipSM; ScrollMarker.Draw := FlipSM;
   Texts.OpenWriter(W); Texts.OpenWriter(KW)
 END TextFrames.
+
+(*----Attest-0.1.0------------------------------------------------------------------------*)
+(* signed                                                                                 *)
+(* 2018-12-02 14:41:45                                                                    *)
+(*----------------------------------------------------------------------------------------*)
+(* oY6zZOPyYVw7ba2b5poIIlCbFTtSh/LU4PZnaffNYDXuZ0elBiU7ca0PvlZ2kKeUoyTJLmRk/goc8Zm8RuNifZ *)
+(* pQmfTLAtzH1Ybv3wNHzs9pepXILiMox2Uv8hu4Xrr0rtYrRHDxg4HVWPzUAP/aEf7ynNa6OD5jsthl2blDcX1Y *)
+(* BEsaifjOMlXt+HVWO4N8TVKjEuw8bQOxsAyxBJeIosUAG9J64at8MHQkpAhLx/UxjwyXRuZKe9L6ENwDd5wQty *)
+(* rrBuwEN5bM3YxVl4GB64dd8UyN1bucqYI93AR6XavetaSVlBntbgV3DXXifJdK/0bWhojmljVgN4zXfKVMfA== *)
+(*----------------------------------------------------------------------------------------*)
+(* ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDsrtAUhLbs/ELXgH3OJs0SKh7tSQE/gkPavHv4//tsLucTAN *)
+(* C4mEjbjxKtFlZjji89GGvatnGu3DvAAz60VNEGBccezdn4rkcNpceKQe2KE2Kb13KM6VmrNl4Gj3+C278u0yKx *)
+(* l07WpQCYJ1x6WU8Tnrs5oRSGvHzJVvkxbH7YfymnoXbDg2j8cWYX+zNR/aYvcX+6isZmqRDg+qZ1CK45UL0sO9 *)
+(* GcSFyey3fGigzWGvBx9JujvsxL6aqX7yY+WtCbApeGLN4HYtrn4ueuKAQND5EYo0SEI2m+STt5eCdDBLFhG0jD *)
+(* 5MO6T7o//Mg8qDeuiY5wpbcQdpVWmdWQQxMT chuck@kuracali.com                                *)
+(*----------------------------------------------------------------------------------------*)
