@@ -111,7 +111,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     VAR R: Texts.Reader; X, Y: INTEGER; len: LONGINT);
     VAR patadr, NX,  dx, x, y, w, h: INTEGER;
   BEGIN NX := F.X + F.W;
-    WHILE (nextCh # CR) (nextCh # NL)& (R.fnt # NIL) DO
+    WHILE (nextCh # CR) & (nextCh # NL) & (R.fnt # NIL) DO
       Fonts.GetPat(R.fnt, nextCh, dx, x, y, w, h, patadr);
       IF (X + x + w <= NX) & (h # 0) THEN
         Display.CopyPattern(R.col, patadr, X + x, Y + y, Display.invert)
