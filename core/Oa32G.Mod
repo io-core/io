@@ -4,12 +4,68 @@ MODULE Oa32G; (* NW  10.10.2013 CP 2014,2018 arm 32-bit code generator in Oberon
      Procedural interface to Parser O7P; result in array "code".
      Procedure Close writes code-files*)
 
-  CONST WordSize* = 4;		ObjMark = 0F5X; 		CodeLength = 32768; (* 128K Code. Don't make it bigger (because of fixup list limits! *)		ConstLength = 1024; (* in Words *)		StrConstLength = 4096; (* in Bytes, ziemlich willk…rlich, kann ruhig VIEL groesser sein *)		MaxConstDist = ConstLength-15; (* in Words including a safety range *)		MaxUnknownProcs = 128;		MaxPtrs = 512; MaxRecs = 128; MaxComs = 40; MaxExts = 15;
-		(* Constants for Bit x set *)		C22 = 400000H; C23 = 800000H; C24 = 1000000H; C25 = 2000000H;		(* Op-Codes Single Data Transfer (SDT) *)		LDR* = 51H; (* LDR, pre-indexed, no write-back *)		STR* = 50H; (* STR, pre-indexed, no write-back *)		LDRB* = 55H; (* LDRB, pre-indexed, no write-back *)		STRB* = 54H; (* STRB, pre-indexed, no write-back *)			LDRpost* = 41H; (* LDR, post-indexed, no write-back-bit *)		STRpost* = 40H; (* STR, post-indexed, no write-back-bit *)		LDRBpost* = 45H; (* LDRB, post-indexed, no write-back-bit *)		STRBpost* = 44H; (* STRB, post-indexed, no write-back-bit *)			(* Op-Codes Halfword Data Transfer (HDT) *)		LDRSH* = 11000F0H; (* LDRSH, pre-indexed, no write-back *)		STRH* = 10000B0H; (* STRH, pre-indexed, no write-back *)		LDRSB* = 11000D0H; (* LDRSB, pre-indexed, no write-back *)		(* Op-Codes Block Data Transfer (BDT) *)		LDMIA* = 89H; STMIA* = 88H; STMDB* = 90H;				(* Op-Codes Data Processing: S-Bit is always set (except for MOV and RSBnoflags ) ! *)		AND* = 1; EOR* = 3; SUB* = 5; RSBnoflags* = 6; RSB* = 7; ADD* = 9; ADCop = 11; SBCop = 13; RSC = 15; TST* = 17;		TEQ = 19;		CMP* = 21; CMN* = 23;  ORR* = 25; MOV* = 26; MOVS* = 27; BIC* = 29; MVN* = 30; MVNS = 31;		(* Op-Codes Branch Instructions *)		(* B* = 10; BL* = 11; *)				(* Op-Codes Multiplication *)		MUL* = 0; MLA* = 200000H;				(* Op-Codes Long Multiplication *)		SMULL* = 00C00090H; 				(* Conditions *)		EQ* = 0; NE* = 1; CS* = 2; CC* = 3;  MI* = 4; PL* = 5; VS* = 6; VC* = 7;		HI* = 8; LS* = 9; GE* = 10; LT* = 11;  GT* = 12; LE* = 13; AL* = 14; NV* = 15;		 		(* Register Numbers *)		PC* = 15; LR* = 14; SP* = 13; FP* = 12; FirstUniversalReg = 9;		(* Const Types *)		Constant = 0; StringAddr = 1; ProcAddr = 2; ExtAddr = 3; 		    StkOrg0 = -64; VarOrg0 = 0;  
+  CONST WordSize* = 4;
+		ObjMark = 0F5X; 
+		CodeLength = 32768; (* 128K Code. Don't make it bigger (because of fixup list limits! *)
+		ConstLength = 1024; (* in Words *)
+		StrConstLength = 4096; (* in Bytes, ziemlich willkrlich, kann ruhig VIEL groesser sein *)
+		MaxConstDist = ConstLength-15; (* in Words including a safety range *)
+		MaxUnknownProcs = 128;
+		MaxPtrs = 512; MaxRecs = 128; MaxComs = 40; MaxExts = 15;
+
+		(* Constants for Bit x set *)
+		C22 = 400000H; C23 = 800000H; C24 = 1000000H; C25 = 2000000H;
+
+		(* Op-Codes Single Data Transfer (SDT) *)
+		LDR* = 51H; (* LDR, pre-indexed, no write-back *)
+		STR* = 50H; (* STR, pre-indexed, no write-back *)
+		LDRB* = 55H; (* LDRB, pre-indexed, no write-back *)
+		STRB* = 54H; (* STRB, pre-indexed, no write-back *)
+			LDRpost* = 41H; (* LDR, post-indexed, no write-back-bit *)
+		STRpost* = 40H; (* STR, post-indexed, no write-back-bit *)
+		LDRBpost* = 45H; (* LDRB, post-indexed, no write-back-bit *)
+		STRBpost* = 44H; (* STRB, post-indexed, no write-back-bit *)
+			(* Op-Codes Halfword Data Transfer (HDT) *)
+		LDRSH* = 11000F0H; (* LDRSH, pre-indexed, no write-back *)
+		STRH* = 10000B0H; (* STRH, pre-indexed, no write-back *)
+		LDRSB* = 11000D0H; (* LDRSB, pre-indexed, no write-back *)
+
+		(* Op-Codes Block Data Transfer (BDT) *)
+		LDMIA* = 89H; STMIA* = 88H; STMDB* = 90H;
+		
+		(* Op-Codes Data Processing: S-Bit is always set (except for MOV and RSBnoflags ) ! *)
+		AND* = 1; EOR* = 3; SUB* = 5; RSBnoflags* = 6; RSB* = 7; ADD* = 9; ADCop = 11; SBCop = 13; RSC = 15; TST* = 17;
+		TEQ = 19;
+		CMP* = 21; CMN* = 23;  ORR* = 25; MOV* = 26; MOVS* = 27; BIC* = 29; MVN* = 30; MVNS = 31;
+
+		(* Op-Codes Branch Instructions *)
+		(* B* = 10; BL* = 11; *)		
+
+		(* Op-Codes Multiplication *)
+		MUL* = 0; MLA* = 200000H;
+		
+		(* Op-Codes Long Multiplication *)
+		SMULL* = 00C00090H; 
+		
+		(* Conditions *)
+		EQ* = 0; NE* = 1; CS* = 2; CC* = 3;  MI* = 4; PL* = 5; VS* = 6; VC* = 7;
+		HI* = 8; LS* = 9; GE* = 10; LT* = 11;  GT* = 12; LE* = 13; AL* = 14; NV* = 15;
+		 
+		(* Register Numbers *)
+		PC* = 15; LR* = 14; SP* = 13; FP* = 12; FirstUniversalReg = 9;
+
+		(* Const Types *)
+		Constant = 0; StringAddr = 1; ProcAddr = 2; ExtAddr = 3; 
+		
+    StkOrg0 = -64; VarOrg0 = 0;  
+
     MT = 10; SB = 11; (*SP = 13; *) LNK = 14;   (*dedicated registers*)
 (*    MT = 12; SB = 13; SP = 14; LNK = 15;  *) (*dedicated registers - RISC*)
     maxCode = 8000; maxStrx = 2400; maxTD = 120; (*C24 = 1000000H; *)
-    Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)  (*opcode formats*)   DPfmt = 0; MULfmt = 1; MULLfmt = 2; SDSfmt = 3; BEfmt = 4; HDTRfmt = 5; HDTIfmt = 6;   SDTfmt = 7; UNDfmt = 8; BDTfmt = 9; BRfmt = 10; CDTfmt = 11; CDOfmt = 12; CRTfmt = 13; SWIfmt = 14;
+    Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
+
+  (*opcode formats*)
+   DPfmt = 0; MULfmt = 1; MULLfmt = 2; SDSfmt = 3; BEfmt = 4; HDTRfmt = 5; HDTIfmt = 6;   SDTfmt = 7; UNDfmt = 8; BDTfmt = 9; BRfmt = 10; CDTfmt = 11; CDOfmt = 12; CRTfmt = 13; SWIfmt = 14;
 
   (*frequently used opcodes*)  U = 2000H;    And = 0; Eor = 1; Sub = 2; Rsb = 3; Add = 4; Adc = 5; Sbc = 6; Rsc = 7;    Tst = 8; Teq = 9; Cmp = 10; Cmn = 11; Orr = 12; Mov = 13; Bic = 14; Mvn = 15;
     Lsl = 1; Asr = 2; Ror= 3;  Ann = 5; Ior = 6; Xor = 7;
@@ -45,23 +101,106 @@ MODULE Oa32G; (* NW  10.10.2013 CP 2014,2018 arm 32-bit code generator in Oberon
     data: ARRAY maxTD OF LONGINT;  (*type descriptors*)
     str: ARRAY maxStrx OF CHAR;
 
-  (*instruction disassemblers according to formats*)
-  PROCEDURE opFormat*(w: LONGINT): LONGINT;		VAR fmt,cc, a, b, f: LONGINT; 	BEGIN        cc := w DIV 10000000H;        a  := w DIV 1000000H MOD 10H;        b  := w DIV 100000H MOD 10H;        f   := w DIV 10H MOD 10H;				IF  (( a = 0 ) OR ( a = 1 ) OR ( a = 2 ) OR ( a = 3 )) THEN				IF (f = 9) & (a = 0) THEN (*mul / mull *)					IF ODD(b DIV 8) THEN   fmt := MULLfmt	ELSE  fmt := MULfmt	END				ELSIF (f>9) & ODD(f) & (a<2) THEN (* ldrh/strh *)					IF ~ODD(b DIV 4) THEN     fmt :=   HDTRfmt  ELSE     fmt :=   HDTIfmt    END				ELSIF (f = 9) & (a=1) THEN (*single swap *)                      fmt := SDSfmt				ELSIF (a = 1) & ((b = 2) OR (b = 6) OR (b = 0) OR (b = 4)) OR (a = 3)&((b = 2) OR (b = 6)) THEN(* msr /mrs *)                      fmt :=  -1				ELSE					IF (b DIV 2 + a*8 MOD 10H = 0DH) OR (b DIV 2 + a*8 MOD 10H = 0FH) THEN (* Mov, Mvn*)				        fmt := DPfmt					ELSIF (b DIV 2 + a*8 MOD 10H >= 8H) & (b DIV 2 + a*8 MOD 10H <=  0BH) THEN (* cmp, tst*)			            fmt := DPfmt					ELSE 				        fmt := DPfmt					END;					IF ODD(a DIV 2) THEN 	(* Immidiate Data processing *)					    fmt := DPfmt					ELSE 	(* Data processing *)					    fmt :=  DPfmt					END                END        ELSIF ((a=4) OR (a=5) OR (a=6) OR (a=7)) THEN (* ldf, str *)				IF (a >= 6) & ODD(f) THEN 	(* undef *)					   fmt := UNDfmt				ELSE	(*ldr, str *)					   fmt := SDTfmt				END        ELSIF ((a=8) OR (a=9)) THEN (* ldm, stm *)	fmt := BDTfmt        ELSIF a=0AH THEN (* Branch *)					   fmt := BRfmt        ELSIF a=0BH THEN (* Branch and Link *)	     fmt := BRfmt        ELSIF a=0CH THEN (* FP Push/Pop *)			   fmt := CDTfmt        ELSIF a=0DH THEN (* FP Ldc / Stc *)			   fmt := CDTfmt        ELSIF a=0EH THEN (* FP Operation *)			  fmt := CDOfmt        ELSIF a=0FH THEN (* SWI *)      					   fmt := SWIfmt        END        RETURN fmt
-  END opFormat;(*  From OSAG.Mod:PROCEDURE Put0(op, dst, src0, src1: LONGINT); (*register operation*)PROCEDURE Put0a(op, dst, src0, src1, shmd, shcnt: LONGINT); (*register operation with shift*) PROCEDURE Put0b(op, dst, src0, src1, shmd, shreg: LONGINT); (*register operation with shift cnt from reg*) PROCEDURE Put0c(op, dst, src0, src1, src2: LONGINT); (*multiply*)PROCEDURE Put1(op, dst, src, imm: LONGINT); (*register operation with immediate*)PROCEDURE Put2(op, reg, base, offset: LONGINT); (*Load/store with offset literal*)PROCEDURE Put3(op, reg, base, offreg, shift: LONGINT); (*Load/store with offset from register*) PROCEDURE Put4(op, base: LONGINT; regs: SET); (*Load/Store multiple*)PROCEDURE Put5(cond, offset: LONGINT); (*Branch conditional*)PROCEDURE Put5a(offset: LONGINT); (*Branch and Link*)PROCEDURE Put6(cond, num: LONGINT); (*SWI conditional*)*)  (*instruction assemblers according to formats*)
+  (*instruction disassemblers according to formats*)
+
+
+  PROCEDURE opFormat*(w: LONGINT): LONGINT;
+		VAR fmt,cc, a, b, f: LONGINT; 
+	BEGIN
+        cc := w DIV 10000000H;
+        a  := w DIV 1000000H MOD 10H;
+        b  := w DIV 100000H MOD 10H;
+        f   := w DIV 10H MOD 10H;
+		
+		IF  (( a = 0 ) OR ( a = 1 ) OR ( a = 2 ) OR ( a = 3 )) THEN
+				IF (f = 9) & (a = 0) THEN (*mul / mull *)
+					IF ODD(b DIV 8) THEN   fmt := MULLfmt	ELSE  fmt := MULfmt	END
+				ELSIF (f>9) & ODD(f) & (a<2) THEN (* ldrh/strh *)
+					IF ~ODD(b DIV 4) THEN     fmt :=   HDTRfmt  ELSE     fmt :=   HDTIfmt    END
+				ELSIF (f = 9) & (a=1) THEN (*single swap *)
+                      fmt := SDSfmt
+				ELSIF (a = 1) & ((b = 2) OR (b = 6) OR (b = 0) OR (b = 4)) OR (a = 3)&((b = 2) OR (b = 6)) THEN(* msr /mrs *)
+                      fmt :=  -1
+				ELSE
+					IF (b DIV 2 + a*8 MOD 10H = 0DH) OR (b DIV 2 + a*8 MOD 10H = 0FH) THEN (* Mov, Mvn*)
+				        fmt := DPfmt
+					ELSIF (b DIV 2 + a*8 MOD 10H >= 8H) & (b DIV 2 + a*8 MOD 10H <=  0BH) THEN (* cmp, tst*)
+			            fmt := DPfmt
+					ELSE 
+				        fmt := DPfmt
+					END;
+					IF ODD(a DIV 2) THEN 	(* Immidiate Data processing *)
+					    fmt := DPfmt
+					ELSE 	(* Data processing *)
+					    fmt :=  DPfmt
+					END
+                END
+        ELSIF ((a=4) OR (a=5) OR (a=6) OR (a=7)) THEN (* ldf, str *)
+				IF (a >= 6) & ODD(f) THEN 	(* undef *)
+					   fmt := UNDfmt
+				ELSE	(*ldr, str *)
+					   fmt := SDTfmt
+				END
+        ELSIF ((a=8) OR (a=9)) THEN (* ldm, stm *)	fmt := BDTfmt
+        ELSIF a=0AH THEN (* Branch *)					   fmt := BRfmt
+        ELSIF a=0BH THEN (* Branch and Link *)	     fmt := BRfmt
+        ELSIF a=0CH THEN (* FP Push/Pop *)			   fmt := CDTfmt
+        ELSIF a=0DH THEN (* FP Ldc / Stc *)			   fmt := CDTfmt
+        ELSIF a=0EH THEN (* FP Operation *)			  fmt := CDOfmt
+        ELSIF a=0FH THEN (* SWI *)      					   fmt := SWIfmt
+        END
+        RETURN fmt
+  END opFormat;
+
+(*  From OSAG.Mod:
+
+PROCEDURE Put0(op, dst, src0, src1: LONGINT); (*register operation*)
+PROCEDURE Put0a(op, dst, src0, src1, shmd, shcnt: LONGINT); (*register operation with shift*) 
+PROCEDURE Put0b(op, dst, src0, src1, shmd, shreg: LONGINT); (*register operation with shift cnt from reg*) 
+PROCEDURE Put0c(op, dst, src0, src1, src2: LONGINT); (*multiply*)
+PROCEDURE Put1(op, dst, src, imm: LONGINT); (*register operation with immediate*)
+PROCEDURE Put2(op, reg, base, offset: LONGINT); (*Load/store with offset literal*)
+PROCEDURE Put3(op, reg, base, offreg, shift: LONGINT); (*Load/store with offset from register*) 
+PROCEDURE Put4(op, base: LONGINT; regs: SET); (*Load/Store multiple*)
+PROCEDURE Put5(cond, offset: LONGINT); (*Branch conditional*)
+PROCEDURE Put5a(offset: LONGINT); (*Branch and Link*)
+PROCEDURE Put6(cond, num: LONGINT); (*SWI conditional*)
+
+*)
+
+  (*instruction assemblers according to formats*)
 
   PROCEDURE GetPC*(): LONGINT;
   BEGIN
     RETURN pc
   END GetPC;
-
+
+
   PROCEDURE Put0(op, a, b, c: LONGINT);
-  BEGIN (*emit format-0 instruction*)    IF  (c >= -100H) & (c <= 0FFH) THEN      code[pc] := (AL * 10000000H) + (op*200000H) + (b * 10000H) + (a * 1000H) + c     ELSE       O7S.Mark("Put0 c overflow")    END;    INC(pc)
+  BEGIN (*emit format-0 instruction*)
+    IF  (c >= -100H) & (c <= 0FFH) THEN
+      code[pc] := (AL * 10000000H) + (op*200000H) + (b * 10000H) + (a * 1000H) + c 
+    ELSE 
+      O7S.Mark("Put0 c overflow")
+    END;
+    INC(pc)
   END Put0;
 
   PROCEDURE Put1(op, a, b, im: LONGINT);
-  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)    IF (im >= -100H) & (im <= 0FFH) THEN      code[pc] := (AL * 10000000H) + 2000000H + (op*200000H) + (b * 10000H) + (a * 1000H) + im    ELSE       code[pc] := (AL * 10000000H) + 2000000H + (op*200000H) + (b * 10000H) + (a * 1000H) + 0BFH(*      O7S.Mark("Put1 im overflow")*)    END;(*
+  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
+    IF (im >= -100H) & (im <= 0FFH) THEN
+      code[pc] := (AL * 10000000H) + 2000000H + (op*200000H) + (b * 10000H) + (a * 1000H) + im
+    ELSE 
+      code[pc] := (AL * 10000000H) + 2000000H + (op*200000H) + (b * 10000H) + (a * 1000H) + 0BFH
+(*
+      O7S.Mark("Put1 im overflow")
+*)
+    END;
+(*
     IF im < 0 THEN INC(op, 1000H) END ;  (*set v-bit*)
-    code[pc] := (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H);*)    INC(pc)
+    code[pc] := (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H);
+*)
+    INC(pc)
   END Put1;
 
   PROCEDURE Put1a(op, a, b, im: LONGINT);
@@ -75,15 +214,53 @@ MODULE Oa32G; (* NW  10.10.2013 CP 2014,2018 arm 32-bit code generator in Oberon
 
   PROCEDURE Put2(op, a, b, off: LONGINT);
   BEGIN (*emit load/store instruction*) 
-    IF (off >= -1000H) & (off <= 0FFFH) THEN      IF ((op = Ldr) OR (op = Str)) THEN        IF off < 0 THEN          code[pc] := (AL * 10000000H) + (op * 100000H) + (b *  10000H) + (a * 1000H) + (0- off )        ELSE          code[pc] := (AL * 10000000H) + (op * 100000H) + 800000H + (b *  10000H) + (a * 1000H) + off        END      ELSE        O7S.Mark("load/store was not load or store")      END    ELSE      O7S.Mark("offset in ARM opcode too large")    END;   (*
-    code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); *)    INC(pc)
+    IF (off >= -1000H) & (off <= 0FFFH) THEN
+      IF ((op = Ldr) OR (op = Str)) THEN
+        IF off < 0 THEN
+          code[pc] := (AL * 10000000H) + (op * 100000H) + (b *  10000H) + (a * 1000H) + (0- off )
+        ELSE
+          code[pc] := (AL * 10000000H) + (op * 100000H) + 800000H + (b *  10000H) + (a * 1000H) + off
+        END
+      ELSE
+        O7S.Mark("load/store was not load or store")
+      END
+    ELSE
+      O7S.Mark("offset in ARM opcode too large")
+    END;
+
+   
+(*
+    code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); *)
+    INC(pc)
   END Put2;
 
   PROCEDURE Put3(op, cond, off: LONGINT);
-  BEGIN (*emit branch instruction*)    IF op = BR THEN      IF cond = 7 THEN         Put0(Mov,PC,0,LR);         DEC(pc)      ELSE        code[pc] := 0E0000000H;      END(* 
-    code[pc] := ( AL * 10000000H ) + (5 * 2000000H) + (off MOD 1000000H); *)    ELSIF op = BLR THEN     code[pc] := 0E0000001H;    ELSIF op = BC THEN     code[pc] := 0E0000002H; (* 
-    code[pc] := ( cond * 10000000H ) + (5 * 2000000H) + (off MOD 1000000H);*)    ELSIF op = BL THEN     code[pc] := 0E0000003H;    ELSE      O7S.Mark("unknown branch opcode")    END;(*    code[pc] := cond * 10000000H + 0A000000H + off;*)(*
-    code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H);*)    INC(pc)
+  BEGIN (*emit branch instruction*)
+    IF op = BR THEN
+      IF cond = 7 THEN
+         Put0(Mov,PC,0,LR);
+         DEC(pc)
+      ELSE
+        code[pc] := 0E0000000H;
+      END
+(*     code[pc] := ( AL * 10000000H ) + (5 * 2000000H) + (off MOD 1000000H); *)
+    ELSIF op = BLR THEN
+     code[pc] := 0E0000001H;
+    ELSIF op = BC THEN
+     code[pc] := 0E0000002H;
+ (*     code[pc] := ( cond * 10000000H ) + (5 * 2000000H) + (off MOD 1000000H);*)
+    ELSIF op = BL THEN
+     code[pc] := 0E0000003H;
+    ELSE
+      O7S.Mark("unknown branch opcode")
+    END;
+(*
+    code[pc] := cond * 10000000H + 0A000000H + off;
+*)
+(*
+    code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H);
+*)
+    INC(pc)
   END Put3;
 
   PROCEDURE incR;
