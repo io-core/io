@@ -337,7 +337,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)(*CP 2018*)
 
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     IF S.class = Texts.Name THEN
-      Texts.SetFont(W, Fonts.This("               Courier10.Scn.Fnt"));
+      Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
       Texts.WriteString(W, "decoding "); Texts.WriteString(W, S.s); F := Files.Old(S.s);
 
       IF F # NIL THEN
@@ -429,7 +429,7 @@ MODULE O7Tool;  (*NW 18.2.2013*)(*CP 2018*)
 
 
 BEGIN Texts.OpenWriter(W); T := TextFrames.Text(""); OpenViewer(T, "Tools.Text");
-  Texts.SetFont(W, Fonts.This("               Courier10.Scn.Fnt"));
+  Texts.SetFont(W, Fonts.This("Courier10.Scn.Fnt"));
   Texts.WriteString(W, "O7Tool 9.7.2014");
   Texts.WriteLn(W); Texts.Append(T, W.buf);
 
