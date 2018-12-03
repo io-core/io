@@ -39,3 +39,5 @@ ORP.Compile O7G.Mod ~
 ORP.Compile O7P.Mod ~
 
 O7P.Compile Snooze.Mod ~
+
+ORP.Compile Texts.Mod TextFrames.Mod Graphics.Mod GraphicFrames.Mod Edit.Mod Input.Mod Oberon.Mod System.Mod ~

@@ -209,7 +209,7 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
       pre: ARRAY 32 OF CHAR;
   BEGIN Texts.OpenReader(R, Oberon.Par.text, Oberon.Par.pos); Texts.Read(R, ch);
     WHILE ch = " " DO Texts.Read(R, ch) END;
-    IF (ch = "^") OR (ch = 0DX) THEN
+    IF (ch = "^") OR (ch = 0DX) OR (ch = 0AX) THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN
         Texts.OpenReader(R, T, beg); Texts.Read(R, ch);
