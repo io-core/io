@@ -21,11 +21,11 @@ MODULE Oa32G; (* NW  10.10.2013 CP 2014,2018 arm 32-bit code generator in Oberon
 		STR* = 50H; (* STR, pre-indexed, no write-back *)
 		LDRB* = 55H; (* LDRB, pre-indexed, no write-back *)
 		STRB* = 54H; (* STRB, pre-indexed, no write-back *)
-			LDRpost* = 41H; (* LDR, post-indexed, no write-back-bit *)
+			LDRpost* = 41H; (* LDR, post-indexed, no write-back-bit *)
 		STRpost* = 40H; (* STR, post-indexed, no write-back-bit *)
 		LDRBpost* = 45H; (* LDRB, post-indexed, no write-back-bit *)
 		STRBpost* = 44H; (* STRB, post-indexed, no write-back-bit *)
-			(* Op-Codes Halfword Data Transfer (HDT) *)
+			(* Op-Codes Halfword Data Transfer (HDT) *)
 		LDRSH* = 11000F0H; (* LDRSH, pre-indexed, no write-back *)
 		STRH* = 10000B0H; (* STRH, pre-indexed, no write-back *)
 		LDRSB* = 11000D0H; (* LDRSB, pre-indexed, no write-back *)
@@ -65,9 +65,9 @@ MODULE Oa32G; (* NW  10.10.2013 CP 2014,2018 arm 32-bit code generator in Oberon
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
   (*opcode formats*)
-   DPfmt = 0; MULfmt = 1; MULLfmt = 2; SDSfmt = 3; BEfmt = 4; HDTRfmt = 5; HDTIfmt = 6;   SDTfmt = 7; UNDfmt = 8; BDTfmt = 9; BRfmt = 10; CDTfmt = 11; CDOfmt = 12; CRTfmt = 13; SWIfmt = 14;
+   DPfmt = 0; MULfmt = 1; MULLfmt = 2; SDSfmt = 3; BEfmt = 4; HDTRfmt = 5; HDTIfmt = 6;   SDTfmt = 7; UNDfmt = 8; BDTfmt = 9; BRfmt = 10; CDTfmt = 11; CDOfmt = 12; CRTfmt = 13; SWIfmt = 14;
 
-  (*frequently used opcodes*)  U = 2000H;    And = 0; Eor = 1; Sub = 2; Rsb = 3; Add = 4; Adc = 5; Sbc = 6; Rsc = 7;    Tst = 8; Teq = 9; Cmp = 10; Cmn = 11; Orr = 12; Mov = 13; Bic = 14; Mvn = 15;
+  (*frequently used opcodes*)  U = 2000H;    And = 0; Eor = 1; Sub = 2; Rsb = 3; Add = 4; Adc = 5; Sbc = 6; Rsc = 7;    Tst = 8; Teq = 9; Cmp = 10; Cmn = 11; Orr = 12; Mov = 13; Bic = 14; Mvn = 15;
     Lsl = 1; Asr = 2; Ror= 3;  Ann = 5; Ior = 6; Xor = 7;
     Mul = 10; Div = 11;
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15;
@@ -230,7 +230,7 @@ PROCEDURE Put6(cond, num: LONGINT); (*SWI conditional*)
 
    
 (*
-    code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); *)
+    code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); *)
     INC(pc)
   END Put2;
 
@@ -267,13 +267,13 @@ PROCEDURE Put6(cond, num: LONGINT); (*SWI conditional*)
   BEGIN
     IF RH < MT THEN INC(RH) ELSE O7S.Mark("register stack overflow") END
   END incR;
-
+
   PROCEDURE CheckRegs*;
   BEGIN
     IF RH # 0 THEN O7S.Mark("Reg Stack"); RH := 0 END ;
     IF pc >= maxCode - 40 THEN O7S.Mark("Program too long"); END
   END CheckRegs;
-
+
   PROCEDURE SaveRegs(r: LONGINT); (* R[0 .. r-1] to be saved; R[r .. RH-1] to be moved down*)
     VAR rs, rd: LONGINT;  (*r > 0*)
   BEGIN rs := r; rd := 0;
@@ -312,20 +312,20 @@ PROCEDURE Put6(cond, num: LONGINT); (*SWI conditional*)
   PROCEDURE fix(at, with: LONGINT);
   BEGIN (* code[at] := code[at] DIV C24 * C24 + (with MOD C24) *)
   END fix;
-
+
   PROCEDURE FixLink*(L: LONGINT);
     VAR L1: LONGINT;
-  BEGIN  (*invalSB;*)(*
-    WHILE L # 0 DO L1 := code[L] MOD 40000H; fix(L, pc-L-1); L := L1 END*)
+  BEGIN  (*invalSB;*)(*
+    WHILE L # 0 DO L1 := code[L] MOD 40000H; fix(L, pc-L-1); L := L1 END*)
   END FixLink;
-
+
   PROCEDURE FixLinkWith(L0, dst: LONGINT);
     VAR L1: LONGINT;
-  BEGIN(*
+  BEGIN(*
     WHILE L0 # 0 DO
       L1 := code[L0] MOD C24;
       code[L0] := code[L0] DIV C24 * C24 + ((dst - L0 - 1) MOD C24); L0 := L1
-    END*)
+    END*)
   END FixLinkWith;
 
   PROCEDURE merged(L0, L1: LONGINT): LONGINT;
@@ -421,7 +421,7 @@ PROCEDURE Put6(cond, num: LONGINT); (*SWI conditional*)
   PROCEDURE loadStringAdr(VAR x: OXG.Item);
   BEGIN GetSB(0); Put1a(Add, RH, SB, varsize+x.a); x.mode := Reg; x.r := RH; incR
   END loadStringAdr;
-
+
   (* Items: Conversion from constants or from Objects on the Heap to Items on the Stack*)
 
   PROCEDURE MakeConstItem*(VAR x: OXG.Item; typ: O7B.Type; val: LONGINT);
