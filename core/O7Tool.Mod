@@ -1,7 +1,7 @@
-MODULE O7Tool;  (*NW 18.2.2013*)(*CP 2018*)
+MODULE O7Tool;  (*NW 18.2.2013*)(*CP 2014,2018*)
 
   IMPORT SYSTEM, Fonts, Files, Texts,  Viewers, MenuViewers, TextFrames, Oberon, O7B, Oa32G;
-  CONST r32 = 0; r64 = 1; a32 = 2; a64 = 3; i32 = 4; i64 = 5;
+  CONST r32 = 0; a32 = 1; i32 = 2; v32 = 3; r64 = 4; a64 = 5; i64 = 6; v64 = 7;
 
 
   VAR W: Texts.Writer;
