@@ -1,4 +1,6 @@
 MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-4*)
+              (*CP 12.2018 changed to adopt NL instead of CR *)
+              (* Adapted for a customizable framebuffer size -- see git history *)
   IMPORT SYSTEM;
 
   CONST msAdr = -40; kbdAdr = -36;
@@ -10,7 +12,7 @@ MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-
 
 (*FIFO implemented in hardware, because every read must be handled,
   including tracking the state of the Shift and Ctrl keys*)
-  
+
   PROCEDURE Peek();
   BEGIN
     IF SYSTEM.BIT(msAdr, 28) THEN
@@ -46,7 +48,8 @@ MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-
     VAR w: INTEGER;
   BEGIN SYSTEM.GET(msAdr, w);
     keys := SYSTEM.VAL(SET, w DIV 1000000H MOD 8);
-    x := w MOD 400H; y := (w DIV 1000H) MOD 400H;
+    x := w MOD 1000H; y := (w DIV 1000H) MOD 1000H;
+    IF x >= MW THEN x := MW-1 END;
     IF y >= MH THEN y := MH-1 END
   END Mouse;
 
@@ -62,7 +65,7 @@ MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-
       00 63 78 64 65 34 33 00  00 20 76 66 74 72 35 00
       00 6E 62 68 67 79 36 00  00 00 6D 6A 75 37 38 00
       00 2C 6B 69 6F 30 39 00  00 2E 2F 6C 3B 70 2D 00
-      00 00 27 00 5B 3D 00 00  00 00 0D 5D 00 5C 00 00
+      00 00 27 00 5B 3D 00 00  00 00 0A 5D 00 5C 00 00
       00 00 00 00 00 00 08 00  00 00 00 00 00 00 00 00
       00 7F 00 00 00 00 1B 00  00 00 00 00 00 00 00 00
       00 00 00 00 00 00 00 00  00 00 00 00 00 09 7E 00
@@ -77,3 +80,20 @@ MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-
 
 BEGIN Init
 END Input.
+
+
+(*----Attest-0.1.0------------------------------------------------------------------------*)
+(* signed                                                                                 *)
+(* 2018-12-03 08:16:28                                                                    *)
+(*----------------------------------------------------------------------------------------*)
+(* Xqx3slMIZw4WElmuQXBm3wL1SzgSMgPlAbnyJoAuRh+VyxD7KYLItYZAerewBePgrKyhnnniEb/QbxOH9zViXH *)
+(* KTRCORzFsftqoIKGZbhxVNcTPUuCiE2K3EpuB6TX05ZBCioeMHmeVvc6naAWh0xaGbj2mva4hg8YgXgQfdHGe4 *)
+(* 7/HkcSrQGx9sKHj3yrLO/BVsP1B7KAuRBGLzHr8KihjSpKPrQXpJUZzJzZd0LCqY4mN3S8Lv1skudrYRQTc/8n *)
+(* MZjNAYCL/ComUoHsOaw1YE3zerLlTaV/ZF0fInPmf5Fm8MGI9/vxTigcxqiZQvmcRs4nObd2o4tuDlzL8exQ== *)
+(*----------------------------------------------------------------------------------------*)
+(* ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDsrtAUhLbs/ELXgH3OJs0SKh7tSQE/gkPavHv4//tsLucTAN *)
+(* C4mEjbjxKtFlZjji89GGvatnGu3DvAAz60VNEGBccezdn4rkcNpceKQe2KE2Kb13KM6VmrNl4Gj3+C278u0yKx *)
+(* l07WpQCYJ1x6WU8Tnrs5oRSGvHzJVvkxbH7YfymnoXbDg2j8cWYX+zNR/aYvcX+6isZmqRDg+qZ1CK45UL0sO9 *)
+(* GcSFyey3fGigzWGvBx9JujvsxL6aqX7yY+WtCbApeGLN4HYtrn4ueuKAQND5EYo0SEI2m+STt5eCdDBLFhG0jD *)
+(* 5MO6T7o//Mg8qDeuiY5wpbcQdpVWmdWQQxMT chuck@kuracali.com                                *)
+(*----------------------------------------------------------------------------------------*)
