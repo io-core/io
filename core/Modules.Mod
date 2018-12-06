@@ -34,7 +34,7 @@ MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 9.4.2016, CP 6.12.2018
     WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
     filename[i] := "."; filename[i+1] := "r"; filename[i+2] := "3"; filename[i+3] := "2"; filename[i+4] := 0X;
     RETURN Files.Old(filename)
-  END ThisRscFile;
+  END ThisElfFile;
 
 
   PROCEDURE error(n: INTEGER; name: ARRAY OF CHAR);
@@ -72,7 +72,7 @@ MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 9.4.2016, CP 6.12.2018
       Check(name);
       IF res = 0 THEN 
         F := ThisRscFile(name);
-        IF f = NIL THEN
+        IF F # NIL THEN
           F := ThisElfFile(name);
         END 
       ELSE 
