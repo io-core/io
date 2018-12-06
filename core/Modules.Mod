@@ -1,4 +1,4 @@
-MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 9.4.2016*)
+MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 9.4.2016, CP 6.12.2018*)
   IMPORT SYSTEM, Files;
   CONST versionkey = 1X; MT = 12; DescSize = 80;
 
@@ -18,14 +18,24 @@ MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 9.4.2016*)
     importing*, imported*: ModuleName;
     limit: INTEGER;
 
-  PROCEDURE ThisFile(name: ARRAY OF CHAR): Files.File;
+  PROCEDURE ThisRscFile(name: ARRAY OF CHAR): Files.File;
     VAR i: INTEGER;
       filename: ModuleName;
   BEGIN i := 0;
     WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
     filename[i] := "."; filename[i+1] := "r"; filename[i+2] := "s"; filename[i+3] := "c"; filename[i+4] := 0X;
     RETURN Files.Old(filename)
-  END ThisFile;
+  END ThisRscFile;
+
+ PROCEDURE ThisElfFile(name: ARRAY OF CHAR): Files.File;
+    VAR i: INTEGER;
+      filename: ModuleName;
+  BEGIN i := 0;
+    WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
+    filename[i] := "."; filename[i+1] := "r"; filename[i+2] := "3"; filename[i+3] := "2"; filename[i+4] := 0X;
+    RETURN Files.Old(filename)
+  END ThisRscFile;
+
 
   PROCEDURE error(n: INTEGER; name: ARRAY OF CHAR);
   BEGIN res := n; importing := name
@@ -60,7 +70,14 @@ MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 9.4.2016*)
     WHILE (mod # NIL) & (name # mod.name) DO mod := mod.next END ;
     IF mod = NIL THEN (*load*)
       Check(name);
-      IF res = 0 THEN F := ThisFile(name) ELSE F := NIL END ;
+      IF res = 0 THEN 
+        F := ThisRscFile(name);
+        IF f = NIL THEN
+          F := ThisElfFile(name);
+        END 
+      ELSE 
+        F := NIL 
+      END ;
       IF F # NIL THEN
         Files.Set(R, F, 0); Files.ReadString(R, name1); Files.ReadInt(R, key); Files.Read(R, ch);
         Files.ReadInt(R, size); importing := name1;
