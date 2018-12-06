@@ -7,7 +7,7 @@ MODULE Or32G; (* NW  10.10.2013 CP 2014,2018 RISC code generator in Oberon-07*)
   CONST WordSize* = 4;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
     MT = 12; SB = 13; SP = 14; LNK = 15;   (*dedicated registers*)
-    maxCode = 8000; maxStrx = 2400; maxTD = 120; C24 = 1000000H;
+    maxCode = 8192; maxStrx = 3200; maxTD = 120; C24 = 1000000H;
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
   (*frequently used opcodes*)  U = 2000H;
