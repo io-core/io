@@ -56,10 +56,6 @@ func (d *RFS_D) Attr(ctx context.Context, a *fuse.Attr) error {
 }
 
 func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
-              for i:=0;i<RFS_AllocMapLimit;i++{
-                smap[i]=0
-              }
-	fmt.Print("L")
         files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil,"Lookup")
         if files != nil {
                 for _, f := range files {
@@ -75,10 +71,6 @@ func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
         var result []fuse.Dirent
 	
-              for i:=0;i<RFS_AllocMapLimit;i++{
-                smap[i]=0
-              }
-        fmt.Print("R")
         files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil,"ReadDirAll")
         if files != nil {
                 for _, f := range files {
@@ -135,7 +127,6 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    	}else{
    	  ith=n
    	}
-        //fmt.Println("done with",ith)
    }
 
    return slist
@@ -403,15 +394,16 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                         rc = rc + 1
                                 }
 			}
-			//fmt.Println("Writing chunk",seqn,"to sector",fh.Sec[seqn]/29)
-                        RFS_K_Write( f.disk, sn, fsec)
+
+		        rsp := make(chan bool)
+		        f.disk.w <- writeOp{sn, fsec, rsp}
+		        _ = <- rsp
+
 		}
                     
         }
 	resp.Size = len(req.Data)
         fserr = nil
-        
-        //fmt.Println("Write operation end. fh original Aleng:",fh.Aleng,"write request flags:",req.FileFlags,"Size:",len(req.Data),"Error:",fserr)
       }
       return fserr   
 }
@@ -520,60 +512,24 @@ func RFS_K_Drive( disk *RFS_FS ){
 		
 		        RFS_Release()
 
-		      
-
 			readit.c <- bytes
 
 		case writeit := <- disk.w :
-                        fmt.Print("w")
+                        
+		        RFS_Aquire()
+		        
+		        x:=(writeit.i/29)+262144
+		        _,err := disk.file.Seek( (int64(x)*1024) - int64(disk.offset*512),0 )
+		        if err!= nil {    fmt.Println("Disk Seek Error in Write --->",err,"address",(int64(x)*1024),"offset",int64(disk.offset*512),"page",writeit.i/29)      }
+		
+		        disk.file.Write(writeit.s)
+		        
+		        RFS_Release()
+
 			writeit.c <- true
 		}
 	}
 
-}
-
-func RFS_K_Write( disk *RFS_FS, dpg RFS_DiskAdr, sbuf []byte) {
-
-    RFS_Aquire()
-    if len(sbuf)==1024{
-
-      x:=(dpg/29)+262144
-      _,err := disk.file.Seek( (int64(x)*1024) - int64(disk.offset*512),0 )
-      if err!= nil {    fmt.Println("Disk Seek Errorin Write --->",err,"address",(int64(x)*1024),"offset",int64(disk.offset*512),"page",dpg/29)      }
-
-//func (board *BOARD) write_sector(){
-//  bytes:=make([]byte, 512)
-//  for i := 0; i < 128; i++ {
-//    bytes[i*4+0] = uint8(board.Disk.rx_buf[i]      )
-//    bytes[i*4+1] = uint8(board.Disk.rx_buf[i] >>  8)
-//    bytes[i*4+2] = uint8(board.Disk.rx_buf[i] >> 16)
-//    bytes[i*4+3] = uint8(board.Disk.rx_buf[i] >> 24)
-//  }
-//  board.Disk.File.Write(bytes)
-//}
-
-     disk.file.Write(sbuf)
-   }else{
-	fmt.Println("Bad file write sector buffer size")
-   }
-   RFS_Release()
-}
-
-func RFS_K_Read( disk *RFS_FS, dpg RFS_DiskAdr) sbuf {
-
-     RFS_Aquire()
-
-      x:=(dpg/29)+262144
-      _,err := disk.file.Seek( (int64(x)*1024) - int64(disk.offset*512),0 )
-      if err!= nil {    fmt.Println("Disk Seek Error in Read --->",err,"address",(int64(x)*1024),"offset",int64(disk.offset*512),"page",dpg/29)      }
-      bytes := make([]byte, 1024)
-      n,err := disk.file.Read(bytes)
-      if err!= nil {        fmt.Println("Disk Read Error",err,x)      }
-      if n< 1024 {        fmt.Println("K_Read less than 1024:",n)      }
-      
-     RFS_Release()
-
-      return sbuf(bytes)
 }
 
 func (bytes sbuf) Int32At( i int) int32 {
@@ -619,7 +575,10 @@ func RFS_K_PutFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
          for i:=0;i<(RFS_SectorSize - RFS_HeaderSize);i++{
             sector[RFS_HeaderSize+i]=a.fill[i]
          }
-	RFS_K_Write( disk, dpg, sector )
+        rsp := make(chan bool)
+        disk.w <- writeOp{dpg, sector, rsp}
+         _ = <- rsp
+
 
 }
 
@@ -690,7 +649,9 @@ func RFS_K_PutDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
           sector.PutWordAt(i+9,uint32(a.E[e].P))  
       }
 
-      RFS_K_Write( disk, dpg, sector )
+      rsp := make(chan bool)
+      disk.w <- writeOp{dpg, sector, rsp}
+      _ = <- rsp
 
    }
 }
@@ -990,8 +951,6 @@ func ServeRFS( mountpoint *string, f *os.File, o uint32 ) {
 	      }
 
 
-              //r := make(chan readOp)
-              //w := make(chan writeOp)
               go RFS_K_Drive(filesys)
 
 	      
