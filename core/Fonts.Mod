@@ -1,14 +1,18 @@
-MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013*)
+MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018*)
   IMPORT SYSTEM, Files;
 
   CONST FontFileId = 0DBH;
         PcfFileId = 01H; 
 
-  TYPE Font* = POINTER TO FontDesc;
+  TYPE
+ 
+    Font* = POINTER TO FontDesc;
     FontDesc* = RECORD
       name*: ARRAY 32 OF CHAR;
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
+      spani: INTEGER;
+      spane: INTEGER;
       T: ARRAY 128 OF INTEGER;
       raster: ARRAY 2360 OF BYTE
     END ;
@@ -21,12 +25,17 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013*)
 
 VAR Default*, root*: Font;
 
-PROCEDURE GetPat*(fnt: Font; ch: CHAR; VAR dx, x, y, w, h, patadr: INTEGER);
+PROCEDURE GetWPat*(fnt: Font; ch: CHAR; pg: CHAR; VAR dx, x, y, w, h, patadr: INTEGER);
   VAR pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
 BEGIN pa := fnt.T[ORD(ch) MOD 80H]; patadr := pa;
   SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
   dx := dxb; x := xb; y := yb; w := wb; h := hb;
   IF yb < 128 THEN y := yb ELSE y := yb - 256 END
+END GetWPat;
+
+PROCEDURE GetPat*(fnt: Font; ch: CHAR; VAR dx, x, y, w, h, patadr: INTEGER);
+BEGIN
+  GetWPat(fnt, ch, ch, dx, x, y, w, h, patadr)
 END GetPat;
 
 PROCEDURE This*(name: ARRAY OF CHAR): Font;
@@ -125,5 +134,5 @@ BEGIN f := root.next;
   f.next := NIL
 END Free;
 
-BEGIN root := NIL; Default := This("Oberon10.Scn.Fnt")
+BEGIN root := NIL; Default := This("Syntax14.Scn.Fnt")
 END Fonts.
