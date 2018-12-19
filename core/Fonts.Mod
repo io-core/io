@@ -2,6 +2,7 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013*)
   IMPORT SYSTEM, Files;
 
   CONST FontFileId = 0DBH;
+        PcfFileId = 01H; 
 
   TYPE Font* = POINTER TO FontDesc;
     FontDesc* = RECORD
@@ -96,7 +97,20 @@ BEGIN F := root;
         END;
         WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
         F.next := root; root := F
-      ELSE (*bad file id*) F := Default
+      ELSE (* not a native Oberon font file... pcf?*) 
+        IF b = PcfFileId THEN
+          Files.ReadByte(R, b); 
+          IF b = 066H THEN
+             Files.ReadByte(R, b); 
+             IF b = 063H THEN 
+               Files.ReadByte(R, b);
+               IF b = 070H THEN 
+                 LED(0FFH)
+               END
+             END
+          END
+        END;
+        F := Default
       END
     ELSE (*font file not available*) F := Default
     END
