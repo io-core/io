@@ -60,53 +60,69 @@ PROCEDURE LoadOberonFont(VAR R: Files.Rider): Font;
 
 BEGIN
 
-        Files.ReadByte(R, b); (*abstraction*)
-        Files.ReadByte(R, b); (*family*)
-        Files.ReadByte(R, b); (*variant*)
-        (* NEW(F); F.name := name; *)
-        RdInt16(R, height); RdInt16(R, minX); RdInt16(R, maxX); RdInt16(R, minY); RdInt16(R, maxY); RdInt16(R, NofRuns);
-        NofBoxes := 0; k := 0;
-        WHILE k # NofRuns DO
-          RdInt16(R, beg);
-          run[k].beg := beg; RdInt16(R, end);
-          run[k].end := end; NofBoxes := NofBoxes + end - beg; INC(k)
-        END;
-        NofBytes := 5; j := 0;
-        WHILE j # NofBoxes DO
-          RdInt16(R, box[j].dx); RdInt16(R, box[j].x); RdInt16(R, box[j].y);
-          RdInt16(R, box[j].w); RdInt16(R, box[j].h);
-          NofBytes := NofBytes + 5 + (box[j].w + 7) DIV 8 * box[j].h;
-          INC(j)
-        END;
-        IF NofBytes < 2300 THEN NEW(F) ELSE NEW(LF); F := LF END ;
-        (* F.name := name; *)
-        F.height := height; F.minX := minX; F.maxX := maxX; F.maxY := maxY;
-        IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END ;
-        a0 := SYSTEM.ADR(F.raster);
-        SYSTEM.PUT(a0, 0X); SYSTEM.PUT(a0+1, 0X); SYSTEM.PUT(a0+2, 0X); SYSTEM.PUT(a0+3, 0X); SYSTEM.PUT(a0+4, 0X);
-        (*null pattern for characters not in a run*)
-        INC(a0, 2); a := a0+3; j := 0; k := 0; m := 0;
-        WHILE k < NofRuns DO
-          WHILE (m < run[k].beg) & (m < 128) DO F.T[m] := a0; INC(m) END;
-          WHILE (m < run[k].end) & (m < 128) DO 
-            F.T[m] := a+3;
-            SYSTEM.PUT(a, box[j].dx); SYSTEM.PUT(a+1, box[j].x); SYSTEM.PUT(a+2, box[j].y);
-            SYSTEM.PUT(a+3, box[j].w); SYSTEM.PUT(a+4, box[j].h); INC(a, 5);
-            n := (box[j].w + 7) DIV 8 * box[j].h;
-            WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a, b); INC(a) END ;
-            INC(j); INC(m) 
-          END;
-          INC(k)
-        END;
-        WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
+    Files.ReadByte(R, b); (*abstraction*)
+    Files.ReadByte(R, b); (*family*)
+    Files.ReadByte(R, b); (*variant*)
+        
+    RdInt16(R, height); RdInt16(R, minX); RdInt16(R, maxX); RdInt16(R, minY); RdInt16(R, maxY); RdInt16(R, NofRuns);
+    NofBoxes := 0; k := 0;
+    WHILE k # NofRuns DO
+      RdInt16(R, beg);
+      run[k].beg := beg; RdInt16(R, end);
+      run[k].end := end; NofBoxes := NofBoxes + end - beg; INC(k)
+    END;
+    NofBytes := 5; j := 0;
+    WHILE j # NofBoxes DO
+      RdInt16(R, box[j].dx); RdInt16(R, box[j].x); RdInt16(R, box[j].y);
+      RdInt16(R, box[j].w); RdInt16(R, box[j].h);
+      NofBytes := NofBytes + 5 + (box[j].w + 7) DIV 8 * box[j].h;
+      INC(j)
+    END;
+    IF NofBytes < 2300 THEN NEW(F) ELSE NEW(LF); F := LF END ;
+        
+    F.height := height; F.minX := minX; F.maxX := maxX; F.maxY := maxY;
+    IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END ;
+    a0 := SYSTEM.ADR(F.raster);
+    SYSTEM.PUT(a0, 0X); SYSTEM.PUT(a0+1, 0X); SYSTEM.PUT(a0+2, 0X); SYSTEM.PUT(a0+3, 0X); SYSTEM.PUT(a0+4, 0X);
+    (*null pattern for characters not in a run*)
+    INC(a0, 2); a := a0+3; j := 0; k := 0; m := 0;
+    WHILE k < NofRuns DO
+      WHILE (m < run[k].beg) & (m < 128) DO F.T[m] := a0; INC(m) END;
+      WHILE (m < run[k].end) & (m < 128) DO 
+        F.T[m] := a+3;
+        SYSTEM.PUT(a, box[j].dx); SYSTEM.PUT(a+1, box[j].x); SYSTEM.PUT(a+2, box[j].y);
+        SYSTEM.PUT(a+3, box[j].w); SYSTEM.PUT(a+4, box[j].h); INC(a, 5);
+        n := (box[j].w + 7) DIV 8 * box[j].h;
+        WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a, b); INC(a) END ;
+        INC(j); INC(m) 
+      END;
+      INC(k)
+    END;
+    WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
 
   RETURN F
 END LoadOberonFont;
 
 PROCEDURE LoadPcfFont(VAR R: Files.Rider): Font;
   VAR F: Font; LF: LargeFont;
+    i, j, k, m, n: INTEGER;
+    a, a0, b: INTEGER;
 BEGIN
-  F := Default
+  NEW(LF); F := LF;
+  F.height := 8; F.minX := 0; F.maxX := 8; F.maxY := 8;
+  a0 := SYSTEM.ADR(F.raster);
+  SYSTEM.PUT(a0, 0X); SYSTEM.PUT(a0+1, 0X); SYSTEM.PUT(a0+2, 0X); SYSTEM.PUT(a0+3, 0X); SYSTEM.PUT(a0+4, 0X);
+  (*null pattern for characters not in a run*)
+  INC(a0, 2); a := a0+3; j := 0; m := 0;
+  F.T[m] := a0; INC(m);
+  WHILE (m < 128) DO 
+        F.T[m] := a+3;
+        SYSTEM.PUT(a, 8); SYSTEM.PUT(a+1, 8); SYSTEM.PUT(a+2, 8);
+        SYSTEM.PUT(a+3, 8); SYSTEM.PUT(a+4, 8); INC(a, 5);
+        n := (8 + 7) DIV 8 * 8;
+        WHILE n # 0 DO DEC(n); b:=255; SYSTEM.PUT(a, b); INC(a) END ;
+        INC(j); INC(m)
+  END;
   RETURN F
 END LoadPcfFont;
 
