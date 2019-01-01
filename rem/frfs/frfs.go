@@ -182,20 +182,6 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 
     return fsn,fsn,fserr
 
-//  PROCEDURE Insert*(name: FileName; fad: DiskAdr);
-//    VAR  oldroot: DiskAdr;
-//      h: BOOLEAN; U: DirEntry;
-//      a: DirPage;
-//  BEGIN h := FALSE;
-//    insert(name, DirRootAdr, h, U, fad);
-//    IF h THEN (*root overflow*)
-//      Kernel.GetSector(DirRootAdr, a); ASSERT(a.mark = DirMark);
-//      Kernel.AllocSector(DirRootAdr, oldroot); Kernel.PutSector(oldroot, a);
-//      a.mark := DirMark; a.m := 1; a.p0 := oldroot; a.e[0] := U;
-//      Kernel.PutSector(DirRootAdr, a)
-//    END
-//  END Insert;
-
 }
 
 func (d *RFS_D) Remove(ctx context.Context, req *fuse.RemoveRequest) error          {   return fuse.ENOSYS       }
@@ -260,7 +246,16 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 	   if i < RFS_SecTabSize {
 	    sn = fh.Sec[i]
 	   }else{
-	    sn = xtbuf[ i - RFS_SecTabSize ]
+	    xte := int32( i - RFS_SecTabSize ) / 256
+            xti := int32( i - RFS_SecTabSize ) % 256
+
+            rsp := make(chan sbuf)
+            f.disk.r <- readOp{fh.Ext[xte], rsp}
+            sector := <- rsp
+
+            sn=sector.DiskAdrAt(int(xti))
+
+
 	   }
            if sn>0 {
             //fsec := RFS_K_Read(f.disk,sn)
@@ -894,13 +889,38 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
 		   } 
 		}
 	    }
-          }
-          for e:=0;e<RFS_ExTabSize;e++{
+          
+            for e:=0;e<RFS_ExTabSize;e++{
 		if fh.Ext[e]!=0{
-		   fmt.Println("Can't handle an ext entry in a file handle! Egads! from",caller)
-		   // TODO: scan exTab as well
+
+                   ne := (fh.Aleng - RFS_SecTabSize) / 256
+                   for i:=int32(0);i<ne;i++ {
+
+                     bok := secBitSet( tsmap, fh.Ext[i] )
+                     if ! bok {
+                        fmt.Println("File extended sector already marked:", fh.Ext[i]/29,"from",caller)
+                     }
+
+                     rsp := make(chan sbuf)
+                     disk.r <- readOp{fh.Ext[i], rsp}
+                     sector := <- rsp 
+                   
+                     j:=int32(256)
+                     if i == ne { j = (fh.Aleng - RFS_SecTabSize) % 256 + 1 }
+                     for ;j>0; {
+                       j=j-1
+                       es:=sector.DiskAdrAt(int(j))
+                       bok := secBitSet( tsmap, fh.Ext[es] )
+                       if ! bok {
+                          fmt.Println("File sector from extended sector already marked:", fh.Ext[es]/29,"from",caller)
+                       }
+
+                     }
+
+                   }
 		}
-	  }
+	    }
+          }
 	}
       }
 
