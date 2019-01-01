@@ -92,7 +92,7 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    
    var slist []RFS_DiskAdr
 
-   for i:=0;i<RFS_AllocMapLimit;i++{
+   for i:= range smap { // 0;i<RFS_AllocMapLimit;i++{
       smap[i]=0
    }
    fmt.Print("S")
@@ -123,12 +123,6 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    	}else{
    	  ith=n
    	}
-   }
-   for i:= range slist {
-                   bok := secBitSet( &smap, slist[i]*29 )
-                   if ! bok {
-                        fmt.Println("free sector already marked:", slist[i],"in find free sectors")
-                   }
    }
    return slist
 }
