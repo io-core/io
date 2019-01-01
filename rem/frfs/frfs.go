@@ -193,12 +193,12 @@ func (f *RFS_F) Attr(ctx context.Context, a *fuse.Attr) error {
       a.Mode = 0777
 
       var fh RFS_FileHeader
-      var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
+      
       if f.inode % 29 != 0 {
             fmt.Println("inode not divisible by 29 in Attr:",f.inode)
       }else{
 
-        ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, & xtbuf,"Attr")
+        ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"Attr")
 	if ! ok {
             fmt.Println("GetFileHeader failed in Attr:",f.inode/29)
 	}else{
@@ -221,16 +221,14 @@ func (f *RFS_F) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.Read
 func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 
       var fh RFS_FileHeader
-      var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
+     
       var rv []byte
-
-	// TODO: fill xtbuff with actual sector references from extended tables sectors ?
 
       if f.inode % 29 != 0 {
             fmt.Println("inode not divisible by 29 in ReadAll:",f.inode)
       }else{
 
-        ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, & xtbuf,"ReadAll")
+        ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"ReadAll")
 	
         
 	if ! ok {
@@ -287,8 +285,8 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
       fserr = fuse.EIO
 
       var fh RFS_FileHeader
-      var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
-      ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, & xtbuf,"Write")
+      var xtbuf [ 256 ]RFS_DiskAdr
+      ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"Write")
       if ok {  
 	if fh.Sec[0]==0{
 		fmt.Println("File header self-sector is zero for f.inode",f.inode)
@@ -311,30 +309,58 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         newAleng := (newl + RFS_HeaderSize) / RFS_SectorSize
 	newBleng := (newl + RFS_HeaderSize) % RFS_SectorSize
 
-//        if newAleng > 63 {
-//		newAleng = 63
-//	}
-
 	if origAleng < newAleng {
+                xtn:=(newAleng-origAleng)-RFS_SecTabSize
+                xtnx:=int32(0)
+                if xtn > 0 { xtnx = ( xtn / 256 ) + 1 }
+
+        	slist := RFS_FindNFreeSectors(int(newAleng-origAleng+xtnx), f.disk.root)
                 
-                
-        	slist := RFS_FindNFreeSectors(int(newAleng-origAleng), f.disk.root)
-                
-        	if len(slist)!=int(newAleng-origAleng){
-        	        fmt.Println("Failed to find",newAleng-origAleng,"free sector(s) for the file")
+        	if len(slist)!=int(newAleng-origAleng+xtnx){
+        	        fmt.Println("Failed to find",newAleng-origAleng+xtnx,"free sector(s) for the file")
         	}else{
-                        //fmt.Println("found sector(s)",slist,"for the file")
+                        xsn:=0
+                        xsmod:=false
+			
 			for i:=origAleng+1;i<=newAleng;i++{
                                 if i < RFS_SecTabSize {
 				  fh.Sec[i]=slist[i-(origAleng+1)]*29
 				  fsec.PutWordAt(int(24+i),uint32(slist[i-(origAleng+1)])*29)
 				}else{
-				  xtbuf[ i - RFS_SecTabSize ] = slist[i-(origAleng+1)]*29
+                                  //ii := i - RFS_SecTabSize
+                                  //iix := ii % 256
+
+				  //xtbuf[ i - RFS_SecTabSize ] = slist[i-(origAleng+1)]*29
 				  //fmt.Println("Sec has",len(fh.Sec),"but need",i)
                                   // TODO: Flush extension table sectors back to disk
-				}
-				
+                                  
+
+
+                                  //ne := (fh.Aleng - RFS_SecTabSize) / 256
+                                  //ni := (fh.Aleng - RFS_SecTabSize) % 256
+                                    
+                                  
+                                }
+
+                        }
+                        if xsmod {
+				fmt.Println("Writing extended file sector index",xsn,"to disk")
+
 			}
+
+//                   for i:=int32(0);i<ne;i++ 
+//
+//                     bok := secBitSet( tsmap, fh.Ext[i] )
+
+//                     rsp := make(chan sbuf)
+//                     disk.r <- readOp{fh.Ext[i], rsp}
+//                     sector := <- rsp
+//
+//                     j:=int32(256)
+//                     if i == ne { j = (fh.Aleng - RFS_SecTabSize) % 256 + 1 }
+//                       es:=sector.DiskAdrAt(int(j))
+//
+
         	}
 
                 
@@ -348,7 +374,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	        if seqn < RFS_SecTabSize {
 	            sn = fh.Sec[seqn]
 	        }else{
-	            sn = xtbuf[ seqn - RFS_SecTabSize ]
+	            sn = xtbuf[ 0 ]
 	        }
 
 		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
@@ -570,7 +596,7 @@ func RFS_K_PutFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader){
 
 }
 
-func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader, x * [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr,caller string) (ok bool){
+func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader,caller string) (ok bool){
 
     if dpg % 29 != 0 {
         fmt.Println("sector",dpg,"is not divisble by 29 in GetFileHeader called from",caller)
@@ -591,14 +617,6 @@ func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader, x *
          a.Date =sector.Int32At(11)
          for i:=0;i<RFS_ExTabSize;i++{
             a.Ext[i]=sector.DiskAdrAt(i+12)
-//         
-//	     // if i < (
-//		if a.Ext[i] != 0 {
-//		  esector :=RFS_K_Read( disk, a.Ext[i] )
-//		  for j:=0;j<RFS_IndexSize;j++ {
-//			x[j]=RFS_DiskAdr(esector.Int32At(j))
-//		  }
-//		}
 	 }
 	
 
@@ -866,8 +884,8 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
 
       if tsmap != nil {
         var fh RFS_FileHeader
-        var xtbuf [ RFS_ExTabSize * RFS_IndexSize ]RFS_DiskAdr
-        ok:=RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh, & xtbuf,"Scan")
+       
+        ok:=RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh,"Scan")
 	if ! ok {
 	  fmt.Println("Couldn't get file header")
 	}else{
