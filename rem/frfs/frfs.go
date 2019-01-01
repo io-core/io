@@ -92,14 +92,10 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    
    var slist []RFS_DiskAdr
 
-   for i,_:=range(smap){
-	smap[i]=0
+   for i:=0;i<RFS_AllocMapLimit;i++{
+      smap[i]=0
    }
-
-              for i:=0;i<RFS_AllocMapLimit;i++{
-                smap[i]=0
-              }
-        fmt.Print("S")
+   fmt.Print("S")
    _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap,"FindSectors")
 
    startat:=0
@@ -128,7 +124,12 @@ func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
    	  ith=n
    	}
    }
-
+   for i:= range slist {
+                   bok := secBitSet( &smap, slist[i]*29 )
+                   if ! bok {
+                        fmt.Println("free sector already marked:", slist[i],"in find free sectors")
+                   }
+   }
    return slist
 }
 
@@ -300,8 +301,6 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	}
        
         appendOp := (req.FileFlags & fuse.OpenAppend) > 0
-	
-        //fsec := RFS_K_Read(f.disk,fh.Sec[0])
 
         rsp := make(chan sbuf)
         f.disk.r <- readOp{fh.Sec[0],rsp}
@@ -318,9 +317,9 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         newAleng := (newl + RFS_HeaderSize) / RFS_SectorSize
 	newBleng := (newl + RFS_HeaderSize) % RFS_SectorSize
 
-        if newAleng > 63 {
-		newAleng = 63
-	}
+//        if newAleng > 63 {
+//		newAleng = 63
+//	}
 
 	if origAleng < newAleng {
                 
