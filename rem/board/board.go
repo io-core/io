@@ -405,6 +405,9 @@ func (board *BOARD) Load_io(address uint32) uint32 {
   return 0
 }
 
+func Snooze( value uint32 ) {
+  time.Sleep(time.Millisecond * time.Duration(value))
+}
 
 func (board *BOARD) Store_io(address, value uint32) {
   switch (address - IOStart) {
@@ -412,7 +415,7 @@ func (board *BOARD) Store_io(address, value uint32) {
     case 0:
 	if value > 0 && value < 1001 {
 	  fmt.Println("sleeping",value,"Milliseconds")
-	  time.Sleep(time.Millisecond * time.Duration(value))
+	  Snooze(value)
 	}
 
     case 4: 
@@ -420,6 +423,7 @@ func (board *BOARD) Store_io(address, value uint32) {
       // LED control
 //      if (risc->leds) {
 //        risc->leds->write(risc->leds, value);
+        fmt.Println("LED",value)
 //      }
       
     

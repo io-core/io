@@ -1,1 +1,1 @@
-./rem.amd64 -i Oberon-2016-08-02.dsk -c 1 -d opengl -g 1200x768x1 -m - -v 0
+./rem -i IO.img -c 1 -d opengl -g - -m - -v 0
