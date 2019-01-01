@@ -328,7 +328,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 				  fsec.PutWordAt(int(24+i),uint32(slist[xtnx+i-(origAleng+1)])*29)
 				}else{
                                   ii := i - RFS_SecTabSize
-                                  iix := ii % 256
+                                  iix := ii / 256    // % 256
 				  fh.Ext[iix]=slist[iix]
 				  if xsn != fh.Ext[iix] {
 					if xsmod {
@@ -341,11 +341,12 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 		                                f.disk.w <- writeOp{xsn, sector, rsp}
 		                                _ = <- rsp
 					}
+					xsn = fh.Ext[iix]
 				        rsp := make(chan sbuf)
-				        f.disk.r <- readOp{fh.Sec[0],rsp}
-				        fsec := <- rsp
+				        f.disk.r <- readOp{xsn,rsp}
+				        xsec := <- rsp
 					for j:=0;j<256;j++{
-						xtbuf[j]=fsec.DiskAdrAt(j)
+						xtbuf[j]=xsec.DiskAdrAt(j)
 					}
 				  }
 
@@ -367,14 +368,6 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	
 			}
 
-//                     isp := make(chan sbuf)
-//                     disk.r <- readOp{fh.Ext[i], rsp}
-//                     sector := <- rsp
-//
-//                     j:=int32(256)
-//                     if i == ne { j = (fh.Aleng - RFS_SecTabSize) % 256 + 1 }
-//                       es:=sector.DiskAdrAt(int(j))
-//
 
         	}
 
@@ -384,12 +377,28 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	}
 
         rc:= int32(0)
+        xsn:=RFS_DiskAdr(0)
 	for seqn:= int32(0); seqn <= newAleng ; seqn ++ {
                 sn := RFS_DiskAdr(0)
 	        if seqn < RFS_SecTabSize {
 	            sn = fh.Sec[seqn]
 	        }else{
-	            sn = xtbuf[ 0 ]
+                    ii := seqn - RFS_SecTabSize
+                    iix := ii / 256
+                    
+                    if xsn != fh.Ext[iix] {
+                                xsn = fh.Ext[iix]
+                                rsp := make(chan sbuf)
+                                f.disk.r <- readOp{xsn, rsp}
+                                xsec := <- rsp
+                                for j:=0;j<256;j++{
+                                        xtbuf[j]=xsec.DiskAdrAt(j)
+                                }
+
+		    }
+
+	            sn = xtbuf[ ii % 256 ]
+                    
 	        }
 
 		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
