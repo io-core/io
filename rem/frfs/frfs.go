@@ -314,45 +314,60 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                 xtnx:=int32(0)
                 if xtn > 0 { xtnx = ( xtn / 256 ) + 1 }
 
-        	slist := RFS_FindNFreeSectors(int(newAleng-origAleng+xtnx), f.disk.root)
+        	slist := RFS_FindNFreeSectors(int(xtnx+newAleng-origAleng), f.disk.root)
                 
-        	if len(slist)!=int(newAleng-origAleng+xtnx){
-        	        fmt.Println("Failed to find",newAleng-origAleng+xtnx,"free sector(s) for the file")
+        	if len(slist)!=int(xtnx+newAleng-origAleng){
+        	        fmt.Println("Failed to find",xtnx+newAleng-origAleng,"free sector(s) for the file")
         	}else{
-                        xsn:=0
+                        xsn:=RFS_DiskAdr(0)
                         xsmod:=false
 			
 			for i:=origAleng+1;i<=newAleng;i++{
                                 if i < RFS_SecTabSize {
-				  fh.Sec[i]=slist[i-(origAleng+1)]*29
-				  fsec.PutWordAt(int(24+i),uint32(slist[i-(origAleng+1)])*29)
+				  fh.Sec[i]=slist[xtnx+i-(origAleng+1)]*29
+				  fsec.PutWordAt(int(24+i),uint32(slist[xtnx+i-(origAleng+1)])*29)
 				}else{
-                                  //ii := i - RFS_SecTabSize
-                                  //iix := ii % 256
+                                  ii := i - RFS_SecTabSize
+                                  iix := ii % 256
+				  fh.Ext[iix]=slist[iix]
+				  if xsn != fh.Ext[iix] {
+					if xsmod {
+		                                sector := sbuf(make([]byte, 1024))
+	                                        for j:=0;j<256;j++{
+        	                                        sector.PutWordAt(j,uint32(xtbuf[j]))
+                	                        }
+		                                fmt.Println("Writing extended file sector index",xsn,"to disk")
+		                                rsp := make(chan bool)
+		                                f.disk.w <- writeOp{xsn, sector, rsp}
+		                                _ = <- rsp
+					}
+				        rsp := make(chan sbuf)
+				        f.disk.r <- readOp{fh.Sec[0],rsp}
+				        fsec := <- rsp
+					for j:=0;j<256;j++{
+						xtbuf[j]=fsec.DiskAdrAt(j)
+					}
+				  }
 
-				  //xtbuf[ i - RFS_SecTabSize ] = slist[i-(origAleng+1)]*29
-				  //fmt.Println("Sec has",len(fh.Sec),"but need",i)
-                                  // TODO: Flush extension table sectors back to disk
-                                  
-
-
-                                  //ne := (fh.Aleng - RFS_SecTabSize) / 256
-                                  //ni := (fh.Aleng - RFS_SecTabSize) % 256
-                                    
+				  xtbuf[ii-(iix*256)]=RFS_DiskAdr(slist[xtnx+i-(origAleng+1)]*29)
+				  xsmod = true
                                   
                                 }
 
                         }
                         if xsmod {
+			        sector := sbuf(make([]byte, 1024))
+                                for j:=0;j<256;j++{
+                                	sector.PutWordAt(j,uint32(xtbuf[j]))
+                                }
 				fmt.Println("Writing extended file sector index",xsn,"to disk")
-
+	                        rsp := make(chan bool)
+	                        f.disk.w <- writeOp{xsn, sector, rsp}
+	                        _ = <- rsp
+	
 			}
 
-//                   for i:=int32(0);i<ne;i++ 
-//
-//                     bok := secBitSet( tsmap, fh.Ext[i] )
-
-//                     rsp := make(chan sbuf)
+//                     isp := make(chan sbuf)
 //                     disk.r <- readOp{fh.Ext[i], rsp}
 //                     sector := <- rsp
 //
