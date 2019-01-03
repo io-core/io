@@ -395,16 +395,6 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                         }
                         if xtmod {
 				putSector(f.disk,xsn,xsec)
-
-//			        sector := sbuf(make([]byte, 1024))
-//                                for j:=0;j<256;j++{
-//                                	sector.PutWordAt(j,uint32(xtbuf[j]))
-//                                }
-//				fmt.Println(xtbuf,"\nWriting extended file sector index(2)",xsn/29,"to disk")
-//	                        rsp := make(chan bool)
-//	                        f.disk.w <- writeOp{xsn, sector, rsp}
-//	                        _ = <- rsp
-	
 			}
 
 
@@ -412,37 +402,36 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
                 
 	}else if oA > nA{
-                fmt.Println("Have too many sectors... trimming!")
+                fmt.Println("Have too many sectors... ignoring extra")
 	}
 
         rc:= int32(0)
         xsn:=RFS_DiskAdr(0)
+
 	for seqn:= int32(0); seqn <= nA && seqn < RFS_SecTabSize; seqn ++ {
                 sn := RFS_DiskAdr(0)
 	        if seqn < RFS_SecTabSize {
 	            sn = fh.Sec[seqn]
 	        }else{
-                  if 1 == 2 {  
-                    ii := seqn - RFS_SecTabSize
-                    iix := ii / 256
+                  xi := seqn - RFS_SecTabSize
+                  xiP := xi / 256 
+                  xiPi := xi % 256
                     
-                    if xsn != fh.Ext[iix] {
-                                xsn = fh.Ext[iix]
-                                
+                    if xsn != fh.Ext[xiP] {
+                                xsn = fh.Ext[xiP]
                                 xsec := getSector(f.disk,xsn)
                                 for j:=0;j<256;j++{
                                         xtbuf[j]=xsec.DiskAdrAt(j)
                                 }
-
 		    }
 
-	            sn = xtbuf[ ii % 256 ]
+	            sn = xtbuf[ xiPi ]
                     if sn % 29 != 0 {
                        fmt.Println("Sector index format error:",sn," not divisible by 29")
 		    }    
 	        
                     fmt.Print("[",sn/29,"]")
-                   }
+                   
                 }
 		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
 	                if seqn > 0 {
