@@ -242,9 +242,10 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 	    xte := int32( i - RFS_SecTabSize ) / 256
             xti := int32( i - RFS_SecTabSize ) % 256
 
-            rsp := make(chan sbuf)
-            f.disk.r <- readOp{fh.Ext[xte], rsp}
-            sector := <- rsp
+            //rsp := make(chan sbuf)
+            //f.disk.r <- readOp{fh.Ext[xte], rsp}
+            //sector := <- rsp
+            sector := getSector(f.disk,fh.Ext[xte])
 
             sn=sector.DiskAdrAt(int(xti))
 
@@ -253,9 +254,10 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
            if sn>0 {
             //fsec := RFS_K_Read(f.disk,sn)
 
-            rsp := make(chan sbuf)
-            f.disk.r <- readOp{sn, rsp}
-            fsec := <- rsp
+            //rsp := make(chan sbuf)
+            //f.disk.r <- readOp{sn, rsp}
+            //fsec := <- rsp
+            fsec := getSector(f.disk,sn)
 
             if i==0 {
                   if fh.Aleng==0 {
@@ -279,92 +281,129 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
     return rv, nil
 }
 
+func saneDiskAdr( adr RFS_DiskAdr, m string ) bool {
+  fmt.Print("!")
+  if adr == 0 {
+	fmt.Println("Insane Disk Address (zero):",adr,m)
+	os.Exit(1)
+  }
+  if adr % 29 != 0 {
+        fmt.Println("Insane Disk Address (not mod 29):",adr,m)
+	os.Exit(1)
+  }
+  return true
+}
+
+func getSector(disk *RFS_FS, adr RFS_DiskAdr) sbuf {
+	var sec sbuf
+	if saneDiskAdr(adr,"Get Sector") {
+        	rsp := make(chan sbuf)
+        	disk.r <- readOp{adr,rsp}
+        	sec = <- rsp
+	}
+	return sec
+}
+
+func putSector(disk *RFS_FS, adr RFS_DiskAdr, sector sbuf){
+        rsp := make(chan bool)
+        disk.w <- writeOp{adr, sector, rsp}
+        _ = <- rsp
+}
+
 func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
 
-      var fserr error
-      fserr = fuse.EIO
+	var fserr error = fuse.EIO
+	var fh RFS_FileHeader
+	var fsec,xsec sbuf
 
-      var fh RFS_FileHeader
-      var xtbuf [ 256 ]RFS_DiskAdr
-      ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"Write")
-      if ok {  
-	if fh.Sec[0]==0{
-		fmt.Println("File header self-sector is zero for f.inode",f.inode)
+	ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"Write")
+	isAppend := int32(req.FileFlags & fuse.OpenAppend)/int32(fuse.OpenAppend) 
+
+	if ok && saneDiskAdr(fh.Sec[0], "File Header Self Sector") {  	 
+		fsec = getSector(f.disk,fh.Sec[0])
+	}else{
+		os.Exit(1)
 	}
-       
-        appendOp := (req.FileFlags & fuse.OpenAppend) > 0
 
-        rsp := make(chan sbuf)
-        f.disk.r <- readOp{fh.Sec[0],rsp}
-        fsec := <- rsp
+	osz := int32(req.Offset) + (isAppend * ((fh.Aleng * RFS_SectorSize) + fh.Bleng - RFS_HeaderSize))
+	nsz := osz + int32(len(req.Data))
 
-        osz:=int32(0)          
-        if appendOp {
-		osz = (fh.Aleng * RFS_SectorSize) + fh.Bleng - RFS_HeaderSize
-        }
+	oA := fh.Aleng
+	oB := fh.Bleng
+        nA := (nsz + RFS_HeaderSize) / RFS_SectorSize
+	nB := (nsz + RFS_HeaderSize) % RFS_SectorSize
+        adelta := nA - oA
+        var xtbuf [ 256 ]RFS_DiskAdr
 
-        newl := osz + int32(len(req.Data))
-	origAleng := fh.Aleng
-	origBleng := fh.Bleng
-        newAleng := (newl + RFS_HeaderSize) / RFS_SectorSize
-	newBleng := (newl + RFS_HeaderSize) % RFS_SectorSize
+	if oA < nA {
+                oxA:=oA-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
+		nxA:=nA-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
+		dxA:= nxA - oxA
+		
+                xP:=int32(0);  if dxA > 0 { xP = ( dxA / 256 ) + 1 }
 
-	if origAleng < newAleng {
-                xtn:=(newAleng-origAleng)-RFS_SecTabSize
-                xtnx:=int32(0)
-                if xtn > 0 { xtnx = ( xtn / 256 ) + 1 }
+                fmt.Println("Req Data K:",len(req.Data)/1024,"dxA is",dxA,(adelta)-RFS_SecTabSize,"Getting",xP,"extension pages")
 
-        	slist := RFS_FindNFreeSectors(int(xtnx+newAleng-origAleng), f.disk.root)
+        	slist := RFS_FindNFreeSectors(int(xP+adelta), f.disk.root)
                 
-        	if len(slist)!=int(xtnx+newAleng-origAleng){
-        	        fmt.Println("Failed to find",xtnx+newAleng-origAleng,"free sector(s) for the file")
+        	if len(slist)!=int(xP+adelta){
+        	        fmt.Println("Failed to find",xP+adelta,"free sector(s) for the file")
+			os.Exit(1)
         	}else{
                         xsn:=RFS_DiskAdr(0)
-                        xsmod:=false
-			
-			for i:=origAleng+1;i<=newAleng;i++{
+                        xtmod:=false
+			xtloaded:=false
+		        
+			for i:=oA+1;i<=nA;i++{
                                 if i < RFS_SecTabSize {
-				  fh.Sec[i]=slist[xtnx+i-(origAleng+1)]*29
-				  fsec.PutWordAt(int(24+i),uint32(slist[xtnx+i-(origAleng+1)])*29)
+				  fh.Sec[i]=slist[xP+i-(oA+1)]*29
+				  fsec.PutWordAt(int(24+i),uint32(slist[xP+i-(oA+1)])*29)
 				}else{
-                                  ii := i - RFS_SecTabSize
-                                  iix := ii / 256    // % 256
-				  fh.Ext[iix]=slist[iix]
-				  if xsn != fh.Ext[iix] {
-					if xsmod {
-		                                sector := sbuf(make([]byte, 1024))
-	                                        for j:=0;j<256;j++{
-        	                                        sector.PutWordAt(j,uint32(xtbuf[j]))
-                	                        }
-		                                fmt.Println("Writing extended file sector index",xsn,"to disk")
-		                                rsp := make(chan bool)
-		                                f.disk.w <- writeOp{xsn, sector, rsp}
-		                                _ = <- rsp
-					}
-					xsn = fh.Ext[iix]
-				        rsp := make(chan sbuf)
-				        f.disk.r <- readOp{xsn,rsp}
-				        xsec := <- rsp
-					for j:=0;j<256;j++{
-						xtbuf[j]=xsec.DiskAdrAt(j)
-					}
+                                  xi := i - RFS_SecTabSize
+                                  xiP := xi / 256  
+ 				  xiPi := xi % 256
+				  if xiPi == 0 {
+				      if xtmod {
+					putSector(f.disk,xsn,xsec)
+					xtmod = false
+				      }
+                                      fh.Ext[xiP]=slist[xiP]*29
+				      xsn=slist[xiP]*29
+                                      for j:=0;j<256;j++{
+                                            xtbuf[j]=RFS_DiskAdr(0)
+					    xsec.PutWordAt(j,uint32(0))
+				      }
+                                      fsec.PutWordAt(int(12+i),uint32(slist[xiP])*29)
+				      xtloaded = true
+				  }else{
+					if ! xtloaded {
+					    xsn=fh.Ext[xiP]
+                                            xsec = getSector(f.disk,xsn)
+                                            for j:=0;j<256;j++{
+                                                xtbuf[j]=xsec.DiskAdrAt(j)
+                                            }
+					    xtloaded = true      
+					} 
 				  }
+				  xtbuf[xiPi]=slist[xP+i-(oA+1)]*29
+                                  xsec.PutWordAt(int(xiPi),uint32(slist[xP+i-(oA+1)])*29)
+				  xtmod = true
+                                  fmt.Print("-",xiP,":",xiPi,"-")
 
-				  xtbuf[ii-(iix*256)]=RFS_DiskAdr(slist[xtnx+i-(origAleng+1)]*29)
-				  xsmod = true
-                                  
                                 }
 
                         }
-                        if xsmod {
-			        sector := sbuf(make([]byte, 1024))
-                                for j:=0;j<256;j++{
-                                	sector.PutWordAt(j,uint32(xtbuf[j]))
-                                }
-				fmt.Println("Writing extended file sector index",xsn,"to disk")
-	                        rsp := make(chan bool)
-	                        f.disk.w <- writeOp{xsn, sector, rsp}
-	                        _ = <- rsp
+                        if xtmod {
+				putSector(f.disk,xsn,xsec)
+
+//			        sector := sbuf(make([]byte, 1024))
+//                                for j:=0;j<256;j++{
+//                                	sector.PutWordAt(j,uint32(xtbuf[j]))
+//                                }
+//				fmt.Println(xtbuf,"\nWriting extended file sector index(2)",xsn/29,"to disk")
+//	                        rsp := make(chan bool)
+//	                        f.disk.w <- writeOp{xsn, sector, rsp}
+//	                        _ = <- rsp
 	
 			}
 
@@ -372,25 +411,25 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         	}
 
                 
-	}else if origAleng > newAleng{
+	}else if oA > nA{
                 fmt.Println("Have too many sectors... trimming!")
 	}
 
         rc:= int32(0)
         xsn:=RFS_DiskAdr(0)
-	for seqn:= int32(0); seqn <= newAleng ; seqn ++ {
+	for seqn:= int32(0); seqn <= nA && seqn < RFS_SecTabSize; seqn ++ {
                 sn := RFS_DiskAdr(0)
 	        if seqn < RFS_SecTabSize {
 	            sn = fh.Sec[seqn]
 	        }else{
+                  if 1 == 2 {  
                     ii := seqn - RFS_SecTabSize
                     iix := ii / 256
                     
                     if xsn != fh.Ext[iix] {
                                 xsn = fh.Ext[iix]
-                                rsp := make(chan sbuf)
-                                f.disk.r <- readOp{xsn, rsp}
-                                xsec := <- rsp
+                                
+                                xsec := getSector(f.disk,xsn)
                                 for j:=0;j<256;j++{
                                         xtbuf[j]=xsec.DiskAdrAt(j)
                                 }
@@ -398,32 +437,36 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 		    }
 
 	            sn = xtbuf[ ii % 256 ]
-                    
-	        }
-
+                    if sn % 29 != 0 {
+                       fmt.Println("Sector index format error:",sn," not divisible by 29")
+		    }    
+	        
+                    fmt.Print("[",sn/29,"]")
+                   }
+                }
 		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
 	                if seqn > 0 {
-	                        //fsec = RFS_K_Read(f.disk,sn)
-			        rsp := make(chan sbuf)
-			        f.disk.r <- readOp{sn, rsp}
-			        fsec = <- rsp
+			       
+                                fsec = getSector(f.disk,sn)
+			        
 
 	                }else{
-                                fh.Aleng = int32(newAleng)
-                                fh.Bleng = int32(newBleng)
+                                fh.Aleng = int32(nA)
+                                fh.Bleng = int32(nB)
                                 
                                 fsec.PutWordAt(9,uint32(fh.Aleng))
                                 fsec.PutWordAt(10,uint32(fh.Bleng))
 			}
+
 			if seqn==0 && ((osz + RFS_HeaderSize)/RFS_SectorSize) == 0 {
 				for i:=int32(0); i < (RFS_SectorSize - (osz+RFS_HeaderSize)) &&  rc < int32(len(req.Data)) ; i++ {
 					fsec[ (osz+RFS_HeaderSize) + i ] = req.Data[ rc ]
                                 	rc = rc + 1
 				}
 			}
-                        if seqn > 0 && appendOp && seqn == origAleng {
-                                for i:=int32(0); i < (RFS_SectorSize - origBleng) &&  rc < int32(len(req.Data)) ; i++ {
-                                        fsec[ origBleng + i ] = req.Data[ rc ]
+                        if seqn > 0 && (isAppend==1) && seqn == oA {
+                                for i:=int32(0); i < (RFS_SectorSize - oB) &&  rc < int32(len(req.Data)) ; i++ {
+                                        fsec[ oB + i ] = req.Data[ rc ]
                                         rc = rc + 1
                                 }
 			} else if seqn > 0 {
@@ -442,7 +485,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         }
 	resp.Size = len(req.Data)
         fserr = nil
-      }
+      
       return fserr   
 }
 
@@ -626,9 +669,10 @@ func RFS_K_GetFileHeader( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_FileHeader,call
         fmt.Println("sector",dpg,"is not divisble by 29 in GetFileHeader called from",caller)
     }else{
 
-      rsp := make(chan sbuf)
-      disk.r <- readOp{dpg, rsp}
-      sector := <- rsp
+      //rsp := make(chan sbuf)
+      //disk.r <- readOp{dpg, rsp}
+      //sector := <- rsp
+      sector := getSector(disk,dpg)
 
       a.Mark =sector.Uint32At(0)
 
@@ -688,9 +732,10 @@ func RFS_K_PutDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
 
 func RFS_K_GetDirSector( disk *RFS_FS, dpg RFS_DiskAdr, a * RFS_DirPage){
 
-      rsp := make(chan sbuf)
-      disk.r <- readOp{dpg, rsp}
-      sector := <- rsp
+      //rsp := make(chan sbuf)
+      //disk.r <- readOp{dpg, rsp}
+      //sector := <- rsp
+      sector := getSector(disk,dpg)
 
 
       a.Mark =sector.Uint32At(0)
@@ -936,10 +981,11 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
                         fmt.Println("File extended sector already marked:", fh.Ext[i]/29,"from",caller)
                      }
 
-                     rsp := make(chan sbuf)
-                     disk.r <- readOp{fh.Ext[i], rsp}
-                     sector := <- rsp 
-                   
+                     //rsp := make(chan sbuf)
+                     //disk.r <- readOp{fh.Ext[i], rsp}
+                     //sector := <- rsp 
+                     sector := getSector(disk,fh.Ext[i])
+        
                      j:=int32(256)
                      if i == ne { j = (fh.Aleng - RFS_SecTabSize) % 256 + 1 }
                      for ;j>0; {
