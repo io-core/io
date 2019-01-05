@@ -282,7 +282,7 @@ func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 }
 
 func saneDiskAdr( adr RFS_DiskAdr, m string ) bool {
-  fmt.Print("!")
+  
   if adr == 0 {
 	fmt.Println("Insane Disk Address (zero):",adr,m)
 	os.Exit(1)
@@ -314,7 +314,8 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
 	var fserr error = fuse.EIO
 	var fh RFS_FileHeader
-	var fsec,xsec sbuf
+	var fsec sbuf
+        var xsec sbuf = make([]byte,1024)
 
 	ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"Write")
 	isAppend := int32(req.FileFlags & fuse.OpenAppend)/int32(fuse.OpenAppend) 
@@ -336,13 +337,14 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         var xtbuf [ 256 ]RFS_DiskAdr
 
 	if oA < nA {
-                oxA:=oA-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
-		nxA:=nA-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
+                fmt.Print("[")
+                oxA:=oA+1-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
+		nxA:=nA+1-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
 		dxA:= nxA - oxA
 		
                 xP:=int32(0);  if dxA > 0 { xP = ( dxA / 256 ) + 1 }
 
-                fmt.Println("Req Data K:",len(req.Data)/1024,"dxA is",dxA,(adelta)-RFS_SecTabSize,"Getting",xP,"extension pages")
+                fmt.Print("/",len(req.Data)/1024,len(req.Data)%1024,"/",dxA,"/",adelta,"/",xP,"/")
 
         	slist := RFS_FindNFreeSectors(int(xP+adelta), f.disk.root)
                 
@@ -359,6 +361,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 				  fh.Sec[i]=slist[xP+i-(oA+1)]*29
 				  fsec.PutWordAt(int(24+i),uint32(slist[xP+i-(oA+1)])*29)
 				}else{
+				  fmt.Print("!")
                                   xi := i - RFS_SecTabSize
                                   xiP := xi / 256  
  				  xiPi := xi % 256
@@ -373,22 +376,25 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                             xtbuf[j]=RFS_DiskAdr(0)
 					    xsec.PutWordAt(j,uint32(0))
 				      }
-                                      fsec.PutWordAt(int(12+i),uint32(slist[xiP])*29)
+                                      fsec.PutWordAt(int(12+xiP),uint32(slist[xiP])*29)
 				      xtloaded = true
 				  }else{
 					if ! xtloaded {
 					    xsn=fh.Ext[xiP]
+                                            
                                             xsec = getSector(f.disk,xsn)
+                                            
                                             for j:=0;j<256;j++{
                                                 xtbuf[j]=xsec.DiskAdrAt(j)
                                             }
 					    xtloaded = true      
 					} 
 				  }
+                                  
 				  xtbuf[xiPi]=slist[xP+i-(oA+1)]*29
                                   xsec.PutWordAt(int(xiPi),uint32(slist[xP+i-(oA+1)])*29)
 				  xtmod = true
-                                  fmt.Print("-",xiP,":",xiPi,"-")
+                                  fmt.Print(xiP,":",xiPi)
 
                                 }
 
@@ -399,7 +405,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
 
         	}
-
+                fmt.Print("]")
                 
 	}else if oA > nA{
                 fmt.Println("Have too many sectors... ignoring extra")
@@ -407,12 +413,14 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 
         rc:= int32(0)
         xsn:=RFS_DiskAdr(0)
-
+        fmt.Print("{")
 	for seqn:= int32(0); seqn <= nA && seqn < RFS_SecTabSize; seqn ++ {
                 sn := RFS_DiskAdr(0)
 	        if seqn < RFS_SecTabSize {
+                    fmt.Print(".")
 	            sn = fh.Sec[seqn]
 	        }else{
+                    fmt.Print(",")
                   xi := seqn - RFS_SecTabSize
                   xiP := xi / 256 
                   xiPi := xi % 256
@@ -474,7 +482,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
         }
 	resp.Size = len(req.Data)
         fserr = nil
-      
+        fmt.Print("}")      
       return fserr   
 }
 
@@ -906,6 +914,7 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
 
   var a RFS_DirPage
   var files []RFS_FI
+  var sector sbuf
 
   if dpg%29 != 0 {
      fmt.Println("Attept to scan from DiskAdr", dpg, "which is not divisible by 29 from",caller)
@@ -950,46 +959,36 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
 	  if fh.Sec[0] != a.E[n].Adr {
             fmt.Println("File Header First sector does not match file header sector:", a.E[n].Adr/29,"from",caller)
 	  }else{
-	    for e:=1;(e<RFS_SecTabSize && e <= int(fh.Aleng));e++{ 
-               if fh.Sec[e]!=0{
-	  	   bok := secBitSet( tsmap, fh.Sec[e] )
-		   if ! bok {
-		        fmt.Println("File Contents sector already marked:", fh.Sec[e]/29,"from",caller)
-		   } 
-		}
-	    }
-          
-            for e:=0;e<RFS_ExTabSize;e++{
-		if fh.Ext[e]!=0{
-
-                   ne := (fh.Aleng - RFS_SecTabSize) / 256
-                   for i:=int32(0);i<ne;i++ {
-
-                     bok := secBitSet( tsmap, fh.Ext[i] )
+            for e:=1;(e<RFS_SecTabSize && e <= int(fh.Aleng));e++{
+	      if e < RFS_SecTabSize {
+                 if fh.Sec[e]!=0{
+                     bok := secBitSet( tsmap, fh.Sec[e] )
                      if ! bok {
-                        fmt.Println("File extended sector already marked:", fh.Ext[i]/29,"from",caller)
+                          fmt.Println("File Contents sector already marked:", fh.Sec[e]/29,"from",caller)
                      }
+                  }
+	      }else{
+                  xP:=(e-RFS_SecTabSize)/256
+		  xPi:=(e-RFS_SecTabSize)%256
+                  
+		  if xPi == 0 {
+                    sector = getSector(disk,fh.Ext[ xP ])
+                    bok := secBitSet( tsmap, fh.Ext[ xP ] )
+                    if ! bok {
+                       fmt.Println("File extended sector already marked:", fh.Ext[xP]/29,"from",caller)
+                    }
+		  }
+                  xe:=sector.DiskAdrAt(xPi)
+                  bok := secBitSet( tsmap, xe )
+                  if ! bok {
+                     fmt.Println("File extended sector contents already marked:", xe/29,"from",caller)
+                  }  
 
-                     //rsp := make(chan sbuf)
-                     //disk.r <- readOp{fh.Ext[i], rsp}
-                     //sector := <- rsp 
-                     sector := getSector(disk,fh.Ext[i])
-        
-                     j:=int32(256)
-                     if i == ne { j = (fh.Aleng - RFS_SecTabSize) % 256 + 1 }
-                     for ;j>0; {
-                       j=j-1
-                       es:=sector.DiskAdrAt(int(j))
-                       bok := secBitSet( tsmap, fh.Ext[es] )
-                       if ! bok {
-                          fmt.Println("File sector from extended sector already marked:", fh.Ext[es]/29,"from",caller)
-                       }
+	      }
 
-                     }
+            }
 
-                   }
-		}
-	    }
+
           }
 	}
       }
