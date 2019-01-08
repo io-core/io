@@ -80,10 +80,11 @@ func main() {
 //	risc.pause = true
 		
         imagePtr := flag.String("i", "RISC.img", "Disk image to boot")
-        devicePtr := flag.String("d", "console", "Device to render to, e.g. X or console")
-        mountpoint := flag.String("m", "/mnt/risc", "Mount Point for fuse filesystem")
-        corecount := flag.Int("c", 5, "Number of cores")
-        verbosity := flag.Int("v", 5, "verbosity level")
+        devicePtr := flag.String("d", "opengl", "Device to render to, e.g. 'opengl' (X) or 'console' or 'headless'")
+        mountpoint := flag.String("f", "-", "Mount Point for fuse filesystem")
+        memPtr := flag.Int("m", 0, "Megabytes of RAM, 0 for default of 1.5MB")
+        corecount := flag.Int("c", 1, "Number of cores")
+        verbosity := flag.Int("v", 0, "Verbosity level")
         geometry := flag.String("g", "1024x768x1", "Geometry (<width>x<height>x<bpp>)")
 	haltPtr := flag.Bool("halt", false, "Begin in halt state")	
         hidpiPtr := flag.Bool("hidpi", false, "high dpi")
@@ -98,7 +99,8 @@ func main() {
         mb.FrameDevice=*devicePtr
 	verbose := false
 	if *verbosity > 0 { verbose = true }
-	
+
+	if 1==2 {fmt.Println(&memPtr)}	
 
 //        risc.diskImage=*imagePtr
 //	risc.frameDevice=*devicePtr
