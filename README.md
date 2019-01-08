@@ -33,7 +33,7 @@ To run the risc v5 emulator (REM) you can download the binary for your platform 
 
 * git clone https://github.com/io-core/io.git
 * go build rem.go
-* run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m -
+* run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -f -
 
 
 
