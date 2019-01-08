@@ -17,6 +17,10 @@ To run the risc v5 emulator (REM) you can download the binary for your platform 
 * Download the <a href="https://github.com/io-core/io/raw/master/rem/Oberon-2016-08-02.dsk">RISC os disc image</a>
 * Download the <a href="https://github.com/io-core/io/raw/master/rem/risc-boot.inc">RISC os firmware file</a>
 * run the emulator -- ./rem.amd64 -i Oberon-2016-08-02.dsk -g 1024x768x1
+* (on a mac with a high definition screen) ./rem.darwin -i Oberon-2016-08-02.dsk -g 1024x768x1 -hidpi
+
+The middle mouse button can be simulated by pressing CTRL + Left mouse button.
+
 # Emulated - From Source
 * install go
 * go get the risc emulator (rem) project dependencies
