@@ -16,7 +16,7 @@ To run the risc v5 emulator (REM) you can download the binary for your platform 
 * Make the binary exeutable (e.g. chmod 755 rem.amd64 or chmod 755 rem.darwin)
 * Download the <a href="https://github.com/io-core/io/raw/master/rem/Oberon-2016-08-02.dsk">RISC os disc image</a>
 * Download the <a href="https://github.com/io-core/io/raw/master/rem/risc-boot.inc">RISC os firmware file</a>
-* run the emulator -- ./rem.amd64 -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m - -g 1024x768x1
+* run the emulator -- ./rem.amd64 -i Oberon-2016-08-02.dsk -g 1024x768x1
 # Emulated - From Source
 * install go
 * go get the risc emulator (rem) project dependencies
@@ -33,7 +33,7 @@ To run the risc v5 emulator (REM) you can download the binary for your platform 
 
 * git clone https://github.com/io-core/io.git
 * go build rem.go
-* run the emulator -- ./rem -c 1 -v 0 -i Oberon-2016-08-02.dsk -d opengl -m -
+* run the emulator -- ./rem -i Oberon-2016-08-02.dsk -g 1024x768x1
 
 
 
