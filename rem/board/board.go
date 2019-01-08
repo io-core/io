@@ -43,7 +43,7 @@ const vbit = 0x10000000
 
 type BOARD struct {
 
-  RAM [MemWords]uint32
+  RAM []uint32
   ROM [ROMWords]uint32
   Disk Disk
   Vchan chan [2]uint32
@@ -303,11 +303,11 @@ func (board *BOARD) SPI_write_data(spi, value uint32){
  }
 }
 
-
+// -128 to -68 for 16 color pallete 
 func (board *BOARD) Load_io(address uint32) uint32 {
   switch (address - IOStart) {
-    case 0: 
-      // Millisecond counter
+    case 0:         
+      // Millisecond counter    -64
 //      if trace { fmt.Printf(" MS COUNTER") }
 //      risc.progress--
 //	fmt.Println(uint32(time.Now().UnixNano() / int64(time.Millisecond))-board.StartTime)
@@ -315,12 +315,12 @@ func (board *BOARD) Load_io(address uint32) uint32 {
 //	return 0  
   
     case 4: 
-      // Switches
+      // Switches       -60
 //      if trace { fmt.Printf(" SWITCHES") }
       return 0
     
     case 8: 
-      // RS232 data
+      // RS232 data    -56
 //      if trace { fmt.Printf(" RS232 DATA") }
 //      if (risc->serial) {
 //        return risc->serial->read_data(risc->serial);
@@ -328,7 +328,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       return 0;
     
     case 12: 
-      // RS232 status
+      // RS232 status   -52
 //      if trace { fmt.Printf(" RS232 STATUS") }
 //      if (risc->serial) {
 //        return risc->serial->read_status(risc->serial);
@@ -336,7 +336,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       return 0;
     
     case 16: 
-      // SPI data
+      // SPI data      -48
         var value uint32 = 255
         value=board.spi_read_data(board.SPI_selected)
 //        msgtrace(&risc, fmt.Sprintf(" %08x from SPI%d DATA ",value,risc.spi_selected))
@@ -349,7 +349,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       return value
     
     case 20: 
-      // SPI status
+      // SPI status          -44
       // Bit 0: rx ready
       // Other bits unused
       var value uint32 = 1
@@ -357,7 +357,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       return value
     
     case 24: 
-      // Mouse input / keyboard status
+      // Mouse input / keyboard status    -40
 //      if trace { fmt.Printf(" MOUSE/KEYBOARD STATUS") }
       mouse := board.Mouse
       if board.Key_cnt > 0 {
@@ -369,7 +369,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
        return mouse
       
     case 28: 
-      // Keyboard input
+      // Keyboard input   -36
 //      if trace { fmt.Printf(" KEYBOARD INPUT") }
       if (board.Key_cnt > 0) {
         scancode := board.Key_buf[0]
@@ -382,7 +382,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       return 0
     
     case 40: 
-      // Clipboard control
+      // Clipboard control  -24
 //      if trace { fmt.Printf(" CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_control(risc->clipboard);
@@ -390,7 +390,7 @@ func (board *BOARD) Load_io(address uint32) uint32 {
       return 0
     
     case 44: 
-      // Clipboard data
+      // Clipboard data   -20
 //      if trace { fmt.Printf(" CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        return risc->clipboard->read_data(risc->clipboard);
@@ -409,16 +409,18 @@ func Snooze( value uint32 ) {
   time.Sleep(time.Millisecond * time.Duration(value))
 }
 
+
+// -128 to -68 for 16 color pallete
 func (board *BOARD) Store_io(address, value uint32) {
   switch (address - IOStart) {
 
-    case 0:
+    case 0:            //         -64
 	if value > 0 && value < 1001 {
 	  fmt.Println("sleeping",value,"Milliseconds")
 	  Snooze(value)
 	}
 
-    case 4: 
+    case 4:              //       -60
 //      msgtrace(&risc, fmt.Sprintf(" %08x -> LED CONTROL ",value))
       // LED control
 //      if (risc->leds) {
@@ -428,7 +430,7 @@ func (board *BOARD) Store_io(address, value uint32) {
       
     
     case 8: 
-      // RS232 data
+      // RS232 data               -56
 //      if trace { fmt.Printf(" RS232 DATA ") }
 //      if (risc->serial) {
 //        risc->serial->write_data(risc->serial, value);
@@ -436,14 +438,14 @@ func (board *BOARD) Store_io(address, value uint32) {
       
     
     case 16: 
-     // SPI write
+     // SPI write               -48
         board.SPI_write_data(board.SPI_selected, value);
 //        msgtrace(&risc, fmt.Sprintf(" %08x to SPI%d DATA ",value,risc.spi_selected))
 
       
     
     case 20: 
-      // SPI control
+      // SPI control            -44
       // Bit 0-1: slave select
       // Bit 2:   fast mode
       // Bit 3:   netwerk enable
@@ -453,7 +455,7 @@ func (board *BOARD) Store_io(address, value uint32) {
       
     
     case 40: 
-      // Clipboard control
+      // Clipboard control  -24
 //        if trace { fmt.Printf(" CLIPBOARD CONTROL ") }
 //      if (risc->clipboard) {
 //        risc->clipboard->write_control(risc->clipboard, value);
@@ -461,7 +463,7 @@ func (board *BOARD) Store_io(address, value uint32) {
       
     
     case 44: 
-      // Clipboard data
+      // Clipboard data   -20
 //        if trace { fmt.Printf(" CLIPBOARD DATA ") }
 //      if (risc->clipboard) {
 //        risc->clipboard->write_data(risc->clipboard, value);

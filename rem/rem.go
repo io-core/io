@@ -91,8 +91,16 @@ func main() {
 
 	flag.Parse()
 
+	mlim:=*memPtr
+	if mlim == 0 {
+	  mlim = 0x00180000/4         // 1.5MB
+	}else{
+          mlim = 0x00100000 * mlim / 4
+	}
+
 	var mb *board.BOARD
 	mb = new(board.BOARD)
+        mb.RAM = make([]uint32,mlim)
 	var cores []risc5.CORE
 	cores = make([]risc5.CORE,*corecount)
 	mb.DiskImage=*imagePtr
@@ -100,7 +108,7 @@ func main() {
 	verbose := false
 	if *verbosity > 0 { verbose = true }
 
-	if 1==2 {fmt.Println(&memPtr)}	
+	if 1==2 {fmt.Println(*memPtr)}	
 
 //        risc.diskImage=*imagePtr
 //	risc.frameDevice=*devicePtr
