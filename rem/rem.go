@@ -101,6 +101,7 @@ func main() {
 	var mb *board.BOARD
 	mb = new(board.BOARD)
         mb.RAM = make([]uint32,mlim)
+        mb.Mlim = uint32(mlim)
 	var cores []risc5.CORE
 	cores = make([]risc5.CORE,*corecount)
 	mb.DiskImage=*imagePtr
@@ -125,7 +126,7 @@ func main() {
 	
 		rc := <- readyChan
 		fmt.Println("video x",rc[0],"y",rc[1])
-		mb.Reset( uint32(rc[0]), uint32(rc[1]), uint32(mlim) , vChan, verbose )
+		mb.Reset( uint32(rc[0]), uint32(rc[1]), vChan, verbose )
 		for i:=0;i<*corecount;i++{ cores[i].Reset(i,verbose) }
 		
 		step:=0

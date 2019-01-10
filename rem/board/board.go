@@ -47,6 +47,7 @@ type BOARD struct {
   ROM [ROMWords]uint32
   Disk Disk
   Vchan chan [2]uint32
+  Mlim uint32
   
   SPI_selected uint32
   Mouse uint32
@@ -114,7 +115,7 @@ func (board *BOARD) Opendisk(){
 
 var verbose bool
 
-func (board *BOARD) Reset(fbw, fbh, mlim uint32, vc chan [2]uint32, v bool) {
+func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
         verbose = v
 	board.Vchan = vc
 
@@ -137,7 +138,7 @@ func (board *BOARD) Reset(fbw, fbh, mlim uint32, vc chan [2]uint32, v bool) {
 	     }
            }
         }
-	if mlim == 0x00180000/4 {
+	if board.Mlim == 0x00180000/4 {
 		board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
 		board.RAM[DisplayStart/4+1] = fbw
 		board.RAM[DisplayStart/4+2] = fbh
