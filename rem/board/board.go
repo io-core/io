@@ -114,7 +114,7 @@ func (board *BOARD) Opendisk(){
 
 var verbose bool
 
-func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
+func (board *BOARD) Reset(fbw, fbh, mlim uint32, vc chan [2]uint32, v bool) {
         verbose = v
 	board.Vchan = vc
 
@@ -130,13 +130,22 @@ func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
              if len(n)>0{
                 r,_:=strconv.ParseUint( strings.Replace(strings.TrimSpace(n), "0x", "", -1), 16, 32)
 		board.ROM[ri]=uint32(r)
+		
+		fmt.Print(ri)
+		fmt.Printf(" %x\n",uint32(r))
 		ri++
 	     }
            }
         }
-	board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
-	board.RAM[DisplayStart/4+1] = fbw
-	board.RAM[DisplayStart/4+2] = fbh
+	if mlim == 0x00180000/4 {
+		board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
+		board.RAM[DisplayStart/4+1] = fbw
+		board.RAM[DisplayStart/4+2] = fbh
+	}else{
+                board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
+                board.RAM[DisplayStart/4+1] = fbw
+                board.RAM[DisplayStart/4+2] = fbh
+	}
 	board.StartTime=uint32(time.Now().UnixNano() / int64(time.Millisecond))
         if verbose {fmt.Printf("%s"," board reset ")}
 
