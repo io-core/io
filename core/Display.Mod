@@ -1,11 +1,10 @@
-MODULE Display;  (*NW 5.11.2013*)
-(* Adapted for a customizable framebuffer size -- see git history *)
+MODULE Display;  (*NW 5.11.2013, others...*)
+(* Adapted for a customizable framebuffer size and variable base address *)
 
   IMPORT SYSTEM;
 
   CONST black* = 0; white* = 1;  (*black = background*)
     replace* = 0; paint* = 1; invert* = 2;  (*modes*)
-    (*base = 0E7F00H;  bootloader provided mlim + 16,  original adr of 1024 x 768 pixel, monocolor display frame*)
 
   TYPE Frame* = POINTER TO FrameDesc;
     FrameMsg* = RECORD END ;
