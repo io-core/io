@@ -1,5 +1,5 @@
 
-# License of the Project Oberon files as retrieved
+# License of the Project Oberon files
 
 Project Oberon, Revised Edition 2013
 
