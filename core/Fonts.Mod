@@ -1,4 +1,4 @@
-MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018*)
+MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
   IMPORT SYSTEM, Files;  
 
   CONST FontFileId = 0DBH;
@@ -262,8 +262,9 @@ BEGIN
 
     IF mt.w < 9 THEN pw := 8 ELSE IF mt.w < 17 THEN pw:= 16 ELSE IF mt.w < 33 THEN pw:= 32 ELSE IF mt.w < 97 THEN pw:= 96 ELSE pw := 128 END END END END;
 
-    Files.Set(R,Files.Base(R),(pcfBITMAPS.offset+((n-1)*4)-36)+(l));  (* l = 64*m *) 
-    
+    Files.Set(R,Files.Base(R),(8+(4*n) + 16) + pcfBITMAPS.offset+l);
+
+ 
     LED(l);
     LED(oo);
     
