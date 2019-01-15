@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"strconv"
+        
 )
 
 
@@ -47,6 +48,7 @@ type BOARD struct {
   ROM [ROMWords]uint32
   Disk Disk
   Vchan chan [2]uint32
+  PIchan chan [2]uint32
   Mlim uint32
   
   SPI_selected uint32
@@ -115,9 +117,10 @@ func (board *BOARD) Opendisk(){
 
 var verbose bool
 
-func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
+func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, pic chan [2]uint32, v bool) {
         verbose = v
 	board.Vchan = vc
+	board.PIchan = pic
 
 	content, err := ioutil.ReadFile("risc-boot.inc")
 	if err != nil {
@@ -143,6 +146,11 @@ func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
 		board.RAM[DisplayStart/4+1] = fbw
 		board.RAM[DisplayStart/4+2] = fbh
 	}else{
+	//	newMlim:=board.Mlim - 16 - (fbh * (fbw / 8)) - 256
+        //        board.ROM[340] = 0x6e000000 + ((board.Mlim /2)>>20)
+        //        board.ROM[372] = 0x61000000 + (newMlim >> 20)
+        //        board.ROM[373] = 0x41160000 + (newMlim & 0xFFFF)
+        //        board.RAM[376] = 0x61000000 + ((board.Mlim /2)>>20)
                 board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
                 board.RAM[DisplayStart/4+1] = fbw
                 board.RAM[DisplayStart/4+2] = fbh
@@ -154,7 +162,7 @@ func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, v bool) {
 
 
 
-func (board *BOARD) Load_word(address uint32) uint32{
+func (board *BOARD) Load_word(address uint32, core uint32) uint32{
   if (address < MemSize) {
     return board.RAM[address/4]
   } else {
@@ -162,7 +170,7 @@ func (board *BOARD) Load_word(address uint32) uint32{
   }
 }
 
-func (board *BOARD) Load_byte(address uint32) byte {
+func (board *BOARD) Load_byte(address uint32, core uint32) byte {
   var w uint32 = 0 
   if (address < MemSize) {
     w = board.RAM[address/4]
@@ -175,7 +183,7 @@ func (board *BOARD) Load_byte(address uint32) byte {
 }
 
 
-func (board *BOARD) Store_word(address, value uint32) {
+func (board *BOARD) Store_word(address, value uint32, core uint32) {
   if (address < DisplayStart) {
     board.RAM[address/4] = value
   } else if (address < MemSize) {
@@ -188,13 +196,13 @@ func (board *BOARD) Store_word(address, value uint32) {
 }
 
 
-func (board *BOARD) Store_byte(address uint32, value uint8) {
+func (board *BOARD) Store_byte(address uint32, value uint8, core uint32) {
   if (address < MemSize) {
-    w := uint32(board.Load_word(address))
+    w := uint32(board.Load_word(address,core))
     shift := uint32((address & 3) * 8)
     w = w & (^ (0xFF << shift))
     w = w | uint32(value) << shift
-    board.Store_word(address, w)
+    board.Store_word(address, w,core)
   } else {
     
     board.Store_io( address, uint32(value))

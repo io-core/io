@@ -72,6 +72,7 @@ const(
 func (risc *CORE) Reset(n int, verbose bool) {
 	risc.Cid=uint32(n)
         risc.icount=0
+        risc.progress=20
 	risc.PC=board.ROMStart/4
 	if verbose {fmt.Printf("%s %d %s"," core ",int(risc.Cid)," reset ")}
 }
@@ -291,7 +292,7 @@ func (risc *CORE) Step(mb *board.BOARD,verbose bool) {
     ir = mb.ROM[risc.PC - board.ROMStart/4]
   default: 
     fmt.Printf("Branched into the void (PC=0x%08X, I=%d), resetting...\n", risc.PC,risc.icount)
-    mb.Reset(mb.Fbw,mb.Fbh,mb.Vchan,verbose)
+    mb.Reset(mb.Fbw,mb.Fbh,mb.Vchan,mb.PIchan,verbose)
     risc.Reset(int(risc.Cid),verbose)
     return
   }
@@ -436,9 +437,9 @@ func (risc *CORE) Step(mb *board.BOARD,verbose bool) {
       var a_val uint32
 
       if (ir & vbit) == 0 {
-        a_val = mb.Load_word( address)
+        a_val = mb.Load_word( address, 0)
       }else{ 
-        a_val = uint32(mb.Load_byte( address))
+        a_val = uint32(mb.Load_byte( address, 0))
       }
 
       risc.set_register( a, a_val)
@@ -446,9 +447,9 @@ func (risc *CORE) Step(mb *board.BOARD,verbose bool) {
     }else{
 
       if (ir & vbit) == 0 {
-        mb.Store_word(address, risc.R[a])
+        mb.Store_word(address, risc.R[a], 0)
       }else{
-        mb.Store_byte(address, byte(risc.R[a]))
+        mb.Store_byte(address, byte(risc.R[a]), 0)
       }
 
     }
