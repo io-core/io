@@ -50,9 +50,10 @@ type BOARD struct {
   Vchan chan [2]uint32
   PIchan chan [2]uint32
   Mlim uint32
+  Tick, Polled int
   
   SPI_selected uint32
-  Mouse uint32
+  Mouse, PMouse uint32
   Key_buf [16]byte
   Key_cnt uint32
   Fbw uint32
@@ -122,6 +123,9 @@ func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, pic chan [2]uint32
 	board.Vchan = vc
 	board.PIchan = pic
 
+        board.Tick = 0
+	board.Polled = 0
+
 	content, err := ioutil.ReadFile("risc-boot.inc")
 	if err != nil {
 	    fmt.Printf("Error reading boot rom.")
@@ -166,7 +170,7 @@ func (board *BOARD) Load_word(address uint32, core uint32) uint32{
   if (address < MemSize) {
     return board.RAM[address/4]
   } else {
-    return board.Load_io(address)
+    return board.Load_io(address,core)
   }
 }
 
@@ -175,7 +179,7 @@ func (board *BOARD) Load_byte(address uint32, core uint32) byte {
   if (address < MemSize) {
     w = board.RAM[address/4]
   } else { 
-    w = board.Load_io(address)
+    w = board.Load_io(address,core)
   }
   b:=byte(w >> (address % 4 * 8))
   return b
@@ -191,7 +195,7 @@ func (board *BOARD) Store_word(address, value uint32, core uint32) {
     if verbose {fmt.Printf("%s"," video send ")}
     board.Vchan <- [2]uint32{ address, value} 
   } else {
-    board.Store_io(address, value)
+    board.Store_io(address, value, core)
   }
 }
 
@@ -205,7 +209,7 @@ func (board *BOARD) Store_byte(address uint32, value uint8, core uint32) {
     board.Store_word(address, w,core)
   } else {
     
-    board.Store_io( address, uint32(value))
+    board.Store_io( address, uint32(value), core)
   }
 }
 
@@ -322,7 +326,7 @@ func (board *BOARD) SPI_write_data(spi, value uint32){
 }
 
 // -128 to -68 for 16 color pallete 
-func (board *BOARD) Load_io(address uint32) uint32 {
+func (board *BOARD) Load_io(address, core uint32) uint32 {
   switch (address - IOStart) {
     case 0:         
       // Millisecond counter    -64
@@ -376,16 +380,31 @@ func (board *BOARD) Load_io(address uint32) uint32 {
     
     case 24: 
       // Mouse input / keyboard status    -40
-//      if trace { fmt.Printf(" MOUSE/KEYBOARD STATUS") }
       mouse := board.Mouse
+      changed := board.PMouse != board.Mouse
       if board.Key_cnt > 0 {
+        changed = true
         mouse = mouse | 0x10000000
-//      } else {
-//        risc->progress--;
       }
+
+	board.PMouse = board.Mouse
+
+	if !changed { 
+		fmt.Println("Poll Freq:",board.Tick-board.Polled)
+		if board.Tick-board.Polled < 100 {
+                	Snooze(50)
+		}   
+	}else{
+			
+	}
+
+        board.Polled = board.Tick
+	return mouse
+
+
+
  //     fmt.Printf(" %02x %03x %03x \n",(mouse >> 24),(mouse & 0x00FFF000)>>12,(mouse & 0x00000FFF));
-       return mouse
-      
+
     case 28: 
       // Keyboard input   -36
 //      if trace { fmt.Printf(" KEYBOARD INPUT") }
@@ -429,7 +448,7 @@ func Snooze( value uint32 ) {
 
 
 // -128 to -68 for 16 color pallete
-func (board *BOARD) Store_io(address, value uint32) {
+func (board *BOARD) Store_io(address, value, core uint32) {
   switch (address - IOStart) {
 
     case 0:            //         -64

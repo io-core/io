@@ -136,6 +136,7 @@ func main() {
 			if *haltPtr {
 				time.Sleep(100 * time.Millisecond)
 			}else{
+				mb.Tick++
 	            		for i:=0;i<*corecount;i++{ cores[i].Step(mb,verbose) }
 	    	    		step++
 			}
