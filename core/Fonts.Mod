@@ -59,6 +59,13 @@ PROCEDURE RdL16(VAR R: Files.Rider): INTEGER;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); x:= (100H * b1) + b0 ; RETURN x
 END RdL16;
 
+PROCEDURE RdB16(VAR R: Files.Rider): INTEGER;
+    VAR b0,b1: BYTE;
+      x: INTEGER;
+BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); x:= (100H * b0) + b1 ; RETURN x
+END RdB16;
+
+
 PROCEDURE RdL32(VAR R: Files.Rider): INTEGER;
     VAR b0,b1,b2,b3: BYTE;
       x: INTEGER;
@@ -187,8 +194,9 @@ END LoadOberonFont;
 
 PROCEDURE LoadPcfFont(VAR R: Files.Rider): Font;
   VAR F: Font; LF: LargeFont;
-    M,C: Files.Rider;
-    i, j, k, l, m, n, nn, oo: INTEGER;
+    M,C,T: Files.Rider;
+    i, j, k, l, m, tm, n, nn, oo: INTEGER;
+    fc,lc,fr,lr,td,tc: INTEGER;
     a, t, tl, pw, ph: INTEGER;
     b,bx,b0,b1,b2,b3: BYTE;
     mt:  Metrics;
@@ -238,21 +246,47 @@ BEGIN
     INC(t);DEC(tl)
   END; 
 
+  Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset);  m:= RdL32(T);  
+  fc:= RdB16(T);LED(55);LED(55);LED(pcfBDFENCODINGS.offset);LED(m);
+  lc:= RdB16(T);
+  fr:= RdB16(T);
+  lr:= RdB16(T);
+  td:= RdB16(T);LED(fc);LED(lc);LED(fr);LED(lr);LED(td);LED(55);LED(55);
+  tc:= (lc - fc + 1) * (lr - fr + 1);
+
+
   Files.Set(C,Files.Base(R),pcfBITMAPS.offset);  oo:= RdL32(C);  n:= RdB32p(C); 
   Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
-
+  
   NEW(LF); F := LF;
-
 
   m:=0;
   a:=0;
   WHILE m # 128 DO 
    IF m < n THEN
+    tm:=m - fc;
+
+(*
+    IF (m - fc > -1) THEN
+      tm:= m - fc;   (* +((m DIV 256)*(fc+(255-lc)))+(fr*256); *)
+      Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset+14+(tm*2));  tm:= RdL16(T)
+    ELSE
+      tm := 3
+    END;
+*)
+    IF (tm = 65535) THEN tm := td END;
+
+    IF (tm < 0) THEN tm := 0 END;
+
+
+
     IF ((a+3)<2360) THEN  F.T[m] := SYSTEM.ADR(F.raster[a+3])
                      ELSE F.T[m] := SYSTEM.ADR(LF.ext[(a+3)-2360]) END;
 
+    Files.Set(C,Files.Base(R),pcfBITMAPS.offset+8+(4*tm));
     l:=RdB32(C);
 
+    Files.Set(M,Files.Base(R),pcfMETRICS.offset+6+(5*tm));
     Files.ReadByte(M, b); mt.l:=b - 128;
     Files.ReadByte(M, b); mt.r:=b - 128;
     Files.ReadByte(M, b); mt.w:=b - 128;
@@ -265,8 +299,8 @@ BEGIN
     Files.Set(R,Files.Base(R),(8+(4*n) + 16) + pcfBITMAPS.offset+l);
 
  
-    LED(l);
-    LED(oo);
+    
+    
     
     IF (a<2360) THEN F.raster[a] := pw     ELSE LF.ext[a    -2360]:=pw END;
     IF ((a+1)<2360) THEN F.raster[a+1]:=0  ELSE LF.ext[(a+1)-2360]:=0 END;
@@ -279,10 +313,10 @@ BEGIN
     j:=ph; 
     WHILE (j # 0) DO   
        
-      Files.ReadByte(R, b0); LED(b0);
-      Files.ReadByte(R, b1); LED(b1);
-      Files.ReadByte(R, b2); LED(b2);
-      Files.ReadByte(R, b3); LED(b3);
+      Files.ReadByte(R, b0); 
+      Files.ReadByte(R, b1); 
+      Files.ReadByte(R, b2); 
+      Files.ReadByte(R, b3); 
 
       IF pw = 8 THEN
         IF (a+j-1<2360) THEN F.raster[a+j-1]:=Reverse(b0) ELSE LF.ext[a+j-1-2360]:=Reverse(b0) END;
