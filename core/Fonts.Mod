@@ -247,11 +247,11 @@ BEGIN
   END; 
 
   Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset);  m:= RdL32(T);  
-  fc:= RdB16(T);LED(55);LED(55);LED(pcfBDFENCODINGS.offset);LED(m);
+  fc:= RdB16(T);
   lc:= RdB16(T);
   fr:= RdB16(T);
   lr:= RdB16(T);
-  td:= RdB16(T);LED(fc);LED(lc);LED(fr);LED(lr);LED(td);LED(55);LED(55);
+  td:= RdB16(T);
   tc:= (lc - fc + 1) * (lr - fr + 1);
 
 
@@ -266,17 +266,16 @@ BEGIN
    IF m < n THEN
     tm:=m - fc;
 
-(*
+
     IF (m - fc > -1) THEN
-      tm:= m - fc;   (* +((m DIV 256)*(fc+(255-lc)))+(fr*256); *)
-      Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset+14+(tm*2));  tm:= RdL16(T)
+      Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset+14+(tm*2));  tm:= RdB16(T)
     ELSE
-      tm := 3
+      tm := td
     END;
-*)
+
     IF (tm = 65535) THEN tm := td END;
 
-    IF (tm < 0) THEN tm := 0 END;
+    IF (tm < 0) THEN tm := td END;
 
 
 
