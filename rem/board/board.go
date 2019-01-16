@@ -33,7 +33,7 @@ const MemWords=    (MemSize / 4)
 const ROMStart=    0xFFFFF800
 const ROMWords=    512
 const XDepth=	   1
-const DisplayStart=0x000E7F00
+//const DisplayStart=0x000E7F00
 const IOStart=     0xFFFFFFC0
 
 const pbit = 0x80000000
@@ -50,6 +50,7 @@ type BOARD struct {
   Vchan chan [2]uint32
   PIchan chan [2]uint32
   Mlim uint32
+  DisplayStart uint32
   Tick, Polled int
   
   SPI_selected uint32
@@ -139,25 +140,27 @@ func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, pic chan [2]uint32
                 r,_:=strconv.ParseUint( strings.Replace(strings.TrimSpace(n), "0x", "", -1), 16, 32)
 		board.ROM[ri]=uint32(r)
 		
-		fmt.Print(ri)
-		fmt.Printf(" %x\n",uint32(r))
+		//fmt.Print(ri)
+		//fmt.Printf(" %x\n",uint32(r))
 		ri++
 	     }
            }
         }
 	if board.Mlim == 0x00180000/4 {
-		board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
-		board.RAM[DisplayStart/4+1] = fbw
-		board.RAM[DisplayStart/4+2] = fbh
+		board.DisplayStart=0x000E7F00
+		board.RAM[board.DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
+		board.RAM[board.DisplayStart/4+1] = fbw
+		board.RAM[board.DisplayStart/4+2] = fbh
 	}else{
-	//	newMlim:=board.Mlim - 16 - (fbh * (fbw / 8)) - 256
-        //        board.ROM[340] = 0x6e000000 + ((board.Mlim /2)>>20)
-        //        board.ROM[372] = 0x61000000 + (newMlim >> 20)
-        //        board.ROM[373] = 0x41160000 + (newMlim & 0xFFFF)
-        //        board.RAM[376] = 0x61000000 + ((board.Mlim /2)>>20)
-                board.RAM[DisplayStart/4] = 0x53697A66  // magic value 'SIZE'+1
-                board.RAM[DisplayStart/4+1] = fbw
-                board.RAM[DisplayStart/4+2] = fbh
+		newMlim:=(board.Mlim*4) - (fbh * (fbw / 8)) - 272
+                board.ROM[340] = 0x6e000000 + ((board.Mlim)>>15)
+                board.ROM[372] = 0x61000000 + (newMlim >> 16)
+                board.ROM[373] = 0x41160000 + (newMlim & 0xFFFF)
+                board.RAM[376] = 0x61000000 + ((board.Mlim)>>15)
+		board.DisplayStart=newMlim+16
+                board.RAM[((newMlim+16)/4)] = 0x53697A66  // magic value 'SIZE'+1
+                board.RAM[((newMlim+16)/4)+1] = fbw
+                board.RAM[((newMlim+16)/4)+2] = fbh
 	}
 	board.StartTime=uint32(time.Now().UnixNano() / int64(time.Millisecond))
         if verbose {fmt.Printf("%s"," board reset ")}
@@ -188,7 +191,7 @@ func (board *BOARD) Load_byte(address uint32, core uint32) byte {
 
 
 func (board *BOARD) Store_word(address, value uint32, core uint32) {
-  if (address < DisplayStart) {
+  if (address < board.DisplayStart) {
     board.RAM[address/4] = value
   } else if (address < MemSize) {
     board.RAM[address/4] = value
@@ -390,9 +393,9 @@ func (board *BOARD) Load_io(address, core uint32) uint32 {
 	board.PMouse = board.Mouse
 
 	if !changed { 
-		fmt.Println("Poll Freq:",board.Tick-board.Polled)
+		//fmt.Println("Poll Freq:",board.Tick-board.Polled)
 		if board.Tick-board.Polled < 100 {
-                	Snooze(50)
+                	Snooze(40)
 		}   
 	}else{
 			

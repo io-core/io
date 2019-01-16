@@ -236,7 +236,7 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
      }
 }
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string, hidpi bool ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string, gbase *uint32, hidpi bool ) {
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad
@@ -254,7 +254,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	PanicOn( err )        
         defer glfw.Terminate()
 	wmax:=1024
-	hmax:=760
+	hmax:=768
 	hasborder:=true
 	if geometry == "-" {
           wmax=1920
@@ -339,7 +339,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
                             pxcb = uint8(0)
                         }
 
-                        fbo:=((address)-(0x000E7F00))/4
+                        fbo:=((address)-(*gbase))/4
                         fby:=fbo/(*fbw/32)
                         fbx:=((fbo*32)%*fbw)+uint32(pi)
                         if int(fby) < int(*fbh) && int(fbx) < int(*fbw) {
