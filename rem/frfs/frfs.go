@@ -321,7 +321,6 @@ func snitch(i,v RFS_DiskAdr, s string) RFS_DiskAdr{
 
 func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHeader, error) {
         var fserr error = nil
-        var xtbuf [ 256 ]RFS_DiskAdr
         var xsec sbuf = make([]byte,1024)
 
         if hx.oA < hx.nA {
@@ -340,57 +339,38 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
                         fserr = fuse.EIO
                 }else{
                         xsn:=RFS_DiskAdr(0)
-                        xtmod:=false
-                        xtloaded:=false
 
                         for i:=hx.oA+1;i<=hx.nA;i++{
                                 if i < RFS_SecTabSize {
-                                  fh.Sec[i]=slist[xP+i-(hx.oA+1)]*29
-                                  
+                                  fh.Sec[i]=slist[xP+i-(hx.oA+1)]*29          
                                 }else{
+
                                   fmt.Print("!")
                                   xi := i - RFS_SecTabSize
                                   xiP := xi / 256
                                   xiPi := xi % 256
+				  
+				  if i == hx.oA+1 && xiPi !=0 {
+					xsn=fh.Ext[xiP]
+					xsec = getSector(disk,xsn)
+				  }
+
                                   if xiPi == 0 {
-                                      if xtmod {
-                                        putSector(disk,xsn,xsec)
-
-                                      }
-                                      fh.Ext[xiP]=slist[xiP]*29
-                                      xsn=slist[xiP]*29
-                                      for j:=0;j<256;j++{
-                                            xtbuf[j]=RFS_DiskAdr(0)
+					xsn=slist[xiP]*29
+					fh.Ext[xiP]=xsn
+                                        for j:=0;j<256;j++{
                                             xsec.PutWordAt(j,uint32(0))
-                                      }
-                                      
-                                      xtloaded = true
-                                      xtmod = true
-                                  }else{
-                                        if ! xtloaded {
-                                            xsn=fh.Ext[xiP]
-
-                                            xsec = getSector(disk,xsn)
-
-                                            for j:=0;j<256;j++{
-                                                xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"ONE")
-                                            }
-                                            xtloaded = true
-                                        }
+                                        }    
                                   }
 
-                                  xtbuf[xiPi]=             snitch( slist[xP+i-(hx.oA+1)] *29 ,65792,"TWO")
                                   xsec.PutWordAt(int(xiPi),uint32( slist[xP+i-(hx.oA+1)])*29 )
-                                  xtmod = true
-                                  fmt.Print(xiP,":",xiPi)
 
-                                }
+				  if xiPi == 255 || i == hx.nA {
+					putSector(disk,xsn,xsec)
+				  }
 
-                        }
-                        if xtmod {
-                                putSector(disk,xsn,xsec)
-                                fmt.Print("*",xsec.DiskAdrAt(0)/29,"*")
-                        }
+				}
+			}
                 }
                 fmt.Print("]")
 
