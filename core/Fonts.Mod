@@ -7,7 +7,7 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
   TYPE
     Font* = POINTER TO FontDesc;
     FontDesc* = RECORD
-      name*: ARRAY 32 OF CHAR;
+      name*: ARRAY 32 OF CHAR;  
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
       spani: INTEGER;
@@ -34,7 +34,9 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
     END;
 
 VAR Default*, root*: Font;
-   
+  
+
+// change to ch: INTEGER, drop pg 
 PROCEDURE GetWPat*(fnt: Font; ch: CHAR; pg: CHAR; VAR dx, x, y, w, h, patadr: INTEGER);
   VAR pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
 BEGIN pa := fnt.T[ORD(ch) MOD 80H]; patadr := pa;
