@@ -310,9 +310,20 @@ func putSector(disk *RFS_FS, adr RFS_DiskAdr, sector sbuf){
         _ = <- rsp
 }
 
-func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+func snitch(i,v RFS_DiskAdr, s string) RFS_DiskAdr{
+
+	if i==v {
+		fmt.Print("SNITCH(",s,")")
+	}
+	return i
+}
+
+func (f *RFS_F) xWrite(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
 
 	var fserr error = fuse.EIO
+
+
+
 	var fh RFS_FileHeader
 	var fsec sbuf
         var xsec sbuf = make([]byte,1024)
@@ -333,6 +344,12 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 	oB := fh.Bleng
         nA := (nsz + RFS_HeaderSize) / RFS_SectorSize
 	nB := (nsz + RFS_HeaderSize) % RFS_SectorSize
+
+	if ((nA - RFS_SecTabSize)/256) > RFS_ExTabSize {
+	  fmt.Println("File too large for risc file system")
+	  os.Exit(1)
+	}
+
         adelta := nA - oA
         var xtbuf [ 256 ]RFS_DiskAdr
 
@@ -368,7 +385,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 				  if xiPi == 0 {
 				      if xtmod {
 					putSector(f.disk,xsn,xsec)
-					xtmod = false
+					
 				      }
                                       fh.Ext[xiP]=slist[xiP]*29
 				      xsn=slist[xiP]*29
@@ -378,6 +395,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
 				      }
                                       fsec.PutWordAt(int(12+xiP),uint32(slist[xiP])*29)
 				      xtloaded = true
+				      xtmod = true
 				  }else{
 					if ! xtloaded {
 					    xsn=fh.Ext[xiP]
@@ -385,14 +403,14 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                                             xsec = getSector(f.disk,xsn)
                                             
                                             for j:=0;j<256;j++{
-                                                xtbuf[j]=xsec.DiskAdrAt(j)
+                                                xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"ONE")
                                             }
 					    xtloaded = true      
 					} 
 				  }
                                   
-				  xtbuf[xiPi]=slist[xP+i-(oA+1)]*29
-                                  xsec.PutWordAt(int(xiPi),uint32(slist[xP+i-(oA+1)])*29)
+				  xtbuf[xiPi]=             snitch( slist[xP+i-(oA+1)] *29 ,65792,"TWO")
+                                  xsec.PutWordAt(int(xiPi),uint32( slist[xP+i-(oA+1)])*29 )
 				  xtmod = true
                                   fmt.Print(xiP,":",xiPi)
 
@@ -401,6 +419,7 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                         }
                         if xtmod {
 				putSector(f.disk,xsn,xsec)
+				fmt.Print("*",xsec.DiskAdrAt(0)/29,"*")
 			}
 
 
@@ -411,34 +430,35 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
                 fmt.Println("Have too many sectors... ignoring extra")
 	}
 
+
+
+
+
         rc:= int32(0)
         xsn:=RFS_DiskAdr(0)
         fmt.Print("{")
-	for seqn:= int32(0); seqn <= nA && seqn < RFS_SecTabSize; seqn ++ {
+	for seqn:= int32(0); seqn <= nA; seqn ++ {
                 sn := RFS_DiskAdr(0)
 	        if seqn < RFS_SecTabSize {
                     fmt.Print(".")
 	            sn = fh.Sec[seqn]
 	        }else{
-                    fmt.Print(",")
-                  xi := seqn - RFS_SecTabSize
-                  xiP := xi / 256 
-                  xiPi := xi % 256
                     
+                    xi := seqn - RFS_SecTabSize
+                    xiP := xi / 256 
+                    xiPi := xi % 256
+                    fmt.Print(xiP,"-",xiPi,",")
                     if xsn != fh.Ext[xiP] {
                                 xsn = fh.Ext[xiP]
+				_ = saneDiskAdr(xsn,"loading extended sector table")
                                 xsec := getSector(f.disk,xsn)
                                 for j:=0;j<256;j++{
-                                        xtbuf[j]=xsec.DiskAdrAt(j)
+                                        xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"THREE")
                                 }
 		    }
 
 	            sn = xtbuf[ xiPi ]
-                    if sn % 29 != 0 {
-                       fmt.Println("Sector index format error:",sn," not divisible by 29")
-		    }    
-	        
-                    fmt.Print("[",sn/29,"]")
+            	    _ = saneDiskAdr(sn,"loading sector number from extended sector table")
                    
                 }
 		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
@@ -486,6 +506,220 @@ func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wr
       return fserr   
 }
 
+
+func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHeader, error) {
+        var fserr error = fuse.EIO
+        var xtbuf [ 256 ]RFS_DiskAdr
+        var xsec sbuf = make([]byte,1024)
+
+        if hx.oA < hx.nA {
+                fmt.Print("[")
+                oxA:=hx.oA+1-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
+                nxA:=hx.nA+1-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
+                dxA:= nxA - oxA
+
+                xP:=int32(0);  if dxA > 0 { xP = ( dxA / 256 ) + 1 }
+
+		adelta := hx.nA - hx.oA
+
+                fmt.Print("/",hx.dlen/1024,hx.dlen%1024,"/",dxA,"/",adelta,"/",xP,"/")
+
+                slist := RFS_FindNFreeSectors(int(xP+adelta), disk.root)
+
+                if len(slist)!=int(xP+adelta){
+                        fmt.Println("Failed to find",xP+adelta,"free sector(s) for the file")
+                        os.Exit(1)
+                }else{
+                        xsn:=RFS_DiskAdr(0)
+                        xtmod:=false
+                        xtloaded:=false
+
+                        for i:=hx.oA+1;i<=hx.nA;i++{
+                                if i < RFS_SecTabSize {
+                                  fh.Sec[i]=slist[xP+i-(hx.oA+1)]*29
+                                  //fsec.PutWordAt(int(24+i),uint32(slist[xP+i-(oA+1)])*29)
+                                }else{
+                                  fmt.Print("!")
+                                  xi := i - RFS_SecTabSize
+                                  xiP := xi / 256
+                                  xiPi := xi % 256
+                                  if xiPi == 0 {
+                                      if xtmod {
+                                        putSector(disk,xsn,xsec)
+
+                                      }
+                                      fh.Ext[xiP]=slist[xiP]*29
+                                      xsn=slist[xiP]*29
+                                      for j:=0;j<256;j++{
+                                            xtbuf[j]=RFS_DiskAdr(0)
+                                            xsec.PutWordAt(j,uint32(0))
+                                      }
+                                      //fsec.PutWordAt(int(12+xiP),uint32(slist[xiP])*29)
+                                      xtloaded = true
+                                      xtmod = true
+                                  }else{
+                                        if ! xtloaded {
+                                            xsn=fh.Ext[xiP]
+
+                                            xsec = getSector(disk,xsn)
+
+                                            for j:=0;j<256;j++{
+                                                xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"ONE")
+                                            }
+                                            xtloaded = true
+                                        }
+                                  }
+
+                                  xtbuf[xiPi]=             snitch( slist[xP+i-(hx.oA+1)] *29 ,65792,"TWO")
+                                  xsec.PutWordAt(int(xiPi),uint32( slist[xP+i-(hx.oA+1)])*29 )
+                                  xtmod = true
+                                  fmt.Print(xiP,":",xiPi)
+
+                                }
+
+                        }
+                        if xtmod {
+                                putSector(disk,xsn,xsec)
+                                fmt.Print("*",xsec.DiskAdrAt(0)/29,"*")
+                        }
+                }
+                fmt.Print("]")
+
+        }else if hx.oA > hx.nA{
+                fmt.Println("Have too many sectors... ignoring extra")
+        }
+
+	return fh, fserr
+}
+
+func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_FileHeader, error) {
+        var fserr error = fuse.EIO
+        var xtbuf [ 256 ]RFS_DiskAdr
+        var fsec sbuf
+
+
+        rc:= int32(0)
+        xsn:=RFS_DiskAdr(0)
+        fmt.Print("{")
+        for seqn:= int32(0); seqn <= hx.nA; seqn ++ {
+                sn := RFS_DiskAdr(0)
+                if seqn < RFS_SecTabSize {
+                    fmt.Print(".")
+                    
+                }else{
+
+                    xi := seqn - RFS_SecTabSize
+                    xiP := xi / 256
+                    xiPi := xi % 256
+                    fmt.Print(xiP,"-",xiPi,",")
+                    if xsn != fh.Ext[xiP] {
+                                xsn = fh.Ext[xiP]
+                                _ = saneDiskAdr(xsn,"loading extended sector table")
+                                xsec := getSector(disk,xsn)
+                                for j:=0;j<256;j++{
+                                        xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"THREE")
+                                }
+                    }
+
+                    sn = xtbuf[ xiPi ]
+                    _ = saneDiskAdr(sn,"loading sector number from extended sector table")
+
+                }
+                if seqn == 0 || seqn >= int32( rc + hx.osz + RFS_HeaderSize )/ RFS_SectorSize {
+                        if seqn > 0 {
+                                fsec = getSector(disk,sn)
+                        }
+                        if seqn==0 && ((hx.osz + RFS_HeaderSize)/RFS_SectorSize) == 0 {
+                                for i:=int32(0); i < (RFS_SectorSize - (hx.osz+RFS_HeaderSize)) &&  rc < int32(len(data)) ; i++ {
+					fh.fill[ hx.osz + i ] = data[ rc ]
+                                        rc = rc + 1
+                                }
+                        }
+                        if seqn > 0 && (hx.isAppend==1) && seqn == hx.oA {
+                                for i:=int32(0); i < (RFS_SectorSize - hx.oB) &&  rc < int32(len(data)) ; i++ {
+                                        fsec[ hx.oB + i ] = data[ rc ]
+                                        rc = rc + 1
+                                }
+                        } else if seqn > 0 {
+                                for i:=int32(0); i < RFS_SectorSize &&  rc < int32(len(data)) ; i++ {
+                                        fsec[ i ] = data[ rc ]
+                                        rc = rc + 1
+                                }
+                        }
+
+                        rsp := make(chan bool)
+                        disk.w <- writeOp{sn, fsec, rsp}
+                        _ = <- rsp
+
+                }
+
+        }
+        
+        fh.Aleng = int32(hx.nA)
+        fh.Bleng = int32(hx.nB)
+
+        fserr = nil
+        fmt.Print("}")
+
+	return fh, fserr
+}
+
+type HADJ struct {
+        osz, nsz, oA, oB, nA, nB, isAppend, offset, dlen int32
+}
+
+func calcAdjust(offset int64, oA int32, oB int32, dlen int, ff fuse.OpenFlags) HADJ {
+	var hx HADJ
+
+	hx.isAppend = int32(fuse.OpenFlags(ff) & fuse.OpenAppend)/int32(fuse.OpenAppend)
+        hx.osz = int32(offset) + (hx.isAppend * ((oA * RFS_SectorSize) + oB - RFS_HeaderSize))
+        hx.nsz = hx.osz + int32(dlen)
+	hx.oA = oA
+	hx.oB = oB
+        hx.nA = (hx.nsz + RFS_HeaderSize) / RFS_SectorSize
+        hx.nB = (hx.nsz + RFS_HeaderSize) % RFS_SectorSize
+	hx.offset = int32(offset)
+	hx.dlen = int32(dlen)
+
+	return hx
+}
+
+func (f *RFS_F) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+        var fserr error = nil
+        var fh RFS_FileHeader
+
+        ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh, "Write" )
+
+        if ! (ok && saneDiskAdr(fh.Sec[0], "File Header Self Sector")) {
+                os.Exit(1)
+        }
+
+	hx := calcAdjust(req.Offset,fh.Aleng,fh.Bleng,len(req.Data),req.FileFlags)
+
+        if ((hx.nA - RFS_SecTabSize)/256) > RFS_ExTabSize {
+          fmt.Println("File too large for risc file system")
+          fserr = fuse.EIO
+        }
+
+
+        if fserr == nil {
+		fh, fserr = allocateFileSectors(f.disk, fh, hx)
+	}
+
+	if fserr == nil {
+		fh, fserr = writeToFile(f.disk, fh, hx, req.Data)
+	}
+
+	if fserr == nil {
+		resp.Size = len(req.Data)
+		RFS_K_PutFileHeader( f.disk, RFS_DiskAdr(f.inode), &fh)
+	}
+
+	return fserr
+}
+
+
+
 func (f *RFS_F) Flush(ctx context.Context, req *fuse.FlushRequest) error {      return nil   }
 
 func (f *RFS_F) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {	return f, nil   }
@@ -494,23 +728,21 @@ func (f *RFS_F) Release(ctx context.Context, req *fuse.ReleaseRequest) error {  
 
 func (f *RFS_F) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {      return nil   }
 
-// 32-bit oberon file system                                // 64-bit oberon filesystem
-const RFS_FnLength    = 32                                  // 255 + a zero byte = 256
-const RFS_SecTabSize   = 64                                 // 64 -- 62 bit integer, top two bits flag for 0, 1, 2, or 3 level indirect
-const RFS_ExTabSize   = 12                                  // maximum file size: 64 * 512 * 512 * 512 * 4096 = 32T
-const RFS_SectorSize   = 1024                               // 4096
+// 32-bit oberon file system  141.2 GiB Max Volume          // 64-bit oberon filesystem   2 ZiB Max Volume
+const RFS_FnLength    = 32                                  // 127 + a zero byte = 128
+const RFS_SecTabSize  = 64                                  // 64 -- 64-bit integers mod 29
+const RFS_ExTabSize   = 12  //64+12*256 = 3MB max file size // 64 + 12*512 + 16*512*512 + 16*512*512*512 = 16 TiB max file size
+const RFS_SectorSize  = 1024                                // 4096
 const RFS_IndexSize   = 256    //SectorSize / 4             // 512  -- SectorSize / 8
-const RFS_HeaderSize  = 352                                 // 1024
+const RFS_HeaderSize  = 352                                 // ??
 const RFS_DirRootAdr  = 29                                  // 29
-const RFS_DirPgSize   = 24
-const RFS_N = 12               //DirPgSize / 2
-const RFS_DirMark    = 0x9B1EA38D
-const RFS_HeaderMark = 0x9BA71D86
-const RFS_FillerSize = 52
+const RFS_DirPgSize   = 24                                  // 24
+const RFS_N = 12               //DirPgSize / 2              // 12
+const RFS_DirMark    = 0x9B1EA38D                           // 0x9B1EA38E
+const RFS_HeaderMark = 0x9BA71D86                           // 0x9BA71D87
+const RFS_FillerSize = 52                                   // ??
 
 var rfs_numsectors = 1220   // RISC.img size / 1024
-
-// 141G max volume size (2^32)/29 sectors, 1k sector size   // 565Y max volume size 2^62 sectors, 4k sector size, div 29
 
 const   RFS_AllocMapLimit = 9256395
 type 	RFS_AllocMap	[RFS_AllocMapLimit]uint64   // 9.2 MiB for a bit for every possible sector on a maximally sized disk
