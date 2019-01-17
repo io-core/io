@@ -318,197 +318,9 @@ func snitch(i,v RFS_DiskAdr, s string) RFS_DiskAdr{
 	return i
 }
 
-func (f *RFS_F) xWrite(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-
-	var fserr error = fuse.EIO
-
-
-
-	var fh RFS_FileHeader
-	var fsec sbuf
-        var xsec sbuf = make([]byte,1024)
-
-	ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"Write")
-	isAppend := int32(req.FileFlags & fuse.OpenAppend)/int32(fuse.OpenAppend) 
-
-	if ok && saneDiskAdr(fh.Sec[0], "File Header Self Sector") {  	 
-		fsec = getSector(f.disk,fh.Sec[0])
-	}else{
-		os.Exit(1)
-	}
-
-	osz := int32(req.Offset) + (isAppend * ((fh.Aleng * RFS_SectorSize) + fh.Bleng - RFS_HeaderSize))
-	nsz := osz + int32(len(req.Data))
-
-	oA := fh.Aleng
-	oB := fh.Bleng
-        nA := (nsz + RFS_HeaderSize) / RFS_SectorSize
-	nB := (nsz + RFS_HeaderSize) % RFS_SectorSize
-
-	if ((nA - RFS_SecTabSize)/256) > RFS_ExTabSize {
-	  fmt.Println("File too large for risc file system")
-	  os.Exit(1)
-	}
-
-        adelta := nA - oA
-        var xtbuf [ 256 ]RFS_DiskAdr
-
-	if oA < nA {
-                fmt.Print("[")
-                oxA:=oA+1-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
-		nxA:=nA+1-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
-		dxA:= nxA - oxA
-		
-                xP:=int32(0);  if dxA > 0 { xP = ( dxA / 256 ) + 1 }
-
-                fmt.Print("/",len(req.Data)/1024,len(req.Data)%1024,"/",dxA,"/",adelta,"/",xP,"/")
-
-        	slist := RFS_FindNFreeSectors(int(xP+adelta), f.disk.root)
-                
-        	if len(slist)!=int(xP+adelta){
-        	        fmt.Println("Failed to find",xP+adelta,"free sector(s) for the file")
-			os.Exit(1)
-        	}else{
-                        xsn:=RFS_DiskAdr(0)
-                        xtmod:=false
-			xtloaded:=false
-		        
-			for i:=oA+1;i<=nA;i++{
-                                if i < RFS_SecTabSize {
-				  fh.Sec[i]=slist[xP+i-(oA+1)]*29
-				  fsec.PutWordAt(int(24+i),uint32(slist[xP+i-(oA+1)])*29)
-				}else{
-				  fmt.Print("!")
-                                  xi := i - RFS_SecTabSize
-                                  xiP := xi / 256  
- 				  xiPi := xi % 256
-				  if xiPi == 0 {
-				      if xtmod {
-					putSector(f.disk,xsn,xsec)
-					
-				      }
-                                      fh.Ext[xiP]=slist[xiP]*29
-				      xsn=slist[xiP]*29
-                                      for j:=0;j<256;j++{
-                                            xtbuf[j]=RFS_DiskAdr(0)
-					    xsec.PutWordAt(j,uint32(0))
-				      }
-                                      fsec.PutWordAt(int(12+xiP),uint32(slist[xiP])*29)
-				      xtloaded = true
-				      xtmod = true
-				  }else{
-					if ! xtloaded {
-					    xsn=fh.Ext[xiP]
-                                            
-                                            xsec = getSector(f.disk,xsn)
-                                            
-                                            for j:=0;j<256;j++{
-                                                xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"ONE")
-                                            }
-					    xtloaded = true      
-					} 
-				  }
-                                  
-				  xtbuf[xiPi]=             snitch( slist[xP+i-(oA+1)] *29 ,65792,"TWO")
-                                  xsec.PutWordAt(int(xiPi),uint32( slist[xP+i-(oA+1)])*29 )
-				  xtmod = true
-                                  fmt.Print(xiP,":",xiPi)
-
-                                }
-
-                        }
-                        if xtmod {
-				putSector(f.disk,xsn,xsec)
-				fmt.Print("*",xsec.DiskAdrAt(0)/29,"*")
-			}
-
-
-        	}
-                fmt.Print("]")
-                
-	}else if oA > nA{
-                fmt.Println("Have too many sectors... ignoring extra")
-	}
-
-
-
-
-
-        rc:= int32(0)
-        xsn:=RFS_DiskAdr(0)
-        fmt.Print("{")
-	for seqn:= int32(0); seqn <= nA; seqn ++ {
-                sn := RFS_DiskAdr(0)
-	        if seqn < RFS_SecTabSize {
-                    fmt.Print(".")
-	            sn = fh.Sec[seqn]
-	        }else{
-                    
-                    xi := seqn - RFS_SecTabSize
-                    xiP := xi / 256 
-                    xiPi := xi % 256
-                    fmt.Print(xiP,"-",xiPi,",")
-                    if xsn != fh.Ext[xiP] {
-                                xsn = fh.Ext[xiP]
-				_ = saneDiskAdr(xsn,"loading extended sector table")
-                                xsec := getSector(f.disk,xsn)
-                                for j:=0;j<256;j++{
-                                        xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"THREE")
-                                }
-		    }
-
-	            sn = xtbuf[ xiPi ]
-            	    _ = saneDiskAdr(sn,"loading sector number from extended sector table")
-                   
-                }
-		if seqn == 0 || seqn >= int32( rc + osz + RFS_HeaderSize )/ RFS_SectorSize {
-	                if seqn > 0 {
-			       
-                                fsec = getSector(f.disk,sn)
-			        
-
-	                }else{
-                                fh.Aleng = int32(nA)
-                                fh.Bleng = int32(nB)
-                                
-                                fsec.PutWordAt(9,uint32(fh.Aleng))
-                                fsec.PutWordAt(10,uint32(fh.Bleng))
-			}
-
-			if seqn==0 && ((osz + RFS_HeaderSize)/RFS_SectorSize) == 0 {
-				for i:=int32(0); i < (RFS_SectorSize - (osz+RFS_HeaderSize)) &&  rc < int32(len(req.Data)) ; i++ {
-					fsec[ (osz+RFS_HeaderSize) + i ] = req.Data[ rc ]
-                                	rc = rc + 1
-				}
-			}
-                        if seqn > 0 && (isAppend==1) && seqn == oA {
-                                for i:=int32(0); i < (RFS_SectorSize - oB) &&  rc < int32(len(req.Data)) ; i++ {
-                                        fsec[ oB + i ] = req.Data[ rc ]
-                                        rc = rc + 1
-                                }
-			} else if seqn > 0 {
-                                for i:=int32(0); i < RFS_SectorSize &&  rc < int32(len(req.Data)) ; i++ {
-                                        fsec[ i ] = req.Data[ rc ] 
-                                        rc = rc + 1
-                                }
-			}
-
-		        rsp := make(chan bool)
-		        f.disk.w <- writeOp{sn, fsec, rsp}
-		        _ = <- rsp
-
-		}
-                    
-        }
-	resp.Size = len(req.Data)
-        fserr = nil
-        fmt.Print("}")      
-      return fserr   
-}
-
 
 func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHeader, error) {
-        var fserr error = fuse.EIO
+        var fserr error = nil
         var xtbuf [ 256 ]RFS_DiskAdr
         var xsec sbuf = make([]byte,1024)
 
@@ -521,14 +333,11 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
                 xP:=int32(0);  if dxA > 0 { xP = ( dxA / 256 ) + 1 }
 
 		adelta := hx.nA - hx.oA
-
-                fmt.Print("/",hx.dlen/1024,hx.dlen%1024,"/",dxA,"/",adelta,"/",xP,"/")
-
                 slist := RFS_FindNFreeSectors(int(xP+adelta), disk.root)
 
                 if len(slist)!=int(xP+adelta){
                         fmt.Println("Failed to find",xP+adelta,"free sector(s) for the file")
-                        os.Exit(1)
+                        fserr = fuse.EIO
                 }else{
                         xsn:=RFS_DiskAdr(0)
                         xtmod:=false
@@ -537,7 +346,7 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
                         for i:=hx.oA+1;i<=hx.nA;i++{
                                 if i < RFS_SecTabSize {
                                   fh.Sec[i]=slist[xP+i-(hx.oA+1)]*29
-                                  //fsec.PutWordAt(int(24+i),uint32(slist[xP+i-(oA+1)])*29)
+                                  
                                 }else{
                                   fmt.Print("!")
                                   xi := i - RFS_SecTabSize
@@ -554,7 +363,7 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
                                             xtbuf[j]=RFS_DiskAdr(0)
                                             xsec.PutWordAt(j,uint32(0))
                                       }
-                                      //fsec.PutWordAt(int(12+xiP),uint32(slist[xiP])*29)
+                                      
                                       xtloaded = true
                                       xtmod = true
                                   }else{
@@ -605,7 +414,7 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
                 sn := RFS_DiskAdr(0)
                 if seqn < RFS_SecTabSize {
                     fmt.Print(".")
-                    
+		    sn = fh.Sec[seqn]                    
                 }else{
 
                     xi := seqn - RFS_SecTabSize
@@ -646,11 +455,11 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
                                         rc = rc + 1
                                 }
                         }
-
-                        rsp := make(chan bool)
-                        disk.w <- writeOp{sn, fsec, rsp}
-                        _ = <- rsp
-
+			if seqn > 0 {
+                        	rsp := make(chan bool)
+                        	disk.w <- writeOp{sn, fsec, rsp}
+                        	_ = <- rsp
+			}
                 }
 
         }
