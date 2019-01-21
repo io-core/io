@@ -32,6 +32,9 @@ type RFS_FS struct {
         size int64
 	r chan readOp
 	w chan writeOp
+        a chan sallocOp
+	m chan smarkOp
+        f chan sfreeOp
 }
 
 func (f *RFS_FS) Root() (fs.Node, error) {
@@ -56,7 +59,7 @@ func (d *RFS_D) Attr(ctx context.Context, a *fuse.Attr) error {
 }
 
 func (d *RFS_D) Lookup(ctx context.Context, name string) (fs.Node, error) {
-        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil,"Lookup")
+        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), false,"Lookup")
         if files != nil {
                 for _, f := range files {
                         if f.N == name {
@@ -71,7 +74,7 @@ func (d *RFS_D) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
         var result []fuse.Dirent
 	
-        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), nil,"ReadDirAll")
+        files := RFS_Scan(d.disk, RFS_DiskAdr(d.inode), false,"ReadDirAll")
         if files != nil {
                 for _, f := range files {
                         result = append(result, fuse.Dirent{Inode: uint64(f.S), Type: fuse.DT_File, Name: f.N})
@@ -84,48 +87,6 @@ func name_is_good(name string) bool {
 	return true
 }
 
-func RFS_FindNFreeSectors(n int, d *RFS_D ) []RFS_DiskAdr {
-   smsz := int64(d.disk.size)
-   if d.disk.offset == 0 {
-	smsz = smsz -(262144*1024)
-   }
-   
-   var slist []RFS_DiskAdr
-
-   for i:= range smap { // 0;i<RFS_AllocMapLimit;i++{
-      smap[i]=0
-   }
-   fmt.Print("S")
-   _ = RFS_Scan(d.disk, RFS_DiskAdr(d.inode), &smap,"FindSectors")
-
-   startat:=0
-   for ith:=0;ith<n;ith++{
-   	found:=0
-   	for i:=startat; i<len(smap); i++{
-           if found == 0 && i > 0 && smap[i] != 0xffffffffffffffff {
-                   found = i
-		   startat = i
-           }
-   	}
-   	if found > 0 {
-                fbit:=64
-                for j := 0; j < 64 && fbit == 64 ; j++ {
-                  if ((smap[found]) & (1 << uint(j) ))!=0{
-                  }else{
-                    fbit=j
-                  }
-                }
-                if fbit != 64{
-                        nsec:=(found*64) + fbit
-			smap[found]=smap[found] | (1 << uint(fbit) )
-                        slist=append(slist,RFS_DiskAdr(nsec))
-                }
-   	}else{
-   	  ith=n
-   	}
-   }
-   return slist
-}
 
 
 func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
@@ -146,11 +107,7 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 	fhdr.Date = 0
 	
 
-        slist := RFS_FindNFreeSectors(1, d) 
-        if len(slist)!=1{
-                        fmt.Println("Failed to find one free sector for the file header")
-	}else{
-			nsec := slist[0]
+			nsec := allocSector(d.disk)  //slist[0]
 			fhdr.Sec[0]=RFS_DiskAdr(nsec*29)
 
 			fsn.inode=uint64(nsec*29)
@@ -171,8 +128,6 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 			}else{
 				fserr = nil
 			}
-		
-	}
     }
 
     return fsn,fsn,fserr
@@ -294,21 +249,6 @@ func saneDiskAdr( adr RFS_DiskAdr, m string ) bool {
   return true
 }
 
-func getSector(disk *RFS_FS, adr RFS_DiskAdr) sbuf {
-	var sec sbuf
-	if saneDiskAdr(adr,"Get Sector") {
-        	rsp := make(chan sbuf)
-        	disk.r <- readOp{adr,rsp}
-        	sec = <- rsp
-	}
-	return sec
-}
-
-func putSector(disk *RFS_FS, adr RFS_DiskAdr, sector sbuf){
-        rsp := make(chan bool)
-        disk.w <- writeOp{adr, sector, rsp}
-        _ = <- rsp
-}
 
 func snitch(i,v RFS_DiskAdr, s string) RFS_DiskAdr{
 
@@ -324,28 +264,18 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
         var xsec sbuf = make([]byte,1024)
 
         if hx.oA < hx.nA {
-                fmt.Print("[")
+                
                 oxA:=hx.oA+1-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
                 nxA:=hx.nA+1-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
-                dxA:= nxA - oxA
 
-                xP:=int32(0);  if dxA > 0 { xP = ( dxA / 256 ) + 1 }
-
-		adelta := hx.nA - hx.oA
-                slist := RFS_FindNFreeSectors(int(xP+adelta), disk.root)
-
-                if len(slist)!=int(xP+adelta){
-                        fmt.Println("Failed to find",xP+adelta,"free sector(s) for the file")
-                        fserr = fuse.EIO
-                }else{
                         xsn:=RFS_DiskAdr(0)
 
                         for i:=hx.oA+1;i<=hx.nA;i++{
                                 if i < RFS_SecTabSize {
-                                  fh.Sec[i]=slist[xP+i-(hx.oA+1)]*29          
+                                  fh.Sec[i]=allocSector(disk)*29      //slist[xP+i-(hx.oA)]*29          
                                 }else{
 
-                                  fmt.Print("!")
+                                  //fmt.Print("!")
                                   xi := i - RFS_SecTabSize
                                   xiP := xi / 256
                                   xiPi := xi % 256
@@ -356,67 +286,107 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
 				  }
 
                                   if xiPi == 0 {
-					xsn=slist[xiP]*29
+					xsn=allocSector(disk)*29      //slist[xiP]*29
 					fh.Ext[xiP]=xsn
                                         for j:=0;j<256;j++{
                                             xsec.PutWordAt(j,uint32(0))
                                         }    
                                   }
 
-                                  xsec.PutWordAt(int(xiPi),uint32( slist[xP+i-(hx.oA+1)])*29 )
 
+                                  xsec.PutWordAt(int(xiPi),uint32( allocSector(disk)*29))  //slist[xP+i-(hx.oA)])*29 )
+				  
 				  if xiPi == 255 || i == hx.nA {
 					putSector(disk,xsn,xsec)
 				  }
 
 				}
 			}
-                }
-                fmt.Print("]")
 
         }else if hx.oA > hx.nA{
                 fmt.Println("Have too many sectors... ignoring extra")
         }
 
+        checkFileHeaderSectors(disk,fh,hx)
+
 	return fh, fserr
 }
 
+func checkFileHeaderSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ){
+
+	var lseqn,lxi,lxiP,lxiPi int
+	var lfhe,lsn RFS_DiskAdr
+
+	for i:=0;i<RFS_SecTabSize;i++{
+		if i <= int(hx.nA) {
+		_ = saneDiskAdr(fh.Sec[i],"checking file header sector table entry")
+		}
+	}
+
+        for i:=0;i<RFS_ExTabSize*256;i++{
+		seqn:=i+RFS_SecTabSize
+		if seqn <= int(hx.nA) {
+			xi:= seqn - RFS_SecTabSize
+                	xiP:=xi / 256
+                        xiPi:=xi % 256
+                	_ = saneDiskAdr(fh.Ext[xiP],"checking file header Extended table entry")
+			xsec:=getSector(disk,fh.Ext[xiP])
+			//if xiP == 1 && xiPi == 0 { fmt.Print("boing....") }
+			sn:=xsec.DiskAdrAt(int(xiPi))
+                        _ = saneDiskAdr(sn,"checking file header Extended table file sector entry")
+                        if seqn == int(hx.nA) { fmt.Print("ok!") }
+			lseqn=seqn
+			lxi=xi
+			lxiP=xiP
+			lxiPi=xiPi
+			lfhe=fh.Ext[xiP]
+			lsn=sn
+		}
+		
+        }
+	fmt.Print("(seqn is ",lseqn," xi is ",lxi," xiP is ",lxiP," xiPi is ",lxiPi," fhe is ",lfhe/29," sn is ",lsn/29,")")
+
+
+}
+
+
 func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_FileHeader, error) {
         var fserr error = fuse.EIO
-        var xtbuf [ 256 ]RFS_DiskAdr
         var fsec sbuf
-
+        //var xsec sbuf
 
         rc:= int32(0)
-        xsn:=RFS_DiskAdr(0)
+        //xsn:=RFS_DiskAdr(-1)
         fmt.Print("{")
         for seqn:= int32(0); seqn <= hx.nA; seqn ++ {
                 sn := RFS_DiskAdr(0)
                 if seqn < RFS_SecTabSize {
-                    fmt.Print(".")
+                    //fmt.Print(".")
 		    sn = fh.Sec[seqn]                    
                 }else{
+                    //fmt.Print(":")
 
                     xi := seqn - RFS_SecTabSize
                     xiP := xi / 256
                     xiPi := xi % 256
-                    fmt.Print(xiP,"-",xiPi,",")
-                    if xsn != fh.Ext[xiP] {
-                                xsn = fh.Ext[xiP]
-                                _ = saneDiskAdr(xsn,"loading extended sector table")
-                                xsec := getSector(disk,xsn)
-                                for j:=0;j<256;j++{
-                                        xtbuf[j]=snitch(xsec.DiskAdrAt(j),65792,"THREE")
-                                }
-                    }
+                    _ = saneDiskAdr(fh.Ext[xiP],"2checking file header Extended table entry")
+                    xsec:=getSector(disk,fh.Ext[xiP])
+                    //if xiP == 1 && xiPi == 0 { fmt.Println("BOING....") }
+                    sn=xsec.DiskAdrAt(int(xiPi))
 
-                    sn = xtbuf[ xiPi ]
-                    _ = saneDiskAdr(sn,"loading sector number from extended sector table")
+			// seqn is 576 xi is 512 xiP is 2 xiPi is 0 sn is 131328
+
+		    if sn % 29 != 0 { fmt.Println("\nseqn is",seqn,"xi is",xi,"xiP is",xiP,"xiPi is",xiPi,"fhe is",fh.Ext[xiP]/29,"sn is",sn)}
+                    _ = saneDiskAdr(sn,"2checking file header Extended table file sector entry")
+                    if seqn == hx.nA { fmt.Print("OK!") }
+
 
                 }
                 if seqn == 0 || seqn >= int32( rc + hx.osz + RFS_HeaderSize )/ RFS_SectorSize {
                         if seqn > 0 {
+		                    //fmt.Print("(")
                                 fsec = getSector(disk,sn)
+                		    //fmt.Print(")")
                         }
                         if seqn==0 && ((hx.osz + RFS_HeaderSize)/RFS_SectorSize) == 0 {
                                 for i:=int32(0); i < (RFS_SectorSize - (hx.osz+RFS_HeaderSize)) &&  rc < int32(len(data)) ; i++ {
@@ -533,10 +503,10 @@ const RFS_FillerSize = 52                                   // ??
 
 var rfs_numsectors = 1220   // RISC.img size / 1024
 
-const   RFS_AllocMapLimit = 9256395
-type 	RFS_AllocMap	[RFS_AllocMapLimit]uint64   // 9.2 MiB for a bit for every possible sector on a maximally sized disk
+//const   RFS_AllocMapLimit = 9256395
+//type 	RFS_AllocMap	[RFS_AllocMapLimit]uint64   // 9.2 MiB for a bit for every possible sector on a maximally sized disk
 
-var smap RFS_AllocMap
+//var smap RFS_AllocMap
 
 type    RFS_DiskAdr         int32
 type    RFS_FileName       [RFS_FnLength]byte           // 672 data bytes in zeroth sector of file
@@ -591,6 +561,132 @@ type writeOp struct {
         i RFS_DiskAdr
 	s sbuf
         c chan bool
+}
+
+
+func getSector(disk *RFS_FS, adr RFS_DiskAdr) sbuf {
+        var sec sbuf
+        if saneDiskAdr(adr,"Get Sector") {
+                rsp := make(chan sbuf)
+                disk.r <- readOp{adr,rsp}
+                sec = <- rsp
+        }
+        return sec
+}
+
+func putSector(disk *RFS_FS, adr RFS_DiskAdr, sector sbuf){
+        rsp := make(chan bool)
+        disk.w <- writeOp{adr, sector, rsp}
+        _ = <- rsp
+}
+
+
+type sallocOp struct {
+	c chan RFS_DiskAdr
+}
+
+type smarkOp struct {
+	i RFS_DiskAdr
+	c chan bool
+}
+
+type sfreeOp struct {
+        i RFS_DiskAdr
+        c chan bool
+}
+
+
+func allocSector(disk *RFS_FS) RFS_DiskAdr {
+        rsp := make(chan RFS_DiskAdr)
+        disk.a <- sallocOp{rsp}
+        adr := <- rsp
+       
+        return adr
+}
+
+func markSector(disk *RFS_FS, adr RFS_DiskAdr){
+        rsp := make(chan bool) 
+        disk.m <- smarkOp{adr, rsp}
+        _ = <- rsp
+}
+
+func freeSector(disk *RFS_FS, adr RFS_DiskAdr){
+        rsp := make(chan bool)
+        disk.f <- sfreeOp{adr, rsp}
+        _ = <- rsp
+}
+
+
+func RFS_Smap( disk *RFS_FS ){
+
+	const   RFS_AllocMapLimit = 9256395
+	type    RFS_AllocMap    [RFS_AllocMapLimit]uint64   // 9.2 MiB for a bit for every possible sector on a maximally sized disk
+	
+	var smap RFS_AllocMap
+	var startat int
+
+        for i:=0;i<RFS_AllocMapLimit;i++{
+                smap[i]=0
+        }
+	startat = 0
+
+        for ;; {
+                select{
+
+                case allocit := <- disk.a :
+		   	found:=0
+			nsec:=0
+		  	for i:=startat; i<len(smap) && found == 0; i++{
+		  	         if i > 0 && smap[i] != 0xffffffffffffffff {
+		  	                 found = i
+		  	                 startat = i
+		  		 }
+		  	}
+		  	if found > 0 {
+		  	         fbit:=64
+		  	         for j := 0; j < 64 && fbit == 64 ; j++ {
+		  	                if ((smap[found]) & (1 << uint(j) ))!=0{
+		  	                }else{
+		  	                  fbit=j
+		  	                }
+		 	         }
+		   	         if fbit != 64{
+		   	                     nsec=(found*64) + fbit
+		   	                     smap[found]=smap[found] | (1 << uint(fbit) )
+		   	                    
+		   	         }
+		   	}
+                        allocit.c <- RFS_DiskAdr(nsec)
+			
+                
+                case markit := <- disk.m :
+			//fmt.Print(".")
+		        s:=markit.i/29
+		        if (markit.i % 29) != 0 { fmt.Printf("DiskAdr ",markit.i," not evenly divisible by 29 in markit!\n")}
+		        e:=s/64
+		        r:=s%64
+		        if smap[e] & (1<<uint(r)) != 0 {
+		                fmt.Println("sector already allocated in scan:", markit.i/29)
+		        }else{
+		                smap[e] = smap[e] | (1<<uint(r))
+		        }
+                        markit.c <- true
+                        
+                case freeit := <- disk.f :
+                        s:=freeit.i/29
+                        if (freeit.i % 29) != 0 { fmt.Printf("DiskAdr ",freeit.i," not evenly divisible by 29 in freeit!\n")}
+                        e:=s/64
+                        r:=s%64
+			smap[e] = smap[e] & ( 0xFFFFFFFF - (1<<uint(r)))
+			if startat < int(freeit.i) / 64 {
+				startat = int(freeit.i) / 64
+			}
+                        freeit.c <- true 
+                        fmt.Println("Freeing",freeit.i)
+
+                }
+        }
+
 }
 
 func RFS_K_Drive( disk *RFS_FS ){
@@ -833,11 +929,7 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
 	    }else{ // split page and assign the middle element to v
                 fmt.Println("splitting directory page")
                 
-	        slist := RFS_FindNFreeSectors(2, disk.root)
-	        if len(slist)!=2{
-                        fmt.Println("Failed to find another sector for the directory page split")
-	        }else{
-                        nsec := slist[1]*29
+                        nsec := allocSector(disk)*29    //slist[1]*29
 			fmt.Println("Parent Directory Sector:",dpg0/29,"Split to:",nsec/29)
 	                a.M = RFS_N
 			a.Mark = RFS_DirMark
@@ -888,7 +980,7 @@ func RFS_Insert(disk *RFS_FS, name string,  dpg0 RFS_DiskAdr, fad RFS_DiskAdr) (
 
 		
                         RFS_K_PutDirSector(disk,nsec,&a)
-                }
+                
             }
             
         }
@@ -910,28 +1002,8 @@ type RFS_FI struct {
      S RFS_DiskAdr
 }
 
-func secBitSet( tsmap *RFS_AllocMap, dpg RFS_DiskAdr) (rv bool) {
-    if tsmap != nil {
-        s:=dpg/29
-	x:=dpg%29
-	if x != 0 {
-		fmt.Printf("DiskAdr not evenly divisible by 29!\n")
-	}
-        e:=s/64
-        r:=s%64
-	  if tsmap[e] & (1<<uint(r)) != 0 {
-		fmt.Println("sector already allocated in scan:", dpg/29)
-	  }else{
-                tsmap[e] = tsmap[e] | (1<<uint(r))
-		rv = true
-	  }
-    }
-    return rv
 
-}
-
-
-func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string ) []RFS_FI {
+func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, makemap bool, caller string ) []RFS_FI {
 
   var a RFS_DirPage
   var files []RFS_FI
@@ -946,15 +1018,12 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
   if a.Mark == RFS_DirMark {
 
    
-    if tsmap != nil {
-      bok := secBitSet( tsmap, dpg )
-      if ! bok {
-	fmt.Println("Dir sector already marked:", dpg/29,"from",caller)
-      }
+    if makemap {
+	markSector( disk, dpg )
     }
 
     if a.P0 != 0 { 
-	fnames := RFS_Scan( disk, a.P0, tsmap ,"recursive")
+	fnames := RFS_Scan( disk, a.P0, makemap ,"recursive")
 	files = append( files, fnames...)
     }
 
@@ -963,14 +1032,11 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
 	fmt.Println("Found file with zero sector address in RFS_Scan with name",a.E[n].Name,"from",caller)
       }else{
       files=append(files,RFS_FI{string(a.E[n].Name[:FindNameEnd(a.E[n].Name[:])]),a.E[n].Adr})
-      if tsmap != nil {
-        bok := secBitSet(tsmap, a.E[n].Adr)
-        if ! bok {
-          fmt.Println("File Header sector already marked:", a.E[n].Adr/29,"from",caller)
-        }
+      if makemap {
+        markSector(disk, a.E[n].Adr)
       }
 
-      if tsmap != nil {
+      if makemap {
         var fh RFS_FileHeader
        
         ok:=RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh,"Scan")
@@ -983,10 +1049,7 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
             for e:=1;(e<RFS_SecTabSize && e <= int(fh.Aleng));e++{
 	      if e < RFS_SecTabSize {
                  if fh.Sec[e]!=0{
-                     bok := secBitSet( tsmap, fh.Sec[e] )
-                     if ! bok {
-                          fmt.Println("File Contents sector already marked:", fh.Sec[e]/29,"from",caller)
-                     }
+                     markSector( disk, fh.Sec[e] )
                   }
 	      }else{
                   xP:=(e-RFS_SecTabSize)/256
@@ -994,17 +1057,10 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
                   
 		  if xPi == 0 {
                     sector = getSector(disk,fh.Ext[ xP ])
-                    bok := secBitSet( tsmap, fh.Ext[ xP ] )
-                    if ! bok {
-                       fmt.Println("File extended sector already marked:", fh.Ext[xP]/29,"from",caller)
-                    }
+                    markSector( disk, fh.Ext[ xP ] )
 		  }
                   xe:=sector.DiskAdrAt(xPi)
-                  bok := secBitSet( tsmap, xe )
-                  if ! bok {
-                     fmt.Println("File extended sector contents already marked:", xe/29,"from",caller)
-                  }  
-
+                  markSector( disk, xe )
 	      }
 
             }
@@ -1016,7 +1072,7 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, tsmap *RFS_AllocMap, caller string 
 
 
       if a.E[n].P != 0 {
-	fnames :=  RFS_Scan(disk, a.E[n].P, tsmap,"recursive2")
+	fnames :=  RFS_Scan(disk, a.E[n].P, makemap, "recursive2")
         files=append(files, fnames...)
       }
       }
@@ -1053,18 +1109,14 @@ func ServeRFS( mountpoint *string, f *os.File, o uint32 ) {
 
 	      srv := fs.New(c, nil)
 
-	      filesys := &RFS_FS{ &RFS_D{  inode: 29, disk: nil},f,o,sz,make(chan readOp),make(chan writeOp)}
+	      filesys := &RFS_FS{ &RFS_D{  inode: 29, disk: nil},f,o,sz,make(chan readOp),make(chan writeOp),make(chan sallocOp),make(chan smarkOp),make(chan sfreeOp)}
 	      filesys.root.disk=filesys
 
-	      for i:=0;i<RFS_AllocMapLimit;i++{
-	        smap[i]=0
-	      }
-
-
+              go RFS_Smap(filesys)
               go RFS_K_Drive(filesys)
 
 	      
-	      _ = RFS_Scan( filesys, 29, &smap,"initialization" )
+	      _ = RFS_Scan( filesys, 29, true, "initialization" )
 
 	      fmt.Println("Scan Complete")
 	     
