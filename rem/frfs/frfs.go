@@ -106,28 +106,27 @@ func (d *RFS_D) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 	fhdr.Bleng = RFS_HeaderSize
 	fhdr.Date = 0
 	
+	nsec := allocSector(d.disk) * 29
+	fhdr.Sec[0]=RFS_DiskAdr(nsec)
 
-			nsec := allocSector(d.disk)  //slist[0]
-			fhdr.Sec[0]=RFS_DiskAdr(nsec*29)
+	fsn.inode=uint64(nsec)
+	attr.Inode=uint64(nsec)
+	resp.Node=fuse.NodeID(nsec)
+	//resp.Generation=1
+	//resp.EntryValid=0
+	resp.Attr=attr
+	//resp.Handle=fuse.HandleID(nsec)
+	//resp.Flags=0
 
-			fsn.inode=uint64(nsec*29)
-			attr.Inode=uint64(nsec*29)
-			resp.Node=fuse.NodeID(nsec*29)
-			//resp.Generation=1
-			//resp.EntryValid=0
-			resp.Attr=attr
-                        //resp.Handle=fuse.HandleID(nsec)
-                        //resp.Flags=0
+	RFS_K_PutFileHeader( d.disk, RFS_DiskAdr(nsec), &fhdr)
 
-			RFS_K_PutFileHeader( d.disk, RFS_DiskAdr(nsec*29), &fhdr)
-
-			//h:=false
-			h,U := RFS_Insert(d.disk, req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec*29) )
-			if h {  // root overflow
-				fmt.Println("overflow, ascending at entry",U)
-			}else{
-				fserr = nil
-			}
+	//h:=false
+	h,U := RFS_Insert(d.disk, req.Name, RFS_DirRootAdr,RFS_DiskAdr(nsec) )
+	if h {  // root overflow
+		fmt.Println("overflow, ascending at entry",U)
+	}else{
+		fserr = nil
+	}
     }
 
     return fsn,fsn,fserr
@@ -175,63 +174,45 @@ func (f *RFS_F) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.Read
 
 func (f *RFS_F) ReadAll(ctx context.Context) ([]byte, error) {
 
-      var fh RFS_FileHeader
-     
+      var fh RFS_FileHeader     
       var rv []byte
 
-      if f.inode % 29 != 0 {
-            fmt.Println("inode not divisible by 29 in ReadAll:",f.inode)
-      }else{
-
+      if saneDiskAdr(RFS_DiskAdr(f.inode), "ReadAll file header"){
         ok:=RFS_K_GetFileHeader(f.disk, RFS_DiskAdr(f.inode), & fh,"ReadAll")
-	
-        
 	if ! ok {
-	 fmt.Println("ReadAll not ok for some reason.")
+	    fmt.Println("ReadAll not ok for some reason.")
 	}else{
-          for i:=0;i<=int(fh.Aleng);i++{
-	   sn:=RFS_DiskAdr(0)
-	   if i < RFS_SecTabSize {
-	    sn = fh.Sec[i]
-	   }else{
-	    xte := int32( i - RFS_SecTabSize ) / 256
-            xti := int32( i - RFS_SecTabSize ) % 256
+	    for i:=0;i<=int(fh.Aleng);i++{
+		sn:=RFS_DiskAdr(0)
+		if i < RFS_SecTabSize {
+		    sn = fh.Sec[i]
+		}else{
+		    xte := int32( i - RFS_SecTabSize ) / 256
+		    xti := int32( i - RFS_SecTabSize ) % 256
+		    sector := getSector(f.disk,fh.Ext[xte])
+		    sn=sector.DiskAdrAt(int(xti))
+		}
+		if saneDiskAdr(sn,"ReadAll file content sector") {
+		    fsec := getSector(f.disk,sn)
 
-            //rsp := make(chan sbuf)
-            //f.disk.r <- readOp{fh.Ext[xte], rsp}
-            //sector := <- rsp
-            sector := getSector(f.disk,fh.Ext[xte])
-
-            sn=sector.DiskAdrAt(int(xti))
-
-
-	   }
-           if sn>0 {
-            //fsec := RFS_K_Read(f.disk,sn)
-
-            //rsp := make(chan sbuf)
-            //f.disk.r <- readOp{sn, rsp}
-            //fsec := <- rsp
-            fsec := getSector(f.disk,sn)
-
-            if i==0 {
-                  if fh.Aleng==0 {
-                    rv = append(rv,fsec[RFS_HeaderSize:fh.Bleng]...)
-                  }else{
-                    rv = append(rv,fsec[RFS_HeaderSize:]...)
-                  }
-            }
-            if i > 0 && i < int(fh.Aleng) {
-                  rv = append(rv,fsec...)
-            }
-            if i > 0 && i == int(fh.Aleng) {
-                  rv = append(rv,fsec[:fh.Bleng]...)
-            }
-           }else{
-	    fmt.Println("Disk read error in file",fh.Name[:],"Attempt to read sector zero.")
-           }
-        } 
-      }
+		    if i==0 {
+			  if fh.Aleng==0 {
+			    rv = append(rv,fsec[RFS_HeaderSize:fh.Bleng]...)
+			  }else{
+			    rv = append(rv,fsec[RFS_HeaderSize:]...)
+			  }
+		    }
+		    if i > 0 && i < int(fh.Aleng) {
+			  rv = append(rv,fsec...)
+		    }
+		    if i > 0 && i == int(fh.Aleng) {
+			  rv = append(rv,fsec[:fh.Bleng]...)
+		    }
+		}else{
+		    fmt.Println("Disk read error in file",fh.Name[:],"Attempt to read sector zero.")
+		}
+           } 
+       }
     }
     return rv, nil
 }
@@ -250,14 +231,6 @@ func saneDiskAdr( adr RFS_DiskAdr, m string ) bool {
 }
 
 
-func snitch(i,v RFS_DiskAdr, s string) RFS_DiskAdr{
-
-	if i==v {
-		fmt.Print("SNITCH(",s,")")
-	}
-	return i
-}
-
 
 func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHeader, error) {
         var fserr error = nil
@@ -268,40 +241,40 @@ func allocateFileSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ) (RFS_FileHead
                 oxA:=hx.oA+1-RFS_SecTabSize; if oxA < 0 { oxA = 0 }
                 nxA:=hx.nA+1-RFS_SecTabSize; if nxA < 0 { nxA = 0 }
 
-                        xsn:=RFS_DiskAdr(0)
+		xsn:=RFS_DiskAdr(0)
 
-                        for i:=hx.oA+1;i<=hx.nA;i++{
-                                if i < RFS_SecTabSize {
-                                  fh.Sec[i]=allocSector(disk)*29      //slist[xP+i-(hx.oA)]*29          
-                                }else{
+		for i:=hx.oA+1;i<=hx.nA;i++{
+			if i < RFS_SecTabSize {
+			  fh.Sec[i]=allocSector(disk)*29 
+			}else{
 
-                                  //fmt.Print("!")
-                                  xi := i - RFS_SecTabSize
-                                  xiP := xi / 256
-                                  xiPi := xi % 256
-				  
-				  if i == hx.oA+1 && xiPi !=0 {
-					xsn=fh.Ext[xiP]
-					xsec = getSector(disk,xsn)
-				  }
+			  //fmt.Print("!")
+			  xi := i - RFS_SecTabSize
+			  xiP := xi / 256
+			  xiPi := xi % 256
+			  
+			  if i == hx.oA+1 && xiPi !=0 {
+				xsn=fh.Ext[xiP]
+				xsec = getSector(disk,xsn)
+			  }
 
-                                  if xiPi == 0 {
-					xsn=allocSector(disk)*29      //slist[xiP]*29
-					fh.Ext[xiP]=xsn
-                                        for j:=0;j<256;j++{
-                                            xsec.PutWordAt(j,uint32(0))
-                                        }    
-                                  }
+			  if xiPi == 0 {
+				xsn=allocSector(disk)*29    
+				fh.Ext[xiP]=xsn
+				for j:=0;j<256;j++{
+				    xsec.PutWordAt(j,uint32(0))
+				}    
+			  }
 
 
-                                  xsec.PutWordAt(int(xiPi),uint32( allocSector(disk)*29))  //slist[xP+i-(hx.oA)])*29 )
-				  
-				  if xiPi == 255 || i == hx.nA {
-					putSector(disk,xsn,xsec)
-				  }
+			  xsec.PutWordAt(int(xiPi),uint32( allocSector(disk)*29)) 
+			  
+			  if xiPi == 255 || i == hx.nA {
+				putSector(disk,xsn,xsec)
+			  }
 
-				}
 			}
+		}
 
         }else if hx.oA > hx.nA{
                 fmt.Println("Have too many sectors... ignoring extra")
@@ -353,10 +326,10 @@ func checkFileHeaderSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ){
 func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_FileHeader, error) {
         var fserr error = fuse.EIO
         var fsec sbuf
-        //var xsec sbuf
+        
 
         rc:= int32(0)
-        //xsn:=RFS_DiskAdr(-1)
+        
         fmt.Print("{")
         for seqn:= int32(0); seqn <= hx.nA; seqn ++ {
                 sn := RFS_DiskAdr(0)
@@ -373,8 +346,6 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
                     xsec:=getSector(disk,fh.Ext[xiP])
                     //if xiP == 1 && xiPi == 0 { fmt.Println("BOING....") }
                     sn=xsec.DiskAdrAt(int(xiPi))
-
-			// seqn is 576 xi is 512 xiP is 2 xiPi is 0 sn is 131328
 
 		    if sn % 29 != 0 { fmt.Println("\nseqn is",seqn,"xi is",xi,"xiP is",xiP,"xiPi is",xiPi,"fhe is",fh.Ext[xiP]/29,"sn is",sn)}
                     _ = saneDiskAdr(sn,"2checking file header Extended table file sector entry")
