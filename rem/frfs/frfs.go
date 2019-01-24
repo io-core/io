@@ -334,44 +334,39 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
         for seqn:= int32(0); seqn <= hx.nA; seqn ++ {
                 sn := RFS_DiskAdr(0)
                 if seqn < RFS_SecTabSize {
-                    //fmt.Print(".")
+                   
 		    sn = fh.Sec[seqn]                    
                 }else{
-                    //fmt.Print(":")
-
                     xi := seqn - RFS_SecTabSize
                     xiP := xi / 256
                     xiPi := xi % 256
                     _ = saneDiskAdr(fh.Ext[xiP],"2checking file header Extended table entry")
                     xsec:=getSector(disk,fh.Ext[xiP])
-                    //if xiP == 1 && xiPi == 0 { fmt.Println("BOING....") }
+                    
                     sn=xsec.DiskAdrAt(int(xiPi))
 
 		    if sn % 29 != 0 { fmt.Println("\nseqn is",seqn,"xi is",xi,"xiP is",xiP,"xiPi is",xiPi,"fhe is",fh.Ext[xiP]/29,"sn is",sn)}
                     _ = saneDiskAdr(sn,"2checking file header Extended table file sector entry")
-                    if seqn == hx.nA { fmt.Print("OK!") }
-
 
                 }
                 if seqn == 0 || seqn >= int32( rc + hx.osz + RFS_HeaderSize )/ RFS_SectorSize {
                         if seqn > 0 {
-		                    //fmt.Print("(")
                                 fsec = getSector(disk,sn)
-                		    //fmt.Print(")")
                         }
+
                         if seqn==0 && ((hx.osz + RFS_HeaderSize)/RFS_SectorSize) == 0 {
                                 for i:=int32(0); i < (RFS_SectorSize - (hx.osz+RFS_HeaderSize)) &&  rc < int32(len(data)) ; i++ {
 					fh.fill[ hx.osz + i ] = data[ rc ]
                                         rc = rc + 1
                                 }
                         }
-                        if seqn > 0 && (hx.isAppend==1) && seqn == hx.oA {
+                        if seqn > 0 && hx.isAppend==1 && seqn == hx.oA {
                                 for i:=int32(0); i < (RFS_SectorSize - hx.oB) &&  rc < int32(len(data)) ; i++ {
                                         fsec[ hx.oB + i ] = data[ rc ]
                                         rc = rc + 1
                                 }
                         } else if seqn > 0 {
-                                for i:=int32(0); i < RFS_SectorSize &&  rc < int32(len(data)) ; i++ {
+                                for i:=int32(0); i < RFS_SectorSize  &&  rc < int32(len(data)) ; i++ {
                                         fsec[ i ] = data[ rc ]
                                         rc = rc + 1
                                 }
@@ -623,6 +618,7 @@ func RFS_Smap( disk *RFS_FS ){
 		 	         }
 		   	         if fbit != 64{
 		   	                     nsec=(found*64) + fbit
+					     fmt.Print(" ",nsec)
 		   	                     smap[found]=smap[found] | (1 << uint(fbit) )
 		   	                    
 		   	         }
@@ -631,7 +627,7 @@ func RFS_Smap( disk *RFS_FS ){
 			
                 
                 case markit := <- disk.m :
-			//fmt.Print(".")
+			fmt.Print(" ",markit.i)
 		        s:=markit.i/29
 		        if (markit.i % 29) != 0 { fmt.Printf("DiskAdr ",markit.i," not evenly divisible by 29 in markit!\n")}
 		        e:=s/64
