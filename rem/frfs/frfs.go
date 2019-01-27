@@ -307,7 +307,7 @@ func checkFileHeaderSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ){
 			//if xiP == 1 && xiPi == 0 { fmt.Print("boing....") }
 			sn:=xsec.DiskAdrAt(int(xiPi))
                         _ = saneDiskAdr(sn,"checking file header Extended table file sector entry")
-                        if seqn == int(hx.nA) { fmt.Print("ok!") }
+                        
 			lseqn=seqn
 			lxi=xi
 			lxiP=xiP
@@ -317,8 +317,9 @@ func checkFileHeaderSectors(disk *RFS_FS, fh RFS_FileHeader, hx HADJ){
 		}
 		
         }
-	fmt.Print("(seqn is ",lseqn," xi is ",lxi," xiP is ",lxiP," xiPi is ",lxiPi," fhe is ",lfhe/29," sn is ",lsn/29,")")
-
+	if 1==2 {
+	  fmt.Print("(seqn is ",lseqn," xi is ",lxi," xiP is ",lxiP," xiPi is ",lxiPi," fhe is ",lfhe/29," sn is ",lsn/29,")")
+	}
 
 }
 
@@ -330,7 +331,7 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
 
         rc:= int32(0)
         
-        fmt.Print("{")
+        //fmt.Print("{")
         for seqn:= int32(0); seqn <= hx.nA; seqn ++ {
                 sn := RFS_DiskAdr(0)
                 if seqn < RFS_SecTabSize {
@@ -360,7 +361,7 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
                                         rc = rc + 1
                                 }
                         }
-                        if seqn > 0 && hx.isAppend==1 && seqn == hx.oA {
+                        if seqn > 0 && seqn == hx.oA {  // seqn > 0 && hx.isAppend==1 && seqn == hx.oA 
                                 for i:=int32(0); i < (RFS_SectorSize - hx.oB) &&  rc < int32(len(data)) ; i++ {
                                         fsec[ hx.oB + i ] = data[ rc ]
                                         rc = rc + 1
@@ -384,7 +385,7 @@ func writeToFile(disk *RFS_FS, fh RFS_FileHeader, hx HADJ, data []byte) (RFS_Fil
         fh.Bleng = int32(hx.nB)
 
         fserr = nil
-        fmt.Print("}")
+        //fmt.Print("}")
 
 	return fh, fserr
 }
@@ -618,7 +619,7 @@ func RFS_Smap( disk *RFS_FS ){
 		 	         }
 		   	         if fbit != 64{
 		   	                     nsec=(found*64) + fbit
-					     fmt.Print(" ",nsec)
+					     fmt.Print(" ",nsec*29)
 		   	                     smap[found]=smap[found] | (1 << uint(fbit) )
 		   	                    
 		   	         }
@@ -976,79 +977,66 @@ func RFS_Scan(disk *RFS_FS, dpg RFS_DiskAdr, makemap bool, caller string ) []RFS
   var files []RFS_FI
   var sector sbuf
 
-  if dpg%29 != 0 {
-     fmt.Println("Attept to scan from DiskAdr", dpg, "which is not divisible by 29 from",caller)
-  }else{
-
-  RFS_K_GetDirSector(disk, dpg, & a)
-//  fmt.Println("Scan:",dpg/29)
-  if a.Mark == RFS_DirMark {
-
+  if saneDiskAdr(dpg,"Scan") {
+    RFS_K_GetDirSector(disk, dpg, & a)
+    if a.Mark == RFS_DirMark {
    
-    if makemap {
+      if makemap {
 	markSector( disk, dpg )
-    }
+      }
 
-    if a.P0 != 0 { 
+      if a.P0 != 0 { 
 	fnames := RFS_Scan( disk, a.P0, makemap ,"recursive")
 	files = append( files, fnames...)
-    }
-
-    for n:=0;int32(n)<a.M;n++ {
-      if a.E[n].Adr == 0 {
-	fmt.Println("Found file with zero sector address in RFS_Scan with name",a.E[n].Name,"from",caller)
-      }else{
-      files=append(files,RFS_FI{string(a.E[n].Name[:FindNameEnd(a.E[n].Name[:])]),a.E[n].Adr})
-      if makemap {
-        markSector(disk, a.E[n].Adr)
       }
 
-      if makemap {
-        var fh RFS_FileHeader
+      for n:=0; int32(n)<a.M; n++ {
+        if saneDiskAdr( a.E[n].Adr, "file head sector address"){
+          files=append(files,RFS_FI{string(a.E[n].Name[:FindNameEnd(a.E[n].Name[:])]),a.E[n].Adr})
+
+          if makemap {
+            markSector(disk, a.E[n].Adr)
+            var fh RFS_FileHeader
        
-        ok:=RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh,"Scan")
-	if ! ok {
-	  fmt.Println("Couldn't get file header")
-	}else{
-	  if fh.Sec[0] != a.E[n].Adr {
-            fmt.Println("File Header First sector does not match file header sector:", a.E[n].Adr/29,"from",caller)
-	  }else{
-            for e:=1;(e<RFS_SecTabSize && e <= int(fh.Aleng));e++{
-	      if e < RFS_SecTabSize {
-                 if fh.Sec[e]!=0{
+            _=RFS_K_GetFileHeader(disk, a.E[n].Adr, & fh,"Scan")
+
+	    if fh.Sec[0] != a.E[n].Adr {
+              fmt.Println("File Header First sector does not match file header sector:", a.E[n].Adr/29,"from",caller)
+	    }else{
+              for e:=1; e <= int(fh.Aleng);e++{
+	        if e < RFS_SecTabSize {
+                  if fh.Sec[e]!=0{
                      markSector( disk, fh.Sec[e] )
                   }
-	      }else{
+	        }else{
                   xP:=(e-RFS_SecTabSize)/256
-		  xPi:=(e-RFS_SecTabSize)%256
-                  
+		  xPi:=(e-RFS_SecTabSize)%256     
 		  if xPi == 0 {
-                    sector = getSector(disk,fh.Ext[ xP ])
-                    markSector( disk, fh.Ext[ xP ] )
+		    if saneDiskAdr(fh.Ext[xP],"Extended Sector in Scan"){
+                      sector = getSector(disk, fh.Ext[ xP ])
+                      markSector( disk, fh.Ext[ xP ] )
+		    }
 		  }
                   xe:=sector.DiskAdrAt(xPi)
-                  markSector( disk, xe )
-	      }
-
-            }
-
-
+		  if saneDiskAdr( xe ,"extended sector file page"){
+                    markSector( disk, xe )
+		  }
+	        }
+              }      
+	    }
           }
-	}
-      }
 
-
-      if a.E[n].P != 0 {
-	fnames :=  RFS_Scan(disk, a.E[n].P, makemap, "recursive2")
-        files=append(files, fnames...)
+          if a.E[n].P != 0 {
+	    fnames :=  RFS_Scan(disk, a.E[n].P, makemap, "recursive2")
+            files=append(files, fnames...)
+          }
+        }
       }
-      }
+    
+    
+    }else{
+      fmt.Println("No Directory Signature:",dpg/29,"from",caller)
     }
-    
-    
-  }else{
-    fmt.Println("No Directory Signature:",dpg/29,"from",caller)
-  }
   }
   return files
 }

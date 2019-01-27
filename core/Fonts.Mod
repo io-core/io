@@ -36,7 +36,7 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
 VAR Default*, root*: Font;
   
 
-// change to ch: INTEGER, drop pg 
+(* TODO: change to ch: INTEGER, drop pg *)
 PROCEDURE GetWPat*(fnt: Font; ch: CHAR; pg: CHAR; VAR dx, x, y, w, h, patadr: INTEGER);
   VAR pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
 BEGIN pa := fnt.T[ORD(ch) MOD 80H]; patadr := pa;
@@ -248,14 +248,15 @@ BEGIN
     INC(t);DEC(tl)
   END; 
 
-  Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset);  m:= RdL32(T);  
-  fc:= RdB16(T);
-  lc:= RdB16(T);
-  fr:= RdB16(T);
-  lr:= RdB16(T);
-  td:= RdB16(T);
+  LED(77);
+  Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset);  m:= RdL32(T); LED(m); 
+  fc:= RdB16(T);LED(fc);
+  lc:= RdB16(T);LED(lc);
+  fr:= RdB16(T);LED(fr);
+  lr:= RdB16(T);LED(lr);
+  td:= RdB16(T);LED(td);
   tc:= (lc - fc + 1) * (lr - fr + 1);
-
+  LED(88);
 
   Files.Set(C,Files.Base(R),pcfBITMAPS.offset);  oo:= RdL32(C);  n:= RdB32p(C); 
   Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
@@ -278,7 +279,10 @@ BEGIN
     IF (tm = 65535) THEN tm := td END;
 
     IF (tm < 0) THEN tm := td END;
-
+    LED(m);
+    LED(fc);
+    LED(td);
+    LED(tm);
 
 
     IF ((a+3)<2360) THEN  F.T[m] := SYSTEM.ADR(F.raster[a+3])
