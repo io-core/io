@@ -44,8 +44,11 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
 VAR Default*, root*: Font;
 
 PROCEDURE GetUniPat*(fnt: Font; codepoint: INTEGER; VAR dx, x, y, w, h, patadr: INTEGER);
-  VAR pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
-BEGIN pa := fnt.chunk0.T[codepoint MOD 80H]; patadr := pa;
+  VAR chunk, index, pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
+BEGIN 
+  chunk := codepoint DIV 80H;
+  index := codepoint MOD 80H;
+  pa := fnt.chunk0.T[index]; patadr := pa;
   SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
   dx := dxb; x := xb; y := yb; w := wb; h := hb;
   IF yb < 128 THEN y := yb ELSE y := yb - 256 END
