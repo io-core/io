@@ -151,6 +151,7 @@ PROCEDURE LoadOberonFont(VAR R: Files.Rider): Font;
     BoxRec = RECORD dx, x, y, w, h: BYTE END ;
 
   VAR F: Font; LF: LargeFont;
+      C: Chunk; LC: LargeChunk;
     NofRuns, NofBoxes: BYTE;
     NofBytes: INTEGER;
     height, minX, maxX, minY, maxY: BYTE;
@@ -181,6 +182,7 @@ BEGIN
       INC(j)
     END;
     IF NofBytes < 2300 THEN NEW(F) ELSE NEW(LF); F := LF END ;
+    IF NofBytes < 2300 THEN NEW(C) ELSE NEW(LC); C := LC; F.chunk0 := C; END ;
         
     F.height := height; F.minX := minX; F.maxX := maxX; F.maxY := maxY;
     IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END ;
@@ -201,13 +203,15 @@ BEGIN
       INC(k)
     END;
     WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
-    F.chunk0 := NIL;
+    F.chunk0.index := 0;
+    F.chunk0.next := NIL;
     RETURN F
 END LoadOberonFont;
 
 PROCEDURE LoadPcfFont(VAR R: Files.Rider): Font;
   VAR F: Font; LF: LargeFont;
-    M,C,T: Files.Rider;
+      C: Chunk; LC: LargeChunk;
+    M,B,T: Files.Rider;
     i, j, k, l, m, tm, n, nn, oo: INTEGER;
     fc,lc,fr,lr,td,tc: INTEGER;
     a, t, tl, pw, ph: INTEGER;
@@ -269,10 +273,11 @@ BEGIN
   tc:= (lc - fc + 1) * (lr - fr + 1);
   LED(88);
 
-  Files.Set(C,Files.Base(R),pcfBITMAPS.offset);  oo:= RdL32(C);  n:= RdB32p(C); 
+  Files.Set(B,Files.Base(R),pcfBITMAPS.offset);  oo:= RdL32(B);  n:= RdB32p(B); 
   Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
   
   NEW(LF); F := LF;
+  NEW(
 
   m:=0;
   a:=0;
@@ -299,8 +304,8 @@ BEGIN
     IF ((a+3)<2360) THEN  F.T[m] := SYSTEM.ADR(F.raster[a+3])
                      ELSE F.T[m] := SYSTEM.ADR(LF.ext[(a+3)-2360]) END;
 
-    Files.Set(C,Files.Base(R),pcfBITMAPS.offset+8+(4*tm));
-    l:=RdB32(C);
+    Files.Set(B,Files.Base(R),pcfBITMAPS.offset+8+(4*tm));
+    l:=RdB32(B);
 
     Files.Set(M,Files.Base(R),pcfMETRICS.offset+6+(5*tm));
     Files.ReadByte(M, b); mt.l:=b - 128;
@@ -353,7 +358,8 @@ BEGIN
    INC(m)
   END;
   F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
-  F.chunk0 := NIL;
+  F.chunk0.index := 0;
+  F.chunk0.next := NIL;
   RETURN F
 END LoadPcfFont;
 
