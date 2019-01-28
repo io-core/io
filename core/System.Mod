@@ -28,7 +28,7 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   (* ------------- Toolbox for system control ---------------*)
 
   PROCEDURE SetUser*;
-    VAR i: INTEGER, codepoint; ch: CHAR;
+    VAR i, codepoint: INTEGER; ch: CHAR;
       user: ARRAY 8 OF CHAR;
       password: ARRAY 16 OF CHAR;
   BEGIN i := 0; Input.ReadUnicode(codepoint); ch := CHR(codepoint MOD 80H);
