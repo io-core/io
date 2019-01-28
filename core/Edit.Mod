@@ -1,5 +1,7 @@
 MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
              (*CP 12.2018 changed to adopt NL instead of CR *)
+             (*MS 1.2019 adapted for Unicode*)
+
   IMPORT Files, Fonts, Texts, Display, Viewers, Oberon, MenuViewers, TextFrames;
 
   CONST CR = 0DX; NL = 0AX; maxlen = 32;
@@ -24,7 +26,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     X, Y: INTEGER;
     beg, end, time: LONGINT;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    IF (S.class = Texts.Char) & (S.c = "^") OR (S.line # 0) THEN
+    IF (S.class = Texts.Char) & (S.codepoint = ORD("^")) OR (S.line # 0) THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN Texts.OpenScanner(S, T, beg); Texts.Scan(S) END
     END;
@@ -59,7 +61,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     ELSE V := Oberon.MarkedViewer(); Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos)
     END;
     Texts.Scan(S);
-    IF (S.class = Texts.Char) & (S.c = "^") THEN
+    IF (S.class = Texts.Char) & (S.codepoint = ORD("^")) THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN Texts.OpenScanner(S, T, beg); Texts.Scan(S) END
     END;
@@ -226,6 +228,23 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
       END
     END
   END Recall;
+
+  PROCEDURE InsertUnicode*;
+    VAR S: Texts.Scanner;
+      W: Texts.Writer;
+      T: Texts.Text;
+      F: TextFrames.Frame;
+      codepoint: INTEGER;
+  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+    IF S.class = Texts.Int THEN
+      Texts.OpenWriter(W);
+      Texts.WriteUnicode(W, S.i);
+      F := Oberon.FocusViewer.dsc.next(TextFrames.Frame);
+      Texts.Insert(F.text, F.carloc.pos, W.buf);
+      TextFrames.SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(S.i));
+    END
+  END InsertUnicode;
+
 
 BEGIN Texts.OpenWriter(W)
 END Edit.

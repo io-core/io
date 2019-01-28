@@ -1,6 +1,8 @@
 MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-4*)
               (*CP 12.2018 changed to adopt NL instead of CR *)
               (* Adapted for a customizable framebuffer size -- see git history *)
+              (*MS 1.2019 adapted for Unicode*)
+
   IMPORT SYSTEM;
 
   CONST msAdr = -40; kbdAdr = -36;
@@ -34,15 +36,17 @@ MODULE Input; (*NW 5.10.86 / 15.11.90 Ceres-2; PDR 21.4.12 / NW 15.5.2013 Ceres-
     RETURN ORD(Recd)
   END Available;
 
-  PROCEDURE Read*(VAR ch: CHAR);
+  PROCEDURE ReadUnicode*(VAR codepoint: INTEGER);
+  VAR ch: CHAR;
   BEGIN
     WHILE ~Recd DO Peek() END ;
     IF Shift OR Ctrl THEN INC(kbdCode, 80H) END; (*ctrl implies shift*)
   (* ch := kbdTab[kbdCode]; *)
     SYSTEM.GET(KTabAdr + kbdCode, ch);
     IF Ctrl THEN ch := CHR(ORD(ch) MOD 20H) END;
-    Recd := FALSE
-  END Read;
+    Recd := FALSE;
+    codepoint := ORD(ch);
+  END ReadUnicode;
 
   PROCEDURE Mouse*(VAR keys: SET; VAR x, y: INTEGER);
     VAR w: INTEGER;

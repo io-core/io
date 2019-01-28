@@ -1,5 +1,6 @@
 MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
-              (*CP 12.2018 changed to adopt NL instead of CR *)
+              (*CP 12.2018 changed to adopt NL instead of CR*)
+              (*MS 1.2019 adapted for Unicode*)
   IMPORT Files, Fonts;
 
   CONST (*scanner symbol classes*)
@@ -53,7 +54,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
       i*: LONGINT;
       x*: REAL;
       y*: LONGREAL;
-      c*: CHAR;
+      codepoint*: INTEGER;
       len*: INTEGER;
       s*: ARRAY 32 OF CHAR
     END;
@@ -307,6 +308,44 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
     END
   END Read;
 
+  PROCEDURE UnicodeWidth* (codepoint: INTEGER): INTEGER;
+  VAR result: INTEGER;
+  BEGIN
+    IF codepoint < 80H THEN result := 1
+    ELSIF codepoint < 800H THEN result := 2
+    ELSIF codepoint < 10000H THEN result := 3
+    ELSE result := 4 END;
+  RETURN result
+  END UnicodeWidth;
+
+  PROCEDURE ReadUnicodeRest(VAR R: Reader; ch: CHAR; VAR codepoint: INTEGER);
+  VAR i, more: INTEGER;
+  BEGIN
+    IF ORD(ch) < 80H THEN
+      codepoint := ORD(ch); more := 0;
+    ELSIF ORD(ch) < 0C0H THEN
+      codepoint := 0FFFDH; more := 0;
+    ELSIF ORD(ch) < 0E0H THEN
+      codepoint := ORD(ch) MOD 20H; more := 1;
+    ELSIF ORD(ch) < 0F0H THEN
+      codepoint := ORD(ch) MOD 10H; more := 2;
+    ELSIF ORD(ch) < 0F8H THEN
+      codepoint := ORD(ch) MOD 08H; more := 3;
+    ELSE
+      codepoint := 0FFFDH; more := 0;
+    END;
+    FOR i := 1 TO more DO
+      IF ~R.eot THEN Read(R, ch) END;
+      codepoint := codepoint * 40H + (ORD(ch) MOD 40H)
+    END;
+    IF R.eot & (more > 0) THEN codepoint := 0FFFDH END;
+  END ReadUnicodeRest;
+
+  PROCEDURE ReadUnicode* (VAR R: Reader; VAR codepoint: INTEGER);
+  VAR ch: CHAR;
+  BEGIN Read(R, ch); ReadUnicodeRest(R, ch, codepoint)
+  END ReadUnicode;
+
   PROCEDURE Pos* (VAR R: Reader): LONGINT;
   BEGIN RETURN R.org + R.off
   END Pos;  
@@ -390,8 +429,8 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
           IF neg THEN S.i := -n ELSE S.i := n END;
           IF hex THEN S.class := Inval ELSE S.class := Int END
         END
-      ELSE (*spectal character*) S.class := Char;
-        IF neg THEN S.c := "-" ELSE S.c := ch; Read(S, ch) END
+      ELSE (*special character*) S.class := Char;
+        IF neg THEN S.codepoint := ORD("-") ELSE ReadUnicodeRest(S, ch, S.codepoint); Read(S, ch) END
       END
     END ;
     S.nextCh := ch
@@ -429,6 +468,25 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 20.3.2017*)
     Files.Write(W.rider, ch);
     INC(W.buf.last.len); INC(W.buf.len)
   END Write;
+
+  PROCEDURE WriteUnicode* (VAR W: Writer; codepoint: INTEGER);
+  BEGIN
+    IF codepoint < 80H THEN
+      Write(W, CHR(codepoint))
+    ELSIF codepoint < 800H THEN
+      Write(W, CHR(0C0H + (codepoint DIV 40H MOD 20H)));
+      Write(W, CHR(080H + (codepoint MOD 40H)))
+    ELSIF codepoint < 10000H THEN
+      Write(W, CHR(0E0H + (codepoint DIV 1000H MOD 10H)));
+      Write(W, CHR(080H + (codepoint DIV 40H MOD 40H)));
+      Write(W, CHR(080H + (codepoint MOD 40H)))
+    ELSE
+      Write(W, CHR(0F0H + (codepoint DIV 40000H MOD 08H)));
+      Write(W, CHR(080H + (codepoint DIV 1000H MOD 40H)));
+      Write(W, CHR(080H + (codepoint DIV 40H MOD 40H)));
+      Write(W, CHR(080H + (codepoint MOD 40H)))
+    END
+  END WriteUnicode;
 
   PROCEDURE WriteLn* (VAR W: Writer);
   BEGIN Write(W, NL)

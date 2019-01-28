@@ -1,4 +1,6 @@
 MODULE Graphics;   (*NW 21.12.89 / 18.11.201 / 8.4.2016*)
+                   (*MS 1.2019 adapted for Unicode*)
+
   IMPORT SYSTEM, Files, Modules, Fonts, (*Printer,*) Texts, Oberon;
 
   CONST NameLen* = 32; GraphFileId = 0FAX; LibFileId = 0FBX;
@@ -546,28 +548,28 @@ MODULE Graphics;   (*NW 21.12.89 / 18.11.201 / 8.4.2016*)
   END NewCaption;
 
   PROCEDURE CopyCaption(src, dst: Object);
-    VAR ch: CHAR; R: Texts.Reader;
+    VAR codepoint: INTEGER; R: Texts.Reader;
   BEGIN
     dst.x := src.x; dst.y := src.y; dst.w := src.w; dst.h := src.h; dst.col := src.col;
     dst(Caption).pos := T.len + 1; dst(Caption).len := src(Caption).len;
     Texts.Write(TW, 0AX); Texts.OpenReader(R, T, src(Caption).pos);
-    Texts.Read(R, ch); TW.fnt := R.fnt;
-    WHILE ch > 0AX DO Texts.Write(TW, ch); Texts.Read(R, ch) END ;
+    Texts.ReadUnicode(R, codepoint); TW.fnt := R.fnt;
+    WHILE codepoint > 0AX DO Texts.WriteUnicode(TW, codepoint); Texts.ReadUnicode(R, codepoint) END ;
     Texts.Append(T, TW.buf)
   END CopyCaption;
 
   PROCEDURE ChangeCaption(obj: Object;  VAR M: Msg);
     VAR dx, x1, dy, y1, w, w1, h1, len: INTEGER;
       pos: LONGINT;
-      ch: CHAR; patadr: INTEGER; fnt: Fonts.Font;
+      codepoint, patadr: INTEGER; fnt: Fonts.Font;
       R: Texts.Reader;
   BEGIN
     CASE M OF
     FontMsg: fnt := M(FontMsg).fnt; w := 0; len := 0; pos := obj(Caption).pos;
-      Texts.OpenReader(R, T, pos); Texts.Read(R, ch); dy := R.fnt.minY;
-      WHILE ch > 0DX DO
-        Fonts.GetPat(fnt, ch, dx, x1, y1, w1, h1, patadr);
-        INC(w, dx); INC(len); Texts.Read(R, ch)
+      Texts.OpenReader(R, T, pos); Texts.ReadUnicode(R, codepoint); dy := R.fnt.minY;
+      WHILE codepoint > 0DH DO
+        Fonts.GetUniPat(fnt, codepoint, dx, x1, y1, w1, h1, patadr);
+        INC(w, dx); INC(len); Texts.ReadUnicode(R, codepoint)
       END ;
       INC(obj.y, fnt.minY-dy); obj.w := w; obj.h := fnt.height;
       Texts.ChangeLooks(T, pos, pos+len, {0}, fnt, 0 , 0) |
@@ -684,4 +686,4 @@ BEGIN Texts.OpenWriter(W); Texts.OpenWriter(TW);  Texts.OpenWriter(XW);
   MacMethod.selectable := MacroSelectable; MacMethod.change := ChangeMacro;
   MacMethod.read := ReadMacro; MacMethod.write := WriteMacro; (*MacMethod.print := PrintMacro*)
 END Graphics.
-Signature not found!
+

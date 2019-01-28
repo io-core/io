@@ -1,4 +1,7 @@
 MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
+               (*MS 1.2019 adapted for Unicode*)
+
+
   IMPORT SYSTEM, Kernel, FileDir, Files, Modules,
     Input, Display, Viewers, Fonts, Texts, Oberon, MenuViewers, TextFrames;
 
@@ -12,7 +15,7 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   PROCEDURE GetArg(VAR S: Texts.Scanner);
     VAR T: Texts.Text; beg, end, time: LONGINT;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    IF (S.class = Texts.Char) & (S.c = "^") THEN
+    IF (S.class = Texts.Char) & (S.codepoint = ORD("^")) THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN Texts.OpenScanner(S, T, beg); Texts.Scan(S) END
     END
@@ -25,13 +28,13 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   (* ------------- Toolbox for system control ---------------*)
 
   PROCEDURE SetUser*;
-    VAR i: INTEGER; ch: CHAR;
+    VAR i: INTEGER, codepoint; ch: CHAR;
       user: ARRAY 8 OF CHAR;
       password: ARRAY 16 OF CHAR;
-  BEGIN i := 0; Input.Read(ch);
-    WHILE (ch # "/") & (i < 7) DO user[i] := ch; INC(i); Input.Read(ch) END;
-    user[i] := 0X; i := 0; Input.Read(ch);
-    WHILE (ch > " ") & (i < 15) DO password[i] := ch; INC(i); Input.Read(ch) END;
+  BEGIN i := 0; Input.ReadUnicode(codepoint); ch := CHR(codepoint MOD 80H);
+    WHILE (ch # "/") & (i < 7) DO user[i] := ch; INC(i); Input.ReadUnicode(codepoint); ch := CHR(codepoint MOD 80H) END;
+    user[i] := 0X; i := 0; Input.ReadUnicode(codepoint); ch := CHR(codepoint MOD 80H);
+    WHILE (ch > " ") & (i < 15) DO password[i] := ch; INC(i); Input.ReadUnicode(codepoint); ch := CHR(codepoint MOD 80H) END;
     password[i] := 0X; Oberon.SetUser(user, password)
   END SetUser;
 
@@ -153,7 +156,7 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
       S: Texts.Scanner;
   BEGIN Texts.WriteString(W, "System.Free"); EndLine;
     Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    IF (S.class = Texts.Char) & (S.c = "^") THEN
+    IF (S.class = Texts.Char) & (S.codepoint = ORD("^")) THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN Texts.OpenScanner(S, T, beg); Texts.Scan(S);
         IF S.class = Texts.Name THEN Free1(S) END
@@ -238,8 +241,8 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     Texts.WriteString(W, "System.CopyFiles"); EndLine;
     WHILE S.class = Texts.Name DO
       name := S.s; Texts.Scan(S);
-      IF (S.class = Texts.Char) & (S.c = "=") THEN Texts.Scan(S);
-        IF (S.class = Texts.Char) & (S.c = ">") THEN Texts.Scan(S);
+      IF (S.class = Texts.Char) & (S.codepoint = ORD("=")) THEN Texts.Scan(S);
+        IF (S.class = Texts.Char) & (S.codepoint = ORD(">")) THEN Texts.Scan(S);
           IF S.class = Texts.Name THEN
             Texts.WriteString(W, name); Texts.WriteString(W, " => "); Texts.WriteString(W, S.s);
             Texts.WriteString(W, " copying"); Texts.Append(Oberon.Log, W.buf);
@@ -266,8 +269,8 @@ MODULE System; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     Texts.WriteString(W, "System.RenameFiles"); EndLine;
     WHILE S.class = Texts.Name DO
       name := S.s; Texts.Scan(S);
-      IF (S.class = Texts.Char) & (S.c = "=") THEN Texts.Scan(S);
-        IF (S.class = Texts.Char) & (S.c = ">") THEN Texts.Scan(S);
+      IF (S.class = Texts.Char) & (S.codepoint = ORD("=")) THEN Texts.Scan(S);
+        IF (S.class = Texts.Char) & (S.codepoint = ORD(">")) THEN Texts.Scan(S);
           IF S.class = Texts.Name THEN
             Texts.WriteString(W, name); Texts.WriteString(W, " => "); Texts.WriteString(W, S.s);
             Texts.WriteString(W, " renaming"); Files.Rename(name, S.s, res);

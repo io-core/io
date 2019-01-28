@@ -1,4 +1,6 @@
 MODULE ORP; (*N. Wirth 1.7.97 / 4.4.2017  Oberon compiler for RISC in Oberon-07*)
+               (*MS 1.2019 adapted for Unicode*)
+
   IMPORT Texts, Oberon, ORS, ORB, ORG;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
@@ -963,10 +965,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 4.4.2017  Oberon compiler for RISC in Oberon-07*
       S: Texts.Scanner;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     IF S.class = Texts.Char THEN
-      IF S.c = "@" THEN
+      IF S.codepoint = ORD("@") THEN
         Option(S); Oberon.GetSelection(T, beg, end, time);
         IF time >= 0 THEN ORS.Init(T, beg); Module END
-      ELSIF S.c = "^" THEN
+      ELSIF S.codepoint = ORD("^") THEN
         Option(S); Oberon.GetSelection(T, beg, end, time);
         IF time >= 0 THEN
           Texts.OpenScanner(S, T, beg); Texts.Scan(S);
