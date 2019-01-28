@@ -277,7 +277,7 @@ BEGIN
   Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
   
   NEW(LF); F := LF;
-  NEW(
+  NEW(LC); C := LC;
 
   m:=0;
   a:=0;
