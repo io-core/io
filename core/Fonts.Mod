@@ -7,21 +7,21 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
 
   TYPE
     Font* = POINTER TO FontDesc;
-    ChunkPtr = POINTER TO ChunkDesc;
+    Chunk = POINTER TO ChunkDesc;
 
     FontDesc* = RECORD
       name*: ARRAY 32 OF CHAR;  
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
-      chunk0: ChunkPtr;
+      chunk0: Chunk;
       T: ARRAY 128 OF INTEGER;
       raster: ARRAY 2360 OF BYTE
     END ;
 
     ChunkDesc = RECORD
-      next: ChunkPtr;
+      next: Chunk;
       index: INTEGER;
-      T: ARRAY 128 of INTEGER;
+      T: ARRAY 128 OF INTEGER;
       raster: ARRAY 2360 OF BYTE;
     END;
 
@@ -29,7 +29,7 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
     LargeFont = POINTER TO LargeFontDesc;
 
     LargeChunkDesc = RECORD (ChunkDesc) ext: ARRAY 6656 OF BYTE END ; (* 2560 *)
-    LargeChunkPtr = POINTER TO LargeChunkDesc;
+    LargeChunk = POINTER TO LargeChunkDesc;
 
 
   (* raster sizes: Syntax8 1367, Syntax10 1628, Syntax12 1688, Syntax14 1843, Syntax14b 1983,
@@ -201,7 +201,7 @@ BEGIN
       INC(k)
     END;
     WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
-    F.chunk := 0;
+    F.chunk0 := NIL;
     RETURN F
 END LoadOberonFont;
 
@@ -353,7 +353,7 @@ BEGIN
    INC(m)
   END;
   F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
-  F.chunk := 0;
+  F.chunk0 := NIL;
   RETURN F
 END LoadPcfFont;
 
