@@ -390,7 +390,7 @@ MODULE GraphicFrames; (*NW 18.4.88 / 18.11.2013*)
             ELSIF G.marked THEN
               Defocus(G); Deselect(G); NewCaption(G, M.col, M.fnt); InsertChar(G, M.codepoint)
             END
-          ELSIF (M.codepoint = 8X) & (newcap # NIL) THEN DeleteChar(G); Mark(G, 1)
+          ELSIF (M.codepoint = ORD(08X)) & (newcap # NIL) THEN DeleteChar(G); Mark(G, 1)
           END
         END
       | UpdateMsg:
