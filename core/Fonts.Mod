@@ -340,7 +340,7 @@ BEGIN
    INC(m)
   END;
   F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
-  F.chunk = 0;
+  F.chunk := 0;
   RETURN F
 END LoadPcfFont;
 
