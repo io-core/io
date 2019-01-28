@@ -554,7 +554,7 @@ MODULE Graphics;   (*NW 21.12.89 / 18.11.201 / 8.4.2016*)
     dst(Caption).pos := T.len + 1; dst(Caption).len := src(Caption).len;
     Texts.Write(TW, 0AX); Texts.OpenReader(R, T, src(Caption).pos);
     Texts.ReadUnicode(R, codepoint); TW.fnt := R.fnt;
-    WHILE codepoint > 0AX DO Texts.WriteUnicode(TW, codepoint); Texts.ReadUnicode(R, codepoint) END ;
+    WHILE codepoint > ORD(0AX) DO Texts.WriteUnicode(TW, codepoint); Texts.ReadUnicode(R, codepoint) END ;
     Texts.Append(T, TW.buf)
   END CopyCaption;
 
