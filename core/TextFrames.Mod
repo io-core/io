@@ -130,7 +130,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     IF pos > T.len THEN pos := T.len
     ELSIF pos > 0 THEN
       DEC(pos); Texts.OpenReader(R, T, pos);
-      REPEAT Texts.ReadUnicode(R, nextCodepoint); INC(pos, Texts.UnicodeWidth(nextCodepoint)) UNTIL R.eot OR (nextCodepoint = ORD(CR)) (nextCodepoint = ORD(NL))
+      REPEAT Texts.ReadUnicode(R, nextCodepoint); INC(pos, Texts.UnicodeWidth(nextCodepoint)) UNTIL R.eot OR (nextCodepoint = ORD(CR)) OR (nextCodepoint = ORD(NL))
     ELSE pos := 0
     END
   END Validate;
@@ -643,7 +643,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     ELSIF (20H <= codepoint) & (codepoint <= 010FFFFH) OR (codepoint = ORD(CR)) OR (codepoint = ORD(NL)) OR (codepoint = ORD(TAB)) THEN
       KW.fnt := fnt; KW.col := col; KW.voff := voff; Texts.WriteUnicode(KW, codepoint);
       Texts.Insert(F.text, F.carloc.pos, KW.buf);
-      SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(codepoint)))
+      SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(codepoint))
     END
   END Write;
 
