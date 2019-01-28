@@ -1,4 +1,5 @@
 MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
+
   IMPORT SYSTEM, Files;  
 
   CONST FontFileId = 0DBH;
@@ -6,18 +7,30 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
 
   TYPE
     Font* = POINTER TO FontDesc;
+    ChunkPtr = POINTER TO ChunkDesc;
 
     FontDesc* = RECORD
       name*: ARRAY 32 OF CHAR;  
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
-      chunk: INTEGER;
+      chunk0: ChunkPtr;
       T: ARRAY 128 OF INTEGER;
       raster: ARRAY 2360 OF BYTE
     END ;
 
+    ChunkDesc = RECORD
+      next: ChunkPtr;
+      index: INTEGER;
+      T: ARRAY 128 of INTEGER;
+      raster: ARRAY 2360 OF BYTE;
+    END;
+
     LargeFontDesc = RECORD (FontDesc) ext: ARRAY 6656 OF BYTE END ; (* 2560 *)
     LargeFont = POINTER TO LargeFontDesc;
+
+    LargeChunkDesc = RECORD (ChunkDesc) ext: ARRAY 6656 OF BYTE END ; (* 2560 *)
+    LargeChunkPtr = POINTER TO LargeChunkDesc;
+
 
   (* raster sizes: Syntax8 1367, Syntax10 1628, Syntax12 1688, Syntax14 1843, Syntax14b 1983,
       Syntax16 2271, Syntax20 3034, Syntac24 4274, Syntax24b 4302  *)
