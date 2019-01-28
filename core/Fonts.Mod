@@ -182,8 +182,10 @@ BEGIN
       INC(j)
     END;
     IF NofBytes < 2300 THEN NEW(F) ELSE NEW(LF); F := LF END ;
-    IF NofBytes < 2300 THEN NEW(C) ELSE NEW(LC); C := LC; F.chunk0 := C; END ;
-        
+
+    IF NofBytes < 2300 THEN NEW(C) ELSE NEW(LC); C := LC; END ;
+    F.chunk0 := C;
+
     F.height := height; F.minX := minX; F.maxX := maxX; F.maxY := maxY;
     IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END ;
     a0 := SYSTEM.ADR(F.raster[0]);
@@ -204,7 +206,7 @@ BEGIN
     END;
     WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
     F.chunk0.index := 0;
-    F.chunk0.next := NIL;
+    F.chunk0.next := NIL; 
     RETURN F
 END LoadOberonFont;
 
@@ -277,8 +279,9 @@ BEGIN
   Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
   
   NEW(LF); F := LF;
+(*
   NEW(LC); C := LC;
-
+*)
   m:=0;
   a:=0;
   WHILE m # 128 DO 
@@ -358,8 +361,8 @@ BEGIN
    INC(m)
   END;
   F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
-  F.chunk0.index := 0;
-  F.chunk0.next := NIL;
+(*  F.chunk0.index := 0;
+  F.chunk0.next := NIL;  *)
   RETURN F
 END LoadPcfFont;
 
