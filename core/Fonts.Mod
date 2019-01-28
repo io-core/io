@@ -13,6 +13,7 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
       name*: ARRAY 32 OF CHAR;  
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
+      maxc: INTEGER;
       chunk0: Chunk;
     END ;
 
@@ -202,6 +203,7 @@ BEGIN
       INC(k)
     END;
     WHILE m < 128 DO F.chunk0.T[m] := a0; INC(m) END ;
+    F.maxc := 0;
     F.chunk0.index := 0;
     F.chunk0.next := NIL; 
     RETURN F
@@ -357,6 +359,7 @@ BEGIN
    INC(m)
   END;
   F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
+  F.maxc := 0;
   F.chunk0.index := 0;
   F.chunk0.next := NIL;  
   RETURN F
