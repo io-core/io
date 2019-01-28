@@ -14,8 +14,6 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
       chunk0: Chunk;
-      T: ARRAY 128 OF INTEGER;
-      raster: ARRAY 2360 OF BYTE
     END ;
 
     ChunkDesc = RECORD
@@ -24,9 +22,6 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
       T: ARRAY 128 OF INTEGER;
       raster: ARRAY 2360 OF BYTE;
     END;
-
-    LargeFontDesc = RECORD (FontDesc) ext: ARRAY 6656 OF BYTE END ; (* 2560 *)
-    LargeFont = POINTER TO LargeFontDesc;
 
     LargeChunkDesc = RECORD (ChunkDesc) ext: ARRAY 6656 OF BYTE END ; (* 2560 *)
     LargeChunk = POINTER TO LargeChunkDesc;
@@ -50,7 +45,7 @@ VAR Default*, root*: Font;
 
 PROCEDURE GetUniPat*(fnt: Font; codepoint: INTEGER; VAR dx, x, y, w, h, patadr: INTEGER);
   VAR pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
-BEGIN pa := fnt.T[codepoint MOD 80H]; patadr := pa;
+BEGIN pa := fnt.chunk0.T[codepoint MOD 80H]; patadr := pa;
   SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
   dx := dxb; x := xb; y := yb; w := wb; h := hb;
   IF yb < 128 THEN y := yb ELSE y := yb - 256 END
@@ -150,8 +145,7 @@ PROCEDURE LoadOberonFont(VAR R: Files.Rider): Font;
   TYPE RunRec = RECORD beg, end: BYTE END ;
     BoxRec = RECORD dx, x, y, w, h: BYTE END ;
 
-  VAR F: Font; LF: LargeFont;
-      C: Chunk; LC: LargeChunk;
+  VAR F: Font; C: Chunk; LC: LargeChunk;
     NofRuns, NofBoxes: BYTE;
     NofBytes: INTEGER;
     height, minX, maxX, minY, maxY: BYTE;
@@ -181,21 +175,21 @@ BEGIN
       NofBytes := NofBytes + 5 + (box[j].w + 7) DIV 8 * box[j].h;
       INC(j)
     END;
-    IF NofBytes < 2300 THEN NEW(F) ELSE NEW(LF); F := LF END ;
-
+    
+    NEW(F);
     IF NofBytes < 2300 THEN NEW(C) ELSE NEW(LC); C := LC; END ;
     F.chunk0 := C;
 
     F.height := height; F.minX := minX; F.maxX := maxX; F.maxY := maxY;
     IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END ;
-    a0 := SYSTEM.ADR(F.raster[0]);
+    a0 := SYSTEM.ADR(F.chunk0.raster[0]);
     SYSTEM.PUT(a0, 0X); SYSTEM.PUT(a0+1, 0X); SYSTEM.PUT(a0+2, 0X); SYSTEM.PUT(a0+3, 0X); SYSTEM.PUT(a0+4, 0X);
     (*null pattern for characters not in a run*)
     INC(a0, 2); a := a0+3; j := 0; k := 0; m := 0;
     WHILE k < NofRuns DO
-      WHILE (m < run[k].beg) & (m < 128) DO F.T[m] := a0; INC(m) END;
+      WHILE (m < run[k].beg) & (m < 128) DO F.chunk0.T[m] := a0; INC(m) END;
       WHILE (m < run[k].end) & (m < 128) DO 
-        F.T[m] := a+3;
+        F.chunk0.T[m] := a+3;
         SYSTEM.PUT(a, box[j].dx); SYSTEM.PUT(a+1, box[j].x); SYSTEM.PUT(a+2, box[j].y);
         SYSTEM.PUT(a+3, box[j].w); SYSTEM.PUT(a+4, box[j].h); INC(a, 5);
         n := (box[j].w + 7) DIV 8 * box[j].h;
@@ -204,15 +198,14 @@ BEGIN
       END;
       INC(k)
     END;
-    WHILE m < 128 DO F.T[m] := a0; INC(m) END ;
+    WHILE m < 128 DO F.chunk0.T[m] := a0; INC(m) END ;
     F.chunk0.index := 0;
     F.chunk0.next := NIL; 
     RETURN F
 END LoadOberonFont;
 
 PROCEDURE LoadPcfFont(VAR R: Files.Rider): Font;
-  VAR F: Font; LF: LargeFont;
-      C: Chunk; LC: LargeChunk;
+  VAR F: Font; C: Chunk; LC: LargeChunk;
     M,B,T: Files.Rider;
     i, j, k, l, m, tm, n, nn, oo: INTEGER;
     fc,lc,fr,lr,td,tc: INTEGER;
@@ -278,10 +271,10 @@ BEGIN
   Files.Set(B,Files.Base(R),pcfBITMAPS.offset);  oo:= RdL32(B);  n:= RdB32p(B); 
   Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
   
-  NEW(LF); F := LF;
-(*
+  NEW(F); 
   NEW(LC); C := LC;
-*)
+  F.chunk0 := C;
+
   m:=0;
   a:=0;
   WHILE m # 128 DO 
@@ -304,8 +297,8 @@ BEGIN
     LED(tm);
 
 
-    IF ((a+3)<2360) THEN  F.T[m] := SYSTEM.ADR(F.raster[a+3])
-                     ELSE F.T[m] := SYSTEM.ADR(LF.ext[(a+3)-2360]) END;
+    IF ((a+3)<2360) THEN  F.chunk0.T[m] := SYSTEM.ADR(C.raster[a+3])
+                     ELSE F.chunk0.T[m] := SYSTEM.ADR(LC.ext[(a+3)-2360]) END;
 
     Files.Set(B,Files.Base(R),pcfBITMAPS.offset+8+(4*tm));
     l:=RdB32(B);
@@ -326,11 +319,11 @@ BEGIN
     
     
     
-    IF (a<2360) THEN F.raster[a] := pw     ELSE LF.ext[a    -2360]:=pw END;
-    IF ((a+1)<2360) THEN F.raster[a+1]:=0  ELSE LF.ext[(a+1)-2360]:=0 END;
-    IF ((a+2)<2360) THEN F.raster[a+2]:=0  ELSE LF.ext[(a+2)-2360]:=0 END;
-    IF ((a+2)<2360) THEN F.raster[a+3]:=pw ELSE LF.ext[(a+3)-2360]:=pw END;
-    IF ((a+2)<2360) THEN F.raster[a+4]:=ph ELSE LF.ext[(a+4)-2360]:=ph END;
+    IF (a<2360) THEN C.raster[a] := pw     ELSE LC.ext[a    -2360]:=pw END;
+    IF ((a+1)<2360) THEN C.raster[a+1]:=0  ELSE LC.ext[(a+1)-2360]:=0 END;
+    IF ((a+2)<2360) THEN C.raster[a+2]:=0  ELSE LC.ext[(a+2)-2360]:=0 END;
+    IF ((a+2)<2360) THEN C.raster[a+3]:=pw ELSE LC.ext[(a+3)-2360]:=pw END;
+    IF ((a+2)<2360) THEN C.raster[a+4]:=ph ELSE LC.ext[(a+4)-2360]:=ph END;
     INC(a, 5);
 
 
@@ -343,11 +336,11 @@ BEGIN
       Files.ReadByte(R, b3); 
 
       IF pw = 8 THEN
-        IF (a+j-1<2360) THEN F.raster[a+j-1]:=Reverse(b0) ELSE LF.ext[a+j-1-2360]:=Reverse(b0) END;
+        IF (a+j-1<2360) THEN C.raster[a+j-1]:=Reverse(b0) ELSE LC.ext[a+j-1-2360]:=Reverse(b0) END;
       END;
       IF pw = 16 THEN
-        IF (a+((j-1)*2)<2360) THEN F.raster[a+((j-1)*2)]:=Reverse(b0) ELSE LF.ext[a+((j-1)*2)-2360]:=Reverse(b0) END;
-        IF (a+((j-1)*2)+1<2360) THEN F.raster[a+((j-1)*2)+1]:=Reverse(b1) ELSE LF.ext[a+((j-1)*2)+1-2360]:=Reverse(b1) END;
+        IF (a+((j-1)*2)<2360) THEN C.raster[a+((j-1)*2)]:=Reverse(b0) ELSE LC.ext[a+((j-1)*2)-2360]:=Reverse(b0) END;
+        IF (a+((j-1)*2)+1<2360) THEN C.raster[a+((j-1)*2)+1]:=Reverse(b1) ELSE LC.ext[a+((j-1)*2)+1-2360]:=Reverse(b1) END;
       END;
 
 
@@ -356,13 +349,13 @@ BEGIN
     END;
     INC(a,ph*(pw DIV 8))
    ELSE
-    F.T[m] := SYSTEM.ADR(F.raster[3])
+    F.chunk0.T[m] := SYSTEM.ADR(C.raster[3])
    END;
    INC(m)
   END;
   F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
-(*  F.chunk0.index := 0;
-  F.chunk0.next := NIL;  *)
+  F.chunk0.index := 0;
+  F.chunk0.next := NIL;  
   RETURN F
 END LoadPcfFont;
 
