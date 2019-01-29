@@ -162,12 +162,12 @@ END RdB32p;
 
 
 
-PROCEDURE LoadOberonFont(VAR R: Files.Rider): Font;
+PROCEDURE LoadOberonFont(VAR R: Files.Rider; p: INTEGER; VAR C: Chunk): Font;
 
   TYPE RunRec = RECORD beg, end: BYTE END ;
     BoxRec = RECORD dx, x, y, w, h: BYTE END ;
 
-  VAR F: Font; C: Chunk; LC: LargeChunk;
+  VAR F: Font; LC: LargeChunk;
     NofRuns, NofBoxes: BYTE;
     NofBytes: INTEGER;
     height, minX, maxX, minY, maxY: BYTE;
@@ -227,8 +227,8 @@ BEGIN
     RETURN F
 END LoadOberonFont;
 
-PROCEDURE LoadPcfFont(VAR R: Files.Rider): Font;
-  VAR F: Font; C: Chunk; LC: LargeChunk;
+PROCEDURE LoadPcfFont(VAR R: Files.Rider; p: INTEGER; VAR C: Chunk): Font;
+  VAR F: Font; LC: LargeChunk;
     M,B,T: Files.Rider;
     i, j, k, l, m, tm, n, nn, oo: INTEGER;
     fc,lc,fr,lr,td,tc: INTEGER;
@@ -383,6 +383,33 @@ BEGIN
   RETURN F
 END LoadPcfFont;
 
+PROCEDURE ChunkN(F: Font; p: INTEGER): Chunk;
+
+VAR f: Files.File; R: Files.Rider;
+    b,b2,b3: BYTE;
+    c: Chunk;
+
+BEGIN  
+    c:=NIL;
+    f := Files.Old(F.name);
+    IF f # NIL THEN
+      Files.Set(R, f, 0); Files.ReadByte(R, b);
+      IF b = FontFileId THEN
+        F := LoadOberonFont(R,p,c);
+      ELSE (* not a native Oberon font file... pcf?*)
+        IF b = PcfFileId THEN
+          Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
+          IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
+            F := LoadPcfFont(R,p,c)
+          END
+        END
+      END
+    END
+    RETURN c
+
+END ChunkN;
+
+
 PROCEDURE This*(name: ARRAY OF CHAR): Font;
 
   TYPE RunRec = RECORD beg, end: BYTE END ;
@@ -391,6 +418,7 @@ PROCEDURE This*(name: ARRAY OF CHAR): Font;
   VAR F: Font;
     f: Files.File; R: Files.Rider;
     b,b2,b3: BYTE;
+    c: Chunk;
 
 BEGIN F := root;
   WHILE (F # NIL) & (name # F.name) DO F := F.next END;
@@ -399,8 +427,8 @@ BEGIN F := root;
     IF f # NIL THEN
       Files.Set(R, f, 0); Files.ReadByte(R, b);
       IF b = FontFileId THEN
-
-        F := LoadOberonFont(R);        
+        c:= NIL;
+        F := LoadOberonFont(R,0,c);        
         F.name := name;
         F.next := root; 
         root := F
@@ -409,8 +437,8 @@ BEGIN F := root;
         IF b = PcfFileId THEN 
           Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
           IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN 
-
-            F := LoadPcfFont(R)
+            c := NIL;
+            F := LoadPcfFont(R,0,c)
 
           ELSE (*font file format not pcf *) F := Default
           END
