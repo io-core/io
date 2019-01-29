@@ -45,15 +45,29 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
 VAR Default*, root*: Font;
 
 PROCEDURE GetUniPat*(fnt: Font; codepoint: INTEGER; VAR dx, x, y, w, h, patadr: INTEGER);
-  VAR c: Chunk; ci, gi, pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
+  VAR c: Chunk; ci, pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
 BEGIN 
-  c := fnt.chunk0 ;
   ci := codepoint DIV 80H;
-  IF ci > fnt.maxc THEN ci := 0 END ;
-  gi := codepoint MOD 80H;
-  WHILE (c.next # NIL) & (ci > c.index) DO c := c.next END ;
-  IF c.index # ci THEN c := fnt.chunk0 END ;
-  pa := c.T[gi]; patadr := pa;
+  c:=fnt.chunk0;
+  IF (ci > 0) & (ci < fnt.maxc+1) THEN
+    WHILE (c.next # NIL) & (ci > c.next.index) DO c := c.next END ;
+    IF (c.next # NIL) & (c.next.index = ci) THEN 
+      c := c.next
+    ELSE
+      IF (c.next # NIL) & (ci > c.index) & (ci < c.next.index) THEN
+        (* load intervening page *)
+        
+      ELSE
+        IF c.next = NIL THEN
+          (* load trailing page *)
+
+        ELSE
+          c := fnt.chunk0 
+        END
+      END
+    END 
+  END;
+  pa := c.T[codepoint MOD 80H]; patadr := pa;
   SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
   dx := dxb; x := xb; y := yb; w := wb; h := hb;
   IF yb < 128 THEN y := yb ELSE y := yb - 256 END
