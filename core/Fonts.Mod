@@ -1,447 +1,230 @@
-MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 25.3.2013; CP 12.2018,1.2019*)
+MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019*)
+              (*MS 1.2019 adapted for Unicode*)
 
-  IMPORT SYSTEM, Files;  
+  IMPORT SYSTEM, Files;
 
   CONST FontFileId = 0DBH;
-        PcfFileId = 01H; 
 
-  TYPE
-    Font* = POINTER TO FontDesc;
-    Chunk = POINTER TO ChunkDesc;
-
+  TYPE Font* = POINTER TO FontDesc;
+    RasterBlock = POINTER TO RasterBlockDesc;
     FontDesc* = RECORD
-      name*: ARRAY 32 OF CHAR;  
+      name*: ARRAY 32 OF CHAR;
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
-      maxc: INTEGER;
-      chunk0: Chunk;
-    END ;
-
-    ChunkDesc = RECORD
-      next: Chunk;
-      index: INTEGER;
-      T: ARRAY 128 OF INTEGER;
-      raster: ARRAY 2360 OF BYTE;
+      T1: ARRAY 16 OF INTEGER;
+      block: RasterBlock;
     END;
 
-    LargeChunkDesc = RECORD (ChunkDesc) ext: ARRAY 6656 OF BYTE END ; (* 2560 *)
-    LargeChunk = POINTER TO LargeChunkDesc;
-
-
-  (* raster sizes: Syntax8 1367, Syntax10 1628, Syntax12 1688, Syntax14 1843, Syntax14b 1983,
-      Syntax16 2271, Syntax20 3034, Syntac24 4274, Syntax24b 4302  *)
+    RasterBlockDesc = RECORD
+      next: RasterBlock;
+      offs: INTEGER;
+      raster: ARRAY 1000 OF BYTE;
+    END;
     
-    tocEntry = RECORD
-        typ:    INTEGER;
-        format: INTEGER;
-        size:   INTEGER;
-        offset: INTEGER
-    END;
-
-    Metrics = RECORD
-	l,r,w,a,d: INTEGER
-    END;
-
 VAR Default*, root*: Font;
+  FallbackPat: ARRAY 35 OF BYTE;
 
-PROCEDURE GetUniPat*(fnt: Font; codepoint: INTEGER; VAR dx, x, y, w, h, patadr: INTEGER);
-  VAR c: Chunk; ci, pa: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
-BEGIN 
-  ci := codepoint DIV 80H;
-  c:=fnt.chunk0;
-  IF (ci > 0) & (ci < fnt.maxc+1) THEN
-    WHILE (c.next # NIL) & (ci > c.next.index) DO c := c.next END ;
-    IF (c.next # NIL) & (c.next.index = ci) THEN 
-      c := c.next
-    ELSE
-      IF (c.next # NIL) & (ci > c.index) & (ci < c.next.index) THEN
-        (* load intervening page *)
-        
-      ELSE
-        IF c.next = NIL THEN
-          (* load trailing page *)
-
-        ELSE
-          c := fnt.chunk0 
-        END
-      END
-    END 
-  END;
-  pa := c.T[codepoint MOD 80H]; patadr := pa;
-  SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
-  dx := dxb; x := xb; y := yb; w := wb; h := hb;
-  IF yb < 128 THEN y := yb ELSE y := yb - 256 END
-END GetUniPat;
-
-PROCEDURE GetPat*(fnt: Font; ch: CHAR; VAR dx, x, y, w, h, patadr: INTEGER);
-BEGIN
-  GetUniPat(fnt, ORD(ch), dx, x, y, w, h, patadr)
-END GetPat;
+PROCEDURE ReadInt16(VAR R: Files.Rider; VAR r: INTEGER);
+  VAR b0, b1: BYTE;
+BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); r := b1 * 100H + b0;
+END ReadInt16;
 
 PROCEDURE RdInt16(VAR R: Files.Rider; VAR b0: BYTE);
-    VAR b1: BYTE;
+  VAR b1: BYTE;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1)
 END RdInt16;
 
-PROCEDURE RdL16(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1: BYTE;
-      x: INTEGER;
-BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); x:= (100H * b1) + b0 ; RETURN x
-END RdL16;
-
-PROCEDURE RdB16(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1: BYTE;
-      x: INTEGER;
-BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); x:= (100H * b0) + b1 ; RETURN x
-END RdB16;
-
-
-PROCEDURE RdL32(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1,b2,b3: BYTE;
-      x: INTEGER;
-BEGIN 
-   Files.ReadByte(R, b0);  
-   Files.ReadByte(R, b1);  
-   Files.ReadByte(R, b2);  
-   Files.ReadByte(R, b3);  
-     x:= (1000000H * b3) + (10000H * b2) + (100H * b1) + b0;
-    RETURN x
-END RdL32;
-
-PROCEDURE RdB32(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1,b2,b3: BYTE;
-      x: INTEGER;
+PROCEDURE FindSpace(B: RasterBlock; size, align: INTEGER): INTEGER;
+VAR result: INTEGER;
 BEGIN
-   Files.ReadByte(R, b0);
-   Files.ReadByte(R, b1);
-   Files.ReadByte(R, b2);
-   Files.ReadByte(R, b3);
-     x:= (1000000H * b0) + (10000H * b1) + (100H * b2) + b3;
-    RETURN x
-END RdB32;
+  WHILE (B.offs + size + align - 1 > 1000) DO
+    IF (B.next = NIL) THEN NEW(B.next) END;
+    B := B.next
+  END;
+  WHILE (B.offs MOD align # 0) DO
+    INC(B.offs);
+  END;
+  result := SYSTEM.ADR(B.raster[B.offs]);
+  INC(B.offs, size);
+  RETURN result
+END FindSpace;
 
-
-PROCEDURE Reverse(b:BYTE): BYTE;
-    VAR r: BYTE;
+PROCEDURE LoadRange(F: Font; rangeStart: INTEGER);
+TYPE RunRec = RECORD beg, end: INTEGER END;
+VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns, beg, end, i, j, k, n, a, a1: INTEGER;
+  f: Files.File; R: Files.Rider;
+  b, dx, x, y, w, h: BYTE;
+  run: ARRAY 32 OF RunRec;
 BEGIN
-    r:=0;
-    IF (b MOD 2) = 1 THEN r := r + 128 END;
-    IF ((b DIV 2) MOD 2) = 1 THEN r := r + 64 END;
-    IF ((b DIV 4) MOD 2) = 1 THEN r := r + 32 END;
-    IF ((b DIV 8) MOD 2) = 1 THEN r := r + 16 END;
-    IF ((b DIV 16) MOD 2) = 1 THEN r := r + 8 END;
-    IF ((b DIV 32) MOD 2) = 1 THEN r := r + 4 END;
-    IF ((b DIV 64) MOD 2) = 1 THEN r := r + 2 END;
-    IF ((b DIV 128) MOD 2) = 1 THEN r := r + 1 END;
-    RETURN r
-END Reverse;
-
-PROCEDURE RdL32p(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1,b2,b3: BYTE;
-      x: INTEGER;
-BEGIN
-   Files.ReadByte(R, b0); LED(b0);
-   Files.ReadByte(R, b1); LED(b1);
-   Files.ReadByte(R, b2); LED(b2);
-   Files.ReadByte(R, b3); LED(b3);
-     x:= (1000000H * b3) + (10000H * b2) + (100H * b1) + b0;
-    RETURN x
-END RdL32p;
-
-PROCEDURE RdB32p(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1,b2,b3: BYTE;
-      x: INTEGER;
-BEGIN
-   Files.ReadByte(R, b0); LED(b0);
-   Files.ReadByte(R, b1); LED(b1);
-   Files.ReadByte(R, b2); LED(b2);
-   Files.ReadByte(R, b3); LED(b3);
-     x:= (1000000H * b0) + (10000H * b1) + (100H * b2) + b3;
-    RETURN x
-END RdB32p;
-
-
-
-PROCEDURE LoadOberonFont(VAR R: Files.Rider; p: INTEGER; VAR C: Chunk): Font;
-
-  TYPE RunRec = RECORD beg, end: BYTE END ;
-    BoxRec = RECORD dx, x, y, w, h: BYTE END ;
-
-  VAR F: Font; LC: LargeChunk;
-    NofRuns, NofBoxes: BYTE;
-    NofBytes: INTEGER;
-    height, minX, maxX, minY, maxY: BYTE;
-    i, j, k, l, m, n, nn: INTEGER;
-    a, a0: INTEGER;
-    b, beg, end: BYTE;
-    run: ARRAY 16 OF RunRec;
-    box: ARRAY 512 OF BoxRec;
-
-BEGIN
-
-    Files.ReadByte(R, b); (*abstraction*)
-    Files.ReadByte(R, b); (*family*)
-    Files.ReadByte(R, b); (*variant*)
-        
-    RdInt16(R, height); RdInt16(R, minX); RdInt16(R, maxX); RdInt16(R, minY); RdInt16(R, maxY); RdInt16(R, NofRuns);
-    NofBoxes := 0; k := 0;
-    WHILE k # NofRuns DO
-      RdInt16(R, beg);
-      run[k].beg := beg; RdInt16(R, end);
-      run[k].end := end; NofBoxes := NofBoxes + end - beg; INC(k)
+  a := FindSpace(F.block, 256, 4);
+  SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
+  rangeEnd := rangeStart + 64; skipBytes := 0; skipBoxesBefore := 0; skipBoxesAfter := 0;
+  f := Files.Old(F.name);
+  Files.Set(R, f, 14); ReadInt16(R, totalRuns);
+  i := 0; usedRuns := 0;
+  WHILE i # totalRuns DO
+    ReadInt16(R, beg); ReadInt16(R, end);
+    IF end > rangeEnd THEN skipBoxesAfter := skipBoxesAfter + end - rangeEnd; end := rangeEnd END;
+    IF beg < rangeStart THEN skipBoxesBefore := skipBoxesBefore + rangeStart - beg; beg := rangeStart END;
+    IF end <= rangeStart THEN
+      skipBoxesBefore := skipBoxesBefore + end - beg;
+    ELSIF beg >= rangeEnd THEN
+      skipBoxesAfter := skipBoxesAfter + end - beg;
+    ELSE
+      run[usedRuns].beg := beg; run[usedRuns].end := end;
+      INC(usedRuns);
     END;
-    NofBytes := 5; j := 0;
-    WHILE j # NofBoxes DO
-      RdInt16(R, box[j].dx); RdInt16(R, box[j].x); RdInt16(R, box[j].y);
-      RdInt16(R, box[j].w); RdInt16(R, box[j].h);
-      NofBytes := NofBytes + 5 + (box[j].w + 7) DIV 8 * box[j].h;
+    INC(i)
+  END;
+  i := 0;
+  WHILE i # skipBoxesBefore DO
+    RdInt16(R, dx); RdInt16(R, x); RdInt16(R, y);
+    RdInt16(R, w); RdInt16(R, h);
+    skipBytes := skipBytes + (w + 7) DIV 8 * h;
+    INC(i)
+  END;
+  i := 0; j := 0;
+  WHILE i < usedRuns DO
+    j := run[i].beg;
+    WHILE (j < run[i].end) DO
+      RdInt16(R, dx); RdInt16(R, x); RdInt16(R, y);
+      RdInt16(R, w); RdInt16(R, h);
+      IF (dx # 0) OR (w # 0) OR (h # 0) THEN
+        n := (w + 7) DIV 8 * h;
+        a1 := FindSpace(F.block, n+5, 1);
+        SYSTEM.PUT(a + (j - rangeStart) * 4, a1 + 3);
+        SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
+        SYSTEM.PUT(a1+3, w); SYSTEM.PUT(a1+4, h);
+      END;
       INC(j)
     END;
-    
-    NEW(F);
-    IF NofBytes < 2300 THEN NEW(C) ELSE NEW(LC); C := LC; END ;
-    F.chunk0 := C;
-
-    F.height := height; F.minX := minX; F.maxX := maxX; F.maxY := maxY;
-    IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END ;
-    a0 := SYSTEM.ADR(F.chunk0.raster[0]);
-    SYSTEM.PUT(a0, 0X); SYSTEM.PUT(a0+1, 0X); SYSTEM.PUT(a0+2, 0X); SYSTEM.PUT(a0+3, 0X); SYSTEM.PUT(a0+4, 0X);
-    (*null pattern for characters not in a run*)
-    INC(a0, 2); a := a0+3; j := 0; k := 0; m := 0;
-    WHILE k < NofRuns DO
-      WHILE (m < run[k].beg) & (m < 128) DO F.chunk0.T[m] := a0; INC(m) END;
-      WHILE (m < run[k].end) & (m < 128) DO 
-        F.chunk0.T[m] := a+3;
-        SYSTEM.PUT(a, box[j].dx); SYSTEM.PUT(a+1, box[j].x); SYSTEM.PUT(a+2, box[j].y);
-        SYSTEM.PUT(a+3, box[j].w); SYSTEM.PUT(a+4, box[j].h); INC(a, 5);
-        n := (box[j].w + 7) DIV 8 * box[j].h;
-        WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a, b); INC(a) END ;
-        INC(j); INC(m) 
-      END;
-      INC(k)
-    END;
-    WHILE m < 128 DO F.chunk0.T[m] := a0; INC(m) END ;
-    F.maxc := 0;
-    F.chunk0.index := 0;
-    F.chunk0.next := NIL; 
-    RETURN F
-END LoadOberonFont;
-
-PROCEDURE LoadPcfFont(VAR R: Files.Rider; p: INTEGER; VAR C: Chunk): Font;
-  VAR F: Font; LC: LargeChunk;
-    M,B,T: Files.Rider;
-    i, j, k, l, m, tm, n, nn, oo: INTEGER;
-    fc,lc,fr,lr,td,tc: INTEGER;
-    a, t, tl, pw, ph: INTEGER;
-    b,bx,b0,b1,b2,b3: BYTE;
-    mt:  Metrics;
-    mo: ARRAY 128 OF INTEGER;
-
-    toc: POINTER TO tocEntry;
-    pcfPROPERTIES:       POINTER TO tocEntry;
-    pcfACCELERATORS:     POINTER TO tocEntry;
-    pcfMETRICS:          POINTER TO tocEntry;
-    pcfBITMAPS:         POINTER TO tocEntry;
-    pcfINKMETRICS:      POINTER TO tocEntry;
-    pcfBDFENCODINGS:    POINTER TO tocEntry;
-    pcfSWIDTHS:         POINTER TO tocEntry;
-    pcfGLYPHNAMES:     POINTER TO tocEntry;
-    pcfBDFACCELERATORS:  POINTER TO tocEntry;
-
-BEGIN
-
-    pcfPROPERTIES:=NIL;
-    pcfACCELERATORS:=NIL;
-    pcfMETRICS:=NIL;
-    pcfBITMAPS:=NIL;
-    pcfINKMETRICS:=NIL;
-    pcfBDFENCODINGS:=NIL;
-    pcfSWIDTHS:=NIL;
-    pcfGLYPHNAMES:=NIL;
-    pcfBDFACCELERATORS:=NIL;
-
-  tl := RdL32(R);
-  t:=0;
-
-  WHILE ((tl # 0) & (t < 9)) DO
-    NEW(toc);
-    toc.typ := RdL32(R);
-    toc.format := RdL32(R);
-    toc.size := RdL32(R);
-    toc.offset := RdL32(R);
-    IF (toc.typ = 1) THEN pcfPROPERTIES := toc END;
-    IF (toc.typ = 2) THEN pcfACCELERATORS := toc END;
-    IF (toc.typ = 4) THEN pcfMETRICS := toc END;
-    IF (toc.typ = 8) THEN pcfBITMAPS := toc END;
-    IF (toc.typ = 16) THEN pcfINKMETRICS := toc END;
-    IF (toc.typ = 32) THEN pcfBDFENCODINGS := toc END;
-    IF (toc.typ = 64) THEN pcfSWIDTHS := toc END;
-    IF (toc.typ = 128) THEN pcfGLYPHNAMES := toc END;
-    IF (toc.typ = 256) THEN pcfBDFACCELERATORS := toc END;
-    INC(t);DEC(tl)
-  END; 
-
-  LED(77);
-  Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset);  m:= RdL32(T); LED(m); 
-  fc:= RdB16(T);LED(fc);
-  lc:= RdB16(T);LED(lc);
-  fr:= RdB16(T);LED(fr);
-  lr:= RdB16(T);LED(lr);
-  td:= RdB16(T);LED(td);
-  tc:= (lc - fc + 1) * (lr - fr + 1);
-  LED(88);
-
-  Files.Set(B,Files.Base(R),pcfBITMAPS.offset);  oo:= RdL32(B);  n:= RdB32p(B); 
-  Files.Set(M,Files.Base(R),pcfMETRICS.offset);  m:= RdL32(M);  nn:= RdL16(M);
-  
-  NEW(F); 
-  NEW(LC); C := LC;
-  F.chunk0 := C;
-
-  m:=0;
-  a:=0;
-  WHILE m # 128 DO 
-   IF m < n THEN
-    tm:=m - fc;
-
-
-    IF (m - fc > -1) THEN
-      Files.Set(T,Files.Base(R),pcfBDFENCODINGS.offset+14+(tm*2));  tm:= RdB16(T)
-    ELSE
-      tm := td
-    END;
-
-    IF (tm = 65535) THEN tm := td END;
-
-    IF (tm < 0) THEN tm := td END;
-    LED(m);
-    LED(fc);
-    LED(td);
-    LED(tm);
-
-
-    IF ((a+3)<2360) THEN  F.chunk0.T[m] := SYSTEM.ADR(C.raster[a+3])
-                     ELSE F.chunk0.T[m] := SYSTEM.ADR(LC.ext[(a+3)-2360]) END;
-
-    Files.Set(B,Files.Base(R),pcfBITMAPS.offset+8+(4*tm));
-    l:=RdB32(B);
-
-    Files.Set(M,Files.Base(R),pcfMETRICS.offset+6+(5*tm));
-    Files.ReadByte(M, b); mt.l:=b - 128;
-    Files.ReadByte(M, b); mt.r:=b - 128;
-    Files.ReadByte(M, b); mt.w:=b - 128;
-    Files.ReadByte(M, b); mt.a:=b - 128;
-    Files.ReadByte(M, b); mt.d:=b - 128;
-    ph := mt.d + mt.a;
-
-    IF mt.w < 9 THEN pw := 8 ELSE IF mt.w < 17 THEN pw:= 16 ELSE IF mt.w < 33 THEN pw:= 32 ELSE IF mt.w < 97 THEN pw:= 96 ELSE pw := 128 END END END END;
-
-    Files.Set(R,Files.Base(R),(8+(4*n) + 16) + pcfBITMAPS.offset+l);
-
- 
-    
-    
-    
-    IF (a<2360) THEN C.raster[a] := pw     ELSE LC.ext[a    -2360]:=pw END;
-    IF ((a+1)<2360) THEN C.raster[a+1]:=0  ELSE LC.ext[(a+1)-2360]:=0 END;
-    IF ((a+2)<2360) THEN C.raster[a+2]:=0  ELSE LC.ext[(a+2)-2360]:=0 END;
-    IF ((a+2)<2360) THEN C.raster[a+3]:=pw ELSE LC.ext[(a+3)-2360]:=pw END;
-    IF ((a+2)<2360) THEN C.raster[a+4]:=ph ELSE LC.ext[(a+4)-2360]:=ph END;
-    INC(a, 5);
-
-
-    j:=ph; 
-    WHILE (j # 0) DO   
-       
-      Files.ReadByte(R, b0); 
-      Files.ReadByte(R, b1); 
-      Files.ReadByte(R, b2); 
-      Files.ReadByte(R, b3); 
-
-      IF pw = 8 THEN
-        IF (a+j-1<2360) THEN C.raster[a+j-1]:=Reverse(b0) ELSE LC.ext[a+j-1-2360]:=Reverse(b0) END;
-      END;
-      IF pw = 16 THEN
-        IF (a+((j-1)*2)<2360) THEN C.raster[a+((j-1)*2)]:=Reverse(b0) ELSE LC.ext[a+((j-1)*2)-2360]:=Reverse(b0) END;
-        IF (a+((j-1)*2)+1<2360) THEN C.raster[a+((j-1)*2)+1]:=Reverse(b1) ELSE LC.ext[a+((j-1)*2)+1-2360]:=Reverse(b1) END;
-      END;
-
-
-      DEC(j)
-      
-    END;
-    INC(a,ph*(pw DIV 8))
-   ELSE
-    F.chunk0.T[m] := SYSTEM.ADR(C.raster[3])
-   END;
-   INC(m)
+    INC(i)
   END;
-  F.height := ph; F.minX := 0; F.maxX := pw; F.maxY := ph; F.minY := 0;
-  F.maxc := 0;
-  F.chunk0.index := 0;
-  F.chunk0.next := NIL;  
-  RETURN F
-END LoadPcfFont;
-
-
-
-PROCEDURE ChunkN(VAR F: Font; p: INTEGER; name: ARRAY OF CHAR): Chunk;
-
-VAR f: Files.File; R: Files.Rider;
-    b,b2,b3: BYTE;
-    c: Chunk;
-
-BEGIN  
-    c:=NIL;
-    IF F # NIL THEN
-      f := Files.Old(F.name)
-    ELSE
-      f := Files.Old(name)
+  i := 0;
+  WHILE i # skipBoxesAfter DO
+    RdInt16(R, b); RdInt16(R, b); RdInt16(R, b);
+    RdInt16(R, b); RdInt16(R, b);
+    INC(i)
+  END;
+  i := 0;
+  WHILE i < skipBytes DO Files.ReadByte(R, b); INC(i) END;
+  i := 0; j := 0;
+  WHILE i < usedRuns DO
+    j := run[i].beg;
+    WHILE (j < run[i].end) DO
+      SYSTEM.GET(a + (j - rangeStart) * 4, a1);
+      IF (a1 # 0) THEN
+        SYSTEM.GET(a1, w); SYSTEM.GET(a1+1, h);
+        n := (w + 7) DIV 8 * h;
+        INC(a1, 2);
+        WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a1, b); INC(a1) END;
+      END;
+      INC(j)
     END;
-    IF f # NIL THEN
-      Files.Set(R, f, 0); Files.ReadByte(R, b);
-      IF b = FontFileId THEN
-        F := LoadOberonFont(R,p,c);
-      ELSE (* not a native Oberon font file... pcf?*)
-        IF b = PcfFileId THEN
-          Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
-          IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
-            F := LoadPcfFont(R,p,c)
-          END
-        END
-      END
+    INC(i)
+  END
+END LoadRange;
+
+PROCEDURE PatDot(x,y: INTEGER);
+  VAR s : SET; i : INTEGER;
+BEGIN
+  i := FallbackPat[y * 3 + (x DIV 8) + 2];
+  s := SYSTEM.VAL(SET, i);
+  s := s + {x MOD 8};
+  i := SYSTEM.VAL(INTEGER, s);
+  FallbackPat[y * 3 + (x DIV 8) + 2] := i
+END PatDot;
+
+PROCEDURE GetUniPat*(fnt: Font; codepoint: INTEGER; VAR dx, x, y, w, h, patadr: INTEGER);
+  VAR pa, i1, i2, i3: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
+BEGIN
+  i1 := codepoint DIV 1000H;
+  i2 := codepoint DIV 40H MOD 40H;
+  i3 := codepoint MOD 40H;
+  pa := fnt.T1[i1];
+  IF pa # 0 THEN
+    SYSTEM.GET(pa + i2 * 4, pa);
+    IF pa = 1 THEN
+      LoadRange(fnt, codepoint DIV 40H * 40H);
+      SYSTEM.GET(fnt.T1[i1] + i2 * 4, pa)
     END
-    RETURN c
-
-END ChunkN;
-
+  END;
+  IF pa # 0 THEN SYSTEM.GET(pa + i3 * 4, pa) END;
+  IF pa # 0 THEN
+    patadr := pa;
+    SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
+    dx := dxb; x := xb; y := yb; w := wb; h := hb;
+    IF yb < 128 THEN y := yb ELSE y := yb - 256 END
+  ELSE
+    FallbackPat[0] := 23; FallbackPat[1] := 11;
+    FallbackPat[2] := 0FFH; FallbackPat[3] := 0FFH; FallbackPat[4] := 07FH;
+    FOR y := 0 TO 8 DO FallbackPat[5+y*3] := 1; FallbackPat[6+y*3] := 0; FallbackPat[7+y*3] := 40H END;
+    FallbackPat[32] := 0FFH; FallbackPat[33] := 0FFH; FallbackPat[34] := 07FH;
+    w := codepoint;
+    FOR x := 15 TO 0 BY -5 DO
+      h := w MOD 16; w := w DIV 16;
+      IF (h # 1) & (h # 4) & (h # 0BH) & (h # 0DH) THEN PatDot(x+3, 8); PatDot(x+4, 8) END;
+      IF (h # 1) & (h # 2) & (h # 3) & (h # 7) & (h # 0DH) THEN PatDot(x+2, 7); PatDot(x+2, 6) END;
+      IF (h # 5) & (h # 6) & (h # 0BH) & (h # 0CH) & (h # 0EH) & (h # 0FH) THEN PatDot(x+5, 7); PatDot(x+5, 6) END;
+      IF (h # 0) & (h # 1) & (h # 7) & (h # 0CH) THEN PatDot(x+3, 5); PatDot(x+4, 5) END;
+      IF (h = 0) OR (h = 2) OR (h = 6) OR (h = 8) OR (h > 9) THEN PatDot(x+2, 4); PatDot(x+2, 3) END;
+      IF (h # 2) & (h # 0CH) & (h # 0EH) & (h # 0FH) THEN PatDot(x+5, 4); PatDot(x+5, 3) END;
+      IF (h # 1) & (h # 4) & (h # 7) & (h # 0AH) & (h # 0FH) THEN PatDot(x+3, 2); PatDot(x+4, 2) END
+    END;
+    dx := 24; x := 0; y := fnt.minY; w := 23; h := 11;
+    patadr := SYSTEM.ADR(FallbackPat)
+  END
+END GetUniPat;
 
 PROCEDURE This*(name: ARRAY OF CHAR): Font;
- 
   VAR F: Font;
-    c: Chunk;
-
+    f: Files.File; R: Files.Rider;
+    minY, b: BYTE;
+    a, beg, end, i, i1, i2, NofRuns, k: INTEGER;
 BEGIN F := root;
   WHILE (F # NIL) & (name # F.name) DO F := F.next END;
   IF F = NIL THEN
-    c := ChunkN(F,0,name);
-  END;
-  IF F = NIL THEN
-    F := Default
+    f := Files.Old(name);
+    IF f # NIL THEN
+      Files.Set(R, f, 0); Files.ReadByte(R, b);
+      IF b = FontFileId THEN
+        Files.ReadByte(R, b); (*abstraction*)
+        Files.ReadByte(R, b); (*family*)
+        Files.ReadByte(R, b); (*variant*)
+        NEW(F); NEW(F.block); F.name := name;
+        ReadInt16(R, F.height); ReadInt16(R, F.minX); ReadInt16(R, F.maxX);
+	RdInt16(R, minY); ReadInt16(R, F.maxY); ReadInt16(R, NofRuns);
+        IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END;
+        k := 0;
+        WHILE k # NofRuns DO
+          ReadInt16(R, beg); ReadInt16(R, end); i := beg;
+	  WHILE i < end DO
+	    i1 := i DIV 1000H;
+	    i2 := i DIV 40H MOD 40H;
+	    IF F.T1[i1] = 0 THEN
+	      F.T1[i1] := FindSpace(F.block, 256, 4)
+	    END;
+	    SYSTEM.GET(F.T1[i1] + i2 * 4, a);
+	    IF a = 0 THEN
+	      a := 1;
+	      SYSTEM.PUT(F.T1[i1] + i2 * 4, a)
+	    END;
+	    INC(i, 40H)
+	  END;
+          INC(k)
+        END;
+        F.next := root; root := F
+      ELSE (*bad file id*) F := Default
+      END
+    ELSE (*font file not available*) F := Default
+    END
   END;
   RETURN F
 END This;
 
 PROCEDURE Free*;  (*remove all but first two from font list*)
-  VAR f: Font;
-BEGIN f := root.next;
-  IF f # NIL THEN f := f.next END ;
-  f.next := NIL
+BEGIN IF root.next # NIL THEN root.next.next := NIL END
 END Free;
 
 BEGIN root := NIL; Default := This("Syntax14.Scn.Fnt")
 END Fonts.
-
-
-
-

@@ -466,6 +466,7 @@ const RFS_DirPgSize   = 24                                  // 24
 const RFS_N = 12               //DirPgSize / 2              // 12
 const RFS_DirMark    = 0x9B1EA38D                           // 0x9B1EA38E
 const RFS_HeaderMark = 0x9BA71D86                           // 0x9BA71D87
+//  RFS_MERKLEHASH                                          // SHA256 hash of: filenames + hashes of file contents of all files in directory
 const RFS_FillerSize = 52                                   // ??
 
 var rfs_numsectors = 1220   // RISC.img size / 1024
