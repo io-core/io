@@ -54,6 +54,11 @@ PROCEDURE ReadInt16(VAR R: Files.Rider; VAR r: INTEGER);
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); r := b1 * 100H + b0;
 END ReadInt16;
 
+PROCEDURE ReadBeInt16(VAR R: Files.Rider; VAR r: INTEGER);
+  VAR b0, b1: BYTE;
+BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); r := b0 * 100H + b1;
+END ReadBeInt16; 
+
 PROCEDURE RdInt16(VAR R: Files.Rider; VAR b0: BYTE);
   VAR b1: BYTE;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1)
@@ -323,7 +328,39 @@ BEGIN F := root;
           IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
             NEW(F); NEW(F.block); F.name := name;
             tt:=PCFGetTable(f);
-            F.height:=8; F.minX:=8; F.maxX:=8; F.minY:=8; F.maxY:=8;        
+            Files.Set(R, f, tt.BDFENCODINGS.offset+24); 
+            ReadInt16(R, i1); ReadInt16(R, i2); F.minX:=i1+i2;
+            ReadInt16(R, i1); ReadInt16(R, i2); F.minY:=i1+i2;
+            ReadInt16(R, i1); (*skip mincat*)
+            ReadInt16(R, i1); ReadInt16(R, i2); F.maxX:=i1+i2;
+            ReadInt16(R, i1); ReadInt16(R, i2); F.maxY:=i1+i2;
+            ReadInt16(R, i1); (*skip maxcat*)
+            F.height:=F.maxY;
+(*
+        acca:=rNx(f,8)
+        nol:=acca[0]
+        com:=acca[1]
+        tef:=acca[2]
+        cow:=acca[3]
+        ini:=acca[4]
+        inm:=acca[5]
+        drd:=acca[6]
+        pad:=acca[7]
+        fasc:=rNib(f)
+        fdsc:=rNib(f)
+        movl:=rNib(f)
+        minlsb:=rNhb(f)
+        minrsb:=rNhb(f)
+        minasc:=rNhb(f)
+        mindsc:=rNhb(f)
+        mincat:=rNhb(f)
+
+        maxlsb:=rNhb(f)
+        maxrsb:=rNhb(f)
+        maxasc:=rNhb(f)
+        maxdsc:=rNhb(f)
+        maxcat:=rNhb(f)
+*)
             F.next := root; root := F
           ELSE (* unrecognized font file *)
             F := Default
