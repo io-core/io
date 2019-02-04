@@ -50,17 +50,16 @@ BEGIN
   RETURN result
 END FindSpace;
 
-PROCEDURE LoadRange(F: Font; rangeStart: INTEGER);
+PROCEDURE OberonLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
 TYPE RunRec = RECORD beg, end: INTEGER END;
 VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns, beg, end, i, j, k, n, a, a1: INTEGER;
-  f: Files.File; R: Files.Rider;
-  b, dx, x, y, w, h: BYTE;
+  R: Files.Rider; b, dx, x, y, w, h: BYTE;
   run: ARRAY 32 OF RunRec;
 BEGIN
   a := FindSpace(F.block, 256, 4);
   SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
   rangeEnd := rangeStart + 64; skipBytes := 0; skipBoxesBefore := 0; skipBoxesAfter := 0;
-  f := Files.Old(F.name);
+(*  f := Files.Old(F.name); *)
   Files.Set(R, f, 14); ReadInt16(R, totalRuns);
   i := 0; usedRuns := 0;
   WHILE i # totalRuns DO
@@ -123,6 +122,31 @@ BEGIN
       INC(j)
     END;
     INC(i)
+  END
+END OberonLoadRange;
+
+
+PROCEDURE PCFLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
+  VAR R: Files.Rider; b, b2, b3: BYTE;
+BEGIN
+END PCFLoadRange;
+
+
+PROCEDURE LoadRange(F: Font; rangeStart: INTEGER);
+  VAR f: Files.File; R: Files.Rider;
+      b, b2, b3: BYTE;
+BEGIN
+  f := Files.Old(F.name);
+  Files.Set(R, f, 0); Files.ReadByte(R, b);
+  IF b = FontFileId THEN
+    OberonLoadRange(F,rangeStart,f)
+  ELSE
+    IF b = PcfFileId THEN
+      Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
+      IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
+        PCFLoadRange(F,rangeStart,f)
+      END
+    END
   END
 END LoadRange;
 
