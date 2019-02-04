@@ -328,39 +328,17 @@ BEGIN F := root;
           IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
             NEW(F); NEW(F.block); F.name := name;
             tt:=PCFGetTable(f);
-            Files.Set(R, f, tt.BDFENCODINGS.offset+24); 
-            ReadInt16(R, i1); ReadInt16(R, i2); F.minX:=i1+i2;
-            ReadInt16(R, i1); ReadInt16(R, i2); F.minY:=i1+i2;
-            ReadInt16(R, i1); (*skip mincat*)
-            ReadInt16(R, i1); ReadInt16(R, i2); F.maxX:=i1+i2;
-            ReadInt16(R, i1); ReadInt16(R, i2); F.maxY:=i1+i2;
-            ReadInt16(R, i1); (*skip maxcat*)
-            F.height:=F.maxY;
-(*
-        acca:=rNx(f,8)
-        nol:=acca[0]
-        com:=acca[1]
-        tef:=acca[2]
-        cow:=acca[3]
-        ini:=acca[4]
-        inm:=acca[5]
-        drd:=acca[6]
-        pad:=acca[7]
-        fasc:=rNib(f)
-        fdsc:=rNib(f)
-        movl:=rNib(f)
-        minlsb:=rNhb(f)
-        minrsb:=rNhb(f)
-        minasc:=rNhb(f)
-        mindsc:=rNhb(f)
-        mincat:=rNhb(f)
+            Files.Set(R, f, tt.BDFACCELERATORS.offset+24); LED(99999999);
+            ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip minlsb and minrsb*) 
+            ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.minY:=i1+i2; (*minasc + mindsc*)
+            ReadBeInt16(R, i1); F.minY:=i1; (*minwidth*) LED(i1); 
+            ReadBeInt16(R, i1); (*skip mincat*)
+            ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip maxlsb and maxrsb*) 
+            ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.maxY:=i1+i2; (*maxasc + maxdsc*)
+            ReadBeInt16(R, i1); F.maxY:=i1; (*maxwidth*) 
+            ReadBeInt16(R, i1); (*skip maxcat*)
+            F.height:=F.maxY; 
 
-        maxlsb:=rNhb(f)
-        maxrsb:=rNhb(f)
-        maxasc:=rNhb(f)
-        maxdsc:=rNhb(f)
-        maxcat:=rNhb(f)
-*)
             F.next := root; root := F
           ELSE (* unrecognized font file *)
             F := Default
