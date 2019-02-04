@@ -21,6 +21,30 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 12.2018,1.2019*)
       offs: INTEGER;
       raster: ARRAY 1000 OF BYTE;
     END;
+
+    tocEntry = RECORD
+        typ:    INTEGER;
+        format: INTEGER;
+        size:   INTEGER;
+        offset: INTEGER
+    END;
+
+    tocTable = POINTER TO tocTableDesc;
+    tocTableDesc = RECORD
+      PROPERTIES:       POINTER TO tocEntry;
+      ACCELERATORS:     POINTER TO tocEntry;
+      METRICS:          POINTER TO tocEntry;
+      BITMAPS:         POINTER TO tocEntry;
+      INKMETRICS:      POINTER TO tocEntry;
+      BDFENCODINGS:    POINTER TO tocEntry;
+      SWIDTHS:         POINTER TO tocEntry;
+      GLYPHNAMES:     POINTER TO tocEntry;
+      BDFACCELERATORS:  POINTER TO tocEntry
+    END;
+
+    Metrics = RECORD
+        l,r,w,a,d: INTEGER
+    END;
     
 VAR Default*, root*: Font;
   FallbackPat: ARRAY 35 OF BYTE;
@@ -34,6 +58,18 @@ PROCEDURE RdInt16(VAR R: Files.Rider; VAR b0: BYTE);
   VAR b1: BYTE;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1)
 END RdInt16;
+
+PROCEDURE RdL32(VAR R: Files.Rider): INTEGER;
+    VAR b0,b1,b2,b3: BYTE;
+      x: INTEGER;
+BEGIN
+   Files.ReadByte(R, b0);
+   Files.ReadByte(R, b1);
+   Files.ReadByte(R, b2);
+   Files.ReadByte(R, b3);
+     x:= (1000000H * b3) + (10000H * b2) + (100H * b1) + b0;
+    RETURN x
+END RdL32;
 
 PROCEDURE FindSpace(B: RasterBlock; size, align: INTEGER): INTEGER;
 VAR result: INTEGER;
@@ -125,10 +161,51 @@ BEGIN
   END
 END OberonLoadRange;
 
+PROCEDURE PCFGetTable(f: Files.File): tocTable;
+  VAR tt: tocTable; toc: POINTER TO tocEntry; R: Files.Rider; b: BYTE; t, tl, i: INTEGER;
+
+BEGIN
+  Files.Set(R, f, 4);
+  tl := RdL32(R);
+  t:=0;
+
+  NEW(tt);
+
+  tt.PROPERTIES:=NIL;
+  tt.ACCELERATORS:=NIL;
+  tt.METRICS:=NIL;
+  tt.BITMAPS:=NIL;
+  tt.INKMETRICS:=NIL;
+  tt.BDFENCODINGS:=NIL;
+  tt.SWIDTHS:=NIL;
+  tt.GLYPHNAMES:=NIL;
+  tt.BDFACCELERATORS:=NIL;
+
+  WHILE ((tl # 0) & (t < 9)) DO
+    NEW(toc);
+    toc.typ := RdL32(R);
+    toc.format := RdL32(R);
+    toc.size := RdL32(R);
+    toc.offset := RdL32(R);
+    IF (toc.typ = 1) THEN tt.PROPERTIES := toc END;
+    IF (toc.typ = 2) THEN tt.ACCELERATORS := toc END;
+    IF (toc.typ = 4) THEN tt.METRICS := toc END;
+    IF (toc.typ = 8) THEN tt.BITMAPS := toc END;
+    IF (toc.typ = 16) THEN tt.INKMETRICS := toc END;
+    IF (toc.typ = 32) THEN tt.BDFENCODINGS := toc END;
+    IF (toc.typ = 64) THEN tt.SWIDTHS := toc END;
+    IF (toc.typ = 128) THEN tt.GLYPHNAMES := toc END;
+    IF (toc.typ = 256) THEN tt.BDFACCELERATORS := toc END;
+    INC(t);DEC(tl)
+  END;
+  RETURN tt
+END PCFGetTable;
+
 
 PROCEDURE PCFLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
-  VAR R: Files.Rider; b, b2, b3: BYTE;
+  VAR R: Files.Rider; b, b2, b3: BYTE; tt: tocTable;
 BEGIN
+  tt := PCFGetTable(f)
 END PCFLoadRange;
 
 
@@ -206,6 +283,7 @@ PROCEDURE This*(name: ARRAY OF CHAR): Font;
     f: Files.File; R: Files.Rider;
     minY, b, b2, b3: BYTE;
     a, beg, end, i, i1, i2, NofRuns, k: INTEGER;
+    tt: tocTable;
 BEGIN F := root;
   WHILE (F # NIL) & (name # F.name) DO F := F.next END;
   IF F = NIL THEN
@@ -244,6 +322,7 @@ BEGIN F := root;
           Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
           IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
             NEW(F); NEW(F.block); F.name := name;
+            tt:=PCFGetTable(f);
             F.height:=8; F.minX:=8; F.maxX:=8; F.minY:=8; F.maxY:=8;        
             F.next := root; root := F
           ELSE (* unrecognized font file *)
