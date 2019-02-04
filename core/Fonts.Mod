@@ -1,9 +1,10 @@
-MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019*)
+MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 12.2018,1.2019*)
               (*MS 1.2019 adapted for Unicode*)
 
   IMPORT SYSTEM, Files;
 
   CONST FontFileId = 0DBH;
+        PcfFileId = 01H;
 
   TYPE Font* = POINTER TO FontDesc;
     RasterBlock = POINTER TO RasterBlockDesc;
@@ -179,7 +180,7 @@ END GetUniPat;
 PROCEDURE This*(name: ARRAY OF CHAR): Font;
   VAR F: Font;
     f: Files.File; R: Files.Rider;
-    minY, b: BYTE;
+    minY, b, b2, b3: BYTE;
     a, beg, end, i, i1, i2, NofRuns, k: INTEGER;
 BEGIN F := root;
   WHILE (F # NIL) & (name # F.name) DO F := F.next END;
@@ -214,7 +215,17 @@ BEGIN F := root;
           INC(k)
         END;
         F.next := root; root := F
-      ELSE (*bad file id*) F := Default
+      ELSE (* not a native Oberon font file... pcf?*)
+        IF b = PcfFileId THEN
+          Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
+          IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
+            NEW(F); NEW(F.block); F.name := name;
+            F.height:=8; F.minX:=8; F.maxX:=8; F.minY:=8; F.maxY:=8;        
+            F.next := root; root := F
+          ELSE (* unrecognized font file *)
+            F := Default
+          END
+        END
       END
     ELSE (*font file not available*) F := Default
     END
