@@ -288,7 +288,7 @@ PROCEDURE This*(name: ARRAY OF CHAR): Font;
     f: Files.File; R: Files.Rider;
     minY, b, b2, b3: BYTE;
     a, beg, end, i, i1, i2, NofRuns, k: INTEGER;
-    tt: tocTable;
+    tt: tocTable; fc, lc, fr, lr, df, cx, cc: INTEGER;
 BEGIN F := root;
   WHILE (F # NIL) & (name # F.name) DO F := F.next END;
   IF F = NIL THEN
@@ -306,6 +306,7 @@ BEGIN F := root;
         k := 0;
         WHILE k # NofRuns DO
           ReadInt16(R, beg); ReadInt16(R, end); i := beg;
+
 	  WHILE i < end DO
 	    i1 := i DIV 1000H;
 	    i2 := i DIV 40H MOD 40H;
@@ -319,6 +320,7 @@ BEGIN F := root;
 	    END;
 	    INC(i, 40H)
 	  END;
+
           INC(k)
         END;
         F.next := root; root := F
@@ -328,16 +330,45 @@ BEGIN F := root;
           IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
             NEW(F); NEW(F.block); F.name := name;
             tt:=PCFGetTable(f);
-            Files.Set(R, f, tt.BDFACCELERATORS.offset+24); LED(99999999);
+
+            Files.Set(R, f, tt.BDFACCELERATORS.offset+24); (* The following is probably not a correct mapping*)
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip minlsb and minrsb*) 
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.minY:=i1+i2; (*minasc + mindsc*)
-            ReadBeInt16(R, i1); F.minY:=i1; (*minwidth*) LED(i1); 
+            ReadBeInt16(R, i1); F.minY:=i1; (*minwidth*) 
             ReadBeInt16(R, i1); (*skip mincat*)
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip maxlsb and maxrsb*) 
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.maxY:=i1+i2; (*maxasc + maxdsc*)
             ReadBeInt16(R, i1); F.maxY:=i1; (*maxwidth*) 
             ReadBeInt16(R, i1); (*skip maxcat*)
             F.height:=F.maxY; 
+
+            Files.Set(R, f, tt.BDFENCODINGS.offset+4); LED(99999999);
+            ReadBeInt16(R, fc);LED(fc);
+            ReadBeInt16(R, lc);LED(lc);
+            ReadBeInt16(R, fr);LED(fr);
+            ReadBeInt16(R, lr);LED(lr);
+            ReadBeInt16(R, df);LED(df);
+            cc := (lc - fc + 1) * (lr - fr + 1);LED(cc);
+
+            beg := 0; end := cc-1; i:=beg;
+
+            WHILE i < end DO
+              ReadBeInt16(R, cx);
+              IF cx # 65535 THEN 
+                LED(cx);
+                i1 := cx DIV 1000H;
+                i2 := cx DIV 40H MOD 40H;
+                IF F.T1[i1] = 0 THEN
+                  F.T1[i1] := FindSpace(F.block, 256, 4)
+                END;
+                SYSTEM.GET(F.T1[i1] + i2 * 4, a);
+                IF a = 0 THEN
+                  a := 1;
+                  SYSTEM.PUT(F.T1[i1] + i2 * 4, a)
+                END
+              END;
+              INC(i, 1)  (* 40H *)
+            END;
 
             F.next := root; root := F
           ELSE (* unrecognized font file *)
