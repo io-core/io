@@ -1,4 +1,4 @@
-MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 12.2018,1.2019*)
+MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 2018,2019*)
               (*MS 1.2019 adapted for Unicode*)
 
   IMPORT SYSTEM, Files;
@@ -12,7 +12,7 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 12.2018,1.2019*)
       name*: ARRAY 32 OF CHAR;
       height*, minX*, maxX*, minY*, maxY*: INTEGER;
       next*: Font;
-      T1: ARRAY 16 OF INTEGER;
+      T1: ARRAY 64 OF INTEGER;
       block: RasterBlock;
     END;
 
@@ -59,6 +59,12 @@ PROCEDURE ReadBeInt16(VAR R: Files.Rider; VAR r: INTEGER);
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); r := b0 * 100H + b1;
 END ReadBeInt16; 
 
+PROCEDURE ReadBeInt32(VAR R: Files.Rider; VAR r: INTEGER);
+  VAR b0, b1, b2, b3: BYTE;
+BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1);
+      Files.ReadByte(R, b2); Files.ReadByte(R, b3); r := b0 * 1000000H + b1 * 10000H + b2 * 100H + b3;
+END ReadBeInt16;
+
 PROCEDURE RdInt16(VAR R: Files.Rider; VAR b0: BYTE);
   VAR b1: BYTE;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1)
@@ -75,6 +81,21 @@ BEGIN
      x:= (1000000H * b3) + (10000H * b2) + (100H * b1) + b0;
     RETURN x
 END RdL32;
+
+PROCEDURE Reverse(b:BYTE): BYTE;
+    VAR r: BYTE;
+BEGIN
+    r:=0;
+    IF (b MOD 2) = 1 THEN r := r + 128 END;
+    IF ((b DIV 2) MOD 2) = 1 THEN r := r + 64 END;
+    IF ((b DIV 4) MOD 2) = 1 THEN r := r + 32 END;
+    IF ((b DIV 8) MOD 2) = 1 THEN r := r + 16 END;
+    IF ((b DIV 16) MOD 2) = 1 THEN r := r + 8 END;
+    IF ((b DIV 32) MOD 2) = 1 THEN r := r + 4 END;
+    IF ((b DIV 64) MOD 2) = 1 THEN r := r + 2 END;
+    IF ((b DIV 128) MOD 2) = 1 THEN r := r + 1 END;
+    RETURN r
+END Reverse;
 
 PROCEDURE FindSpace(B: RasterBlock; size, align: INTEGER): INTEGER;
 VAR result: INTEGER;
@@ -93,14 +114,15 @@ END FindSpace;
 
 PROCEDURE OberonLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
 TYPE RunRec = RECORD beg, end: INTEGER END;
-VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns, beg, end, i, j, k, n, a, a1: INTEGER;
-  R: Files.Rider; b, dx, x, y, w, h: BYTE;
-  run: ARRAY 32 OF RunRec;
+VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: INTEGER;
+    beg, end, i, j, k, n, a, a1: INTEGER;
+    R: Files.Rider; 
+    b, dx, x, y, w, h: BYTE;
+    run: ARRAY 32 OF RunRec;
 BEGIN
   a := FindSpace(F.block, 256, 4);
   SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
   rangeEnd := rangeStart + 64; skipBytes := 0; skipBoxesBefore := 0; skipBoxesAfter := 0;
-(*  f := Files.Old(F.name); *)
   Files.Set(R, f, 14); ReadInt16(R, totalRuns);
   i := 0; usedRuns := 0;
   WHILE i # totalRuns DO
@@ -208,9 +230,122 @@ END PCFGetTable;
 
 
 PROCEDURE PCFLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
-  VAR R: Files.Rider; b, b2, b3: BYTE; tt: tocTable;
+TYPE RunRec = RECORD beg, end: INTEGER END;
+VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: INTEGER;
+    beg, end, i, j, k, n, a, a1: INTEGER;
+    R: Files.Rider; 
+    b, dx, x, y, w, h: BYTE; 
+    tt: tocTable; tm, bofs, fc, lc, fr, lr, df, cx, cc, ml, mr, mw, ma, md, mh, pw: INTEGER;
+    run: ARRAY 32 OF RunRec;
+
 BEGIN
-  tt := PCFGetTable(f)
+  a := FindSpace(F.block, 256, 4);
+  SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
+  rangeEnd := rangeStart + 64;
+
+  tt := PCFGetTable(f);
+  Files.Set(R, f, tt.BDFENCODINGS.offset+4);
+  ReadBeInt16(R, fc); 
+  ReadBeInt16(R, lc); 
+  ReadBeInt16(R, fr); 
+  ReadBeInt16(R, lr); 
+  ReadBeInt16(R, df);
+  cc := (lc - fc + 1) * (lr - fr + 1);
+  beg := rangeStart; end := rangeStart + 40H; i:=beg;
+  IF end > cc-1 THEN end := cc-1 END; 
+  WHILE i < end DO
+    tm:=i - fc;
+
+    IF (i - fc > -1) THEN
+      IF i > beg - 1 THEN
+        Files.Set(R,f,tt.BDFENCODINGS.offset+14+(tm*2))
+      END ;
+      ReadBeInt16(T,tm)
+    ELSE
+      tm := td
+    END;
+
+    Files.Set(R, f, BITMAPS.offset+4);  ReadBeInt32(R,n); 
+    Files.Set(R, f, tt.BITMAPS.offset+8+(4*tm)); ReadBeInt32(R, bofs);
+    (* Files.Set(R, f, METRICS.offset);  ReadBeInt32(R,m);  nn:= ReadBeInt16(R,nn); *)
+    Files.Set(R, f, tt.METRICS.offset+6+(5*tm)); 
+    Files.ReadByte(R, ml); 
+    Files.ReadByte(R, mr); 
+    Files.ReadByte(R, mw); 
+    Files.ReadByte(R, ma); 
+    Files.ReadByte(R, md);
+
+    ml:=ml-128; mr:=mr-128; mw:=mw-128; ma:=ma-128; md:=md-128; mh:=md+ma;
+    IF mw < 9 THEN pw := 8 ELSE IF mw < 17 THEN pw:= 16 ELSE IF mw < 33 THEN pw:= 32 ELSE IF mw < 97 THEN pw:= 96 ELSE pw := 128 END END END END;
+
+    Files.Set(R, f, (8+(4*n) + 16) + tt.BITMAPS.offset+bofs);
+
+    j:=mh; WHILE (j # 0) DO
+        Files.ReadByte(R, b0); 
+        Files.ReadByte(R, b1); 
+        Files.ReadByte(R, b2); 
+        Files.ReadByte(R, b3);
+
+        IF pw = 8 THEN
+(*          IF (a+j-1<2360) THEN C.raster[a+j-1]:=Reverse(b0) ELSE LC.ext[a+j-1-2360]:=Reverse(b0) END;                         *)
+        END;
+        IF pw = 16 THEN
+(*          IF (a+((j-1)*2)<2360) THEN C.raster[a+((j-1)*2)]:=Reverse(b0) ELSE LC.ext[a+((j-1)*2)-2360]:=Reverse(b0) END;       *)
+(*          IF (a+((j-1)*2)+1<2360) THEN C.raster[a+((j-1)*2)+1]:=Reverse(b1) ELSE LC.ext[a+((j-1)*2)+1-2360]:=Reverse(b1) END; *)
+        END;
+
+
+        DEC(j)
+
+    END;
+
+(*      INC(a,mh*(pw DIV 8))   *)
+
+  
+  
+  (* skipBoxesBefore *)
+ 
+  i := 0; j := 0;
+  WHILE i < usedRuns DO
+    j := run[i].beg;
+    WHILE (j < run[i].end) DO
+      RdInt16(R, dx); RdInt16(R, x); RdInt16(R, y);
+      RdInt16(R, w); RdInt16(R, h);
+      IF (dx # 0) OR (w # 0) OR (h # 0) THEN
+        n := (w + 7) DIV 8 * h;
+        a1 := FindSpace(F.block, n+5, 1);
+        SYSTEM.PUT(a + (j - rangeStart) * 4, a1 + 3);
+        SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
+        SYSTEM.PUT(a1+3, w); SYSTEM.PUT(a1+4, h);
+      END;
+      INC(j)
+    END;
+    INC(i)
+  END;
+  i := 0;
+  WHILE i # skipBoxesAfter DO
+    RdInt16(R, b); RdInt16(R, b); RdInt16(R, b);
+    RdInt16(R, b); RdInt16(R, b);
+    INC(i)
+  END;
+  i := 0;
+  WHILE i < skipBytes DO Files.ReadByte(R, b); INC(i) END;
+  i := 0; j := 0;
+  WHILE i < usedRuns DO
+    j := run[i].beg;
+    WHILE (j < run[i].end) DO
+      SYSTEM.GET(a + (j - rangeStart) * 4, a1);
+      IF (a1 # 0) THEN
+        SYSTEM.GET(a1, w); SYSTEM.GET(a1+1, h);
+        n := (w + 7) DIV 8 * h;
+        INC(a1, 2);
+        WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a1, b); INC(a1) END;
+      END;
+      INC(j)
+    END;
+    INC(i)
+  END
+  
 END PCFLoadRange;
 
 
@@ -259,7 +394,11 @@ BEGIN
   IF pa # 0 THEN SYSTEM.GET(pa + i3 * 4, pa) END;
   IF pa # 0 THEN
     patadr := pa;
-    SYSTEM.GET(pa-3, dxb); SYSTEM.GET(pa-2, xb); SYSTEM.GET(pa-1, yb); SYSTEM.GET(pa, wb); SYSTEM.GET(pa+1, hb);
+    SYSTEM.GET(pa-3, dxb); 
+    SYSTEM.GET(pa-2, xb); 
+    SYSTEM.GET(pa-1, yb); 
+    SYSTEM.GET(pa, wb); 
+    SYSTEM.GET(pa+1, hb);
     dx := dxb; x := xb; y := yb; w := wb; h := hb;
     IF yb < 128 THEN y := yb ELSE y := yb - 256 END
   ELSE
@@ -331,7 +470,8 @@ BEGIN F := root;
             NEW(F); NEW(F.block); F.name := name;
             tt:=PCFGetTable(f);
 
-            Files.Set(R, f, tt.BDFACCELERATORS.offset+24); (* The following is probably not a correct mapping*)
+            Files.Set(R, f, tt.BDFACCELERATORS.offset+24); 
+                                  (* The following is probably not a correct mapping*)
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip minlsb and minrsb*) 
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.minY:=i1+i2; (*minasc + mindsc*)
             ReadBeInt16(R, i1); F.minY:=i1; (*minwidth*) 
@@ -342,20 +482,18 @@ BEGIN F := root;
             ReadBeInt16(R, i1); (*skip maxcat*)
             F.height:=F.maxY; 
 
-            Files.Set(R, f, tt.BDFENCODINGS.offset+4); LED(99999999);
-            ReadBeInt16(R, fc);LED(fc);
-            ReadBeInt16(R, lc);LED(lc);
-            ReadBeInt16(R, fr);LED(fr);
-            ReadBeInt16(R, lr);LED(lr);
-            ReadBeInt16(R, df);LED(df);
-            cc := (lc - fc + 1) * (lr - fr + 1);LED(cc);
-
+            Files.Set(R, f, tt.BDFENCODINGS.offset+4);
+            ReadBeInt16(R, fc); 
+            ReadBeInt16(R, lc); 
+            ReadBeInt16(R, fr); 
+            ReadBeInt16(R, lr); 
+            ReadBeInt16(R, df);
+            cc := (lc - fc + 1) * (lr - fr + 1);
             beg := 0; end := cc-1; i:=beg;
 
             WHILE i < end DO
               ReadBeInt16(R, cx);
               IF cx # 65535 THEN 
-                LED(cx);
                 i1 := cx DIV 1000H;
                 i2 := cx DIV 40H MOD 40H;
                 IF F.T1[i1] = 0 THEN
