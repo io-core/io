@@ -127,8 +127,12 @@ BEGIN
   i := 0; usedRuns := 0;
   WHILE i # totalRuns DO
     ReadInt16(R, beg); ReadInt16(R, end);
-    IF end > rangeEnd THEN skipBoxesAfter := skipBoxesAfter + end - rangeEnd; end := rangeEnd END;
-    IF beg < rangeStart THEN skipBoxesBefore := skipBoxesBefore + rangeStart - beg; beg := rangeStart END;
+    IF end > rangeEnd THEN 
+       skipBoxesAfter := skipBoxesAfter + end - rangeEnd; end := rangeEnd 
+    END;
+    IF beg < rangeStart THEN 
+       skipBoxesBefore := skipBoxesBefore + rangeStart - beg; beg := rangeStart 
+    END;
     IF end <= rangeStart THEN
       skipBoxesBefore := skipBoxesBefore + end - beg;
     ELSIF beg >= rangeEnd THEN
@@ -243,7 +247,29 @@ BEGIN
   a := FindSpace(F.block, 256, 4);
   SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
   rangeEnd := rangeStart + 64;
+  dx:=8;x:=8;y:=8;w:=8;h:=8;
+  beg:=rangeStart;
+  end:=rangeEnd;
+  i:=0;
+  WHILE i < 64 DO
+        n := (w + 7) DIV 8 * h;
+        a1 := FindSpace(F.block, n+5, 1);
+        SYSTEM.PUT(a + (i * 4), a1 + 3);
+        SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
+        SYSTEM.PUT(a1+3, w); SYSTEM.PUT(a1+4, h);
+	SYSTEM.PUT(a1+5, 1);
+        SYSTEM.PUT(a1+6, 2);
+        SYSTEM.PUT(a1+7, 4);
+        SYSTEM.PUT(a1+8, 8);
+        SYSTEM.PUT(a1+9, 16);
+        SYSTEM.PUT(a1+10, 32);
+        SYSTEM.PUT(a1+11, 64);
+        SYSTEM.PUT(a1+12, 128);
 
+    INC(i)
+  END
+
+(*
   tt := PCFGetTable(f);
   Files.Set(R, f, tt.BDFENCODINGS.offset+4);
   ReadBeInt16(R, fc); 
@@ -256,7 +282,6 @@ BEGIN
   IF end > cc-1 THEN end := cc-1 END; 
   WHILE i < end DO
     tm:=i - fc;
-
     IF (i - fc > -1) THEN
       IF i > beg - 1 THEN
         Files.Set(R,f,tt.BDFENCODINGS.offset+14+(tm*2))
@@ -315,7 +340,7 @@ BEGIN
  END 
   
   (* skipBoxesBefore *)
-(*
+
   i := 0; j := 0;
   WHILE i < usedRuns DO
     j := run[i].beg;
