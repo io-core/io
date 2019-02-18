@@ -63,7 +63,7 @@ PROCEDURE ReadBeInt32(VAR R: Files.Rider; VAR r: INTEGER);
   VAR b0, b1, b2, b3: BYTE;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1);
       Files.ReadByte(R, b2); Files.ReadByte(R, b3); r := b0 * 1000000H + b1 * 10000H + b2 * 100H + b3;
-END ReadBeInt16;
+END ReadBeInt32;
 
 PROCEDURE RdInt16(VAR R: Files.Rider; VAR b0: BYTE);
   VAR b1: BYTE;
@@ -234,8 +234,9 @@ TYPE RunRec = RECORD beg, end: INTEGER END;
 VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: INTEGER;
     beg, end, i, j, k, n, a, a1: INTEGER;
     R: Files.Rider; 
-    b, dx, x, y, w, h: BYTE; 
-    tt: tocTable; tm, bofs, fc, lc, fr, lr, df, cx, cc, ml, mr, mw, ma, md, mh, pw: INTEGER;
+    b, b0, b1, b2, b3, dx, x, y, w, h: BYTE; 
+    tt: tocTable; 
+    tm, bofs, fc, lc, fr, lr, df, cx, cc, ml, mr, mw, ma, md, mh, pw: INTEGER;
     run: ARRAY 32 OF RunRec;
 
 BEGIN
@@ -260,23 +261,33 @@ BEGIN
       IF i > beg - 1 THEN
         Files.Set(R,f,tt.BDFENCODINGS.offset+14+(tm*2))
       END ;
-      ReadBeInt16(T,tm)
+      ReadBeInt16(R,tm)
     ELSE
-      tm := td
+      tm := df
     END;
 
-    Files.Set(R, f, BITMAPS.offset+4);  ReadBeInt32(R,n); 
+    Files.Set(R, f, tt.BITMAPS.offset+4);  ReadBeInt32(R,n); 
     Files.Set(R, f, tt.BITMAPS.offset+8+(4*tm)); ReadBeInt32(R, bofs);
     (* Files.Set(R, f, METRICS.offset);  ReadBeInt32(R,m);  nn:= ReadBeInt16(R,nn); *)
     Files.Set(R, f, tt.METRICS.offset+6+(5*tm)); 
-    Files.ReadByte(R, ml); 
-    Files.ReadByte(R, mr); 
-    Files.ReadByte(R, mw); 
-    Files.ReadByte(R, ma); 
-    Files.ReadByte(R, md);
+    Files.ReadByte(R, b); ml:=b-128;  
+    Files.ReadByte(R, b); mr:=b-128;
+    Files.ReadByte(R, b); mw:=b-128;
+    Files.ReadByte(R, b); ma:=b-128;
+    Files.ReadByte(R, b); md:=b-128;
 
-    ml:=ml-128; mr:=mr-128; mw:=mw-128; ma:=ma-128; md:=md-128; mh:=md+ma;
-    IF mw < 9 THEN pw := 8 ELSE IF mw < 17 THEN pw:= 16 ELSE IF mw < 33 THEN pw:= 32 ELSE IF mw < 97 THEN pw:= 96 ELSE pw := 128 END END END END;
+    mh:=md+ma;
+    IF mw < 9 THEN 
+      pw := 8 
+    ELSE IF mw < 17 THEN 
+      pw:= 16 
+    ELSE IF mw < 33 THEN 
+      pw:= 32 
+    ELSE IF mw < 97 THEN 
+      pw:= 96 
+    ELSE 
+      pw := 128 
+    END END END END;
 
     Files.Set(R, f, (8+(4*n) + 16) + tt.BITMAPS.offset+bofs);
 
@@ -301,10 +312,10 @@ BEGIN
 
 (*      INC(a,mh*(pw DIV 8))   *)
 
-  
+ END 
   
   (* skipBoxesBefore *)
- 
+(*
   i := 0; j := 0;
   WHILE i < usedRuns DO
     j := run[i].beg;
@@ -345,6 +356,7 @@ BEGIN
     END;
     INC(i)
   END
+*)
   
 END PCFLoadRange;
 
