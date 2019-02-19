@@ -244,29 +244,33 @@ VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: I
     run: ARRAY 32 OF RunRec;
 
 BEGIN
-  a := FindSpace(F.block, 256, 4);
+  a := FindSpace(F.block, 512, 4);
   SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
-  rangeEnd := rangeStart + 64;
-  dx:=8;x:=8;y:=8;w:=8;h:=8;
-  beg:=rangeStart;
-  end:=rangeEnd;
-  i:=0;
-  WHILE i < 64 DO
-        n := (w + 7) DIV 8 * h;
-        a1 := FindSpace(F.block, n+5, 1);
-        SYSTEM.PUT(a + (i * 4), a1 + 3);
-        SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
-        SYSTEM.PUT(a1+3, w); SYSTEM.PUT(a1+4, h);
-	SYSTEM.PUT(a1+5, 1);
-        SYSTEM.PUT(a1+6, 2);
-        SYSTEM.PUT(a1+7, 4);
-        SYSTEM.PUT(a1+8, 8);
-        SYSTEM.PUT(a1+9, 16);
-        SYSTEM.PUT(a1+10, 32);
-        SYSTEM.PUT(a1+11, 64);
-        SYSTEM.PUT(a1+12, 128);
 
-    INC(i)
+     (*   a1 := FindSpace(F.block, 64, 1); *)
+
+        dx := 16; x := 0; y := 0; w := 15; h := 17; 
+        b0 := 0FFH; b1 := 07FH; b2 := 01H; b3 := 040H;
+
+        SYSTEM.PUT(a+256, dx); SYSTEM.PUT(a+256+1, x); SYSTEM.PUT(a+256+2, y);
+
+        SYSTEM.PUT(a+256+3, w); 
+        SYSTEM.PUT(a+256+4, h);
+        
+	SYSTEM.PUT(a+256+5, b0);
+        SYSTEM.PUT(a+256+6, b1);
+       
+        FOR j := 0 TO 14 DO 
+           SYSTEM.PUT(a+256+7+j*2, b2);
+           
+           SYSTEM.PUT(a+256+7+(j*2)+1, b3); 
+        END;
+        SYSTEM.PUT(   a+256+7+14*2, b0);
+        
+        SYSTEM.PUT(   a+256+7+14*2+1, b1);
+
+  FOR i := 0 TO 63 DO
+        SYSTEM.PUT(a + (i * 4), a+256 + 3);
   END
 
 (*
