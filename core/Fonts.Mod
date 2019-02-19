@@ -282,111 +282,63 @@ BEGIN
 
         mh:=md+ma;
         IF mw < 9 THEN
-          pw := 8
+          pw := 1
         ELSE IF mw < 17 THEN
-          pw:= 16
+          pw:= 2
         ELSE IF mw < 33 THEN
-          pw:= 32
+          pw:= 4
+        ELSE IF mw < 65 THEN
+          pw:= 8
         ELSE IF mw < 97 THEN
-          pw:= 96
+          pw:= 12
         ELSE
-          pw := 128
-        END END END END;
+          pw := 16
+        END END END END END;
 
 
-        dx := 16; x := 0; y := 0; w := 15; h := mh;
-        a1 := FindSpace(F.block, ((w + 7) DIV 8 * h)+5, 1); LED(n);
-        b0 := 0FFH; b1 := 07FH; b2 := 01H; b3 := 040H;
+        dx := mw+1; x := 0; y := 0; w := mw; h := mh;
+        (* pw := (w + 7) DIV 8 *)
+        a1 := FindSpace(F.block, (pw * h) + 5, 1); 
+        b0 := 0FFH; 
 
         SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
 
         SYSTEM.PUT(a1+3, w); 
         SYSTEM.PUT(a1+4, h);
-  
-	SYSTEM.PUT(a1+5, b0);
-        SYSTEM.PUT(a1+6, b1);
-       
-        FOR j := 0 TO (h-2) DO 
-           SYSTEM.PUT(a1+7+(j*2), b2);
-           SYSTEM.PUT(a1+7+(j*2)+1, b3); 
-        END;
-        SYSTEM.PUT(   a1+7+(h-2)*2, b0);
-        SYSTEM.PUT(   a1+7+(h-2)*2+1, b1);
 
+        Files.Set(R, f, (8+(4*n) + 16) + tt.BITMAPS.offset+bofs);
+
+	j:=h-1;
+	WHILE j # 0 DO
+          Files.ReadByte(R, b0);
+          Files.ReadByte(R, b1);
+          Files.ReadByte(R, b2);
+          Files.ReadByte(R, b3);
+	  b:=0H;
+	  IF pw = 1 THEN
+	      b:=Reverse(b0);
+              SYSTEM.PUT(a1+5+(j*pw)+0,b)
+	  ELSE IF pw = 2 THEN
+	      b:=Reverse(b0);
+              SYSTEM.PUT(a1+5+(j*pw)+0,b);
+	      b:=Reverse(b1);
+              SYSTEM.PUT(a1+5+(j*pw)+1,b)
+	  ELSE
+              b:=Reverse(b0);
+              SYSTEM.PUT(a1+5+(j*pw)+0,b);
+              b:=Reverse(b1);
+              SYSTEM.PUT(a1+5+(j*pw)+1,b);
+              b:=Reverse(b2);
+              SYSTEM.PUT(a1+5+(j*pw)+2,b);
+              b:=Reverse(b3);
+              SYSTEM.PUT(a1+5+(j*pw)+3,b)
+	  END END;
+	  DEC(j)
+	END; 
+ 
         SYSTEM.PUT(a + (i * 4), a1 + 3);
   END
 
-(*
-
-
-    Files.Set(R, f, (8+(4*n) + 16) + tt.BITMAPS.offset+bofs);
-
-    j:=mh; WHILE (j # 0) DO
-        Files.ReadByte(R, b0); 
-        Files.ReadByte(R, b1); 
-        Files.ReadByte(R, b2); 
-        Files.ReadByte(R, b3);
-
-        IF pw = 8 THEN
-(*          IF (a+j-1<2360) THEN C.raster[a+j-1]:=Reverse(b0) ELSE LC.ext[a+j-1-2360]:=Reverse(b0) END;                         *)
-        END;
-        IF pw = 16 THEN
-(*          IF (a+((j-1)*2)<2360) THEN C.raster[a+((j-1)*2)]:=Reverse(b0) ELSE LC.ext[a+((j-1)*2)-2360]:=Reverse(b0) END;       *)
-(*          IF (a+((j-1)*2)+1<2360) THEN C.raster[a+((j-1)*2)+1]:=Reverse(b1) ELSE LC.ext[a+((j-1)*2)+1-2360]:=Reverse(b1) END; *)
-        END;
-
-
-        DEC(j)
-
-    END;
-
-(*      INC(a,mh*(pw DIV 8))   *)
-
- END 
-  
-  (* skipBoxesBefore *)
-
-  i := 0; j := 0;
-  WHILE i < usedRuns DO
-    j := run[i].beg;
-    WHILE (j < run[i].end) DO
-      RdInt16(R, dx); RdInt16(R, x); RdInt16(R, y);
-      RdInt16(R, w); RdInt16(R, h);
-      IF (dx # 0) OR (w # 0) OR (h # 0) THEN
-        n := (w + 7) DIV 8 * h;
-        a1 := FindSpace(F.block, n+5, 1);
-        SYSTEM.PUT(a + (j - rangeStart) * 4, a1 + 3);
-        SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
-        SYSTEM.PUT(a1+3, w); SYSTEM.PUT(a1+4, h);
-      END;
-      INC(j)
-    END;
-    INC(i)
-  END;
-  i := 0;
-  WHILE i # skipBoxesAfter DO
-    RdInt16(R, b); RdInt16(R, b); RdInt16(R, b);
-    RdInt16(R, b); RdInt16(R, b);
-    INC(i)
-  END;
-  i := 0;
-  WHILE i < skipBytes DO Files.ReadByte(R, b); INC(i) END;
-  i := 0; j := 0;
-  WHILE i < usedRuns DO
-    j := run[i].beg;
-    WHILE (j < run[i].end) DO
-      SYSTEM.GET(a + (j - rangeStart) * 4, a1);
-      IF (a1 # 0) THEN
-        SYSTEM.GET(a1, w); SYSTEM.GET(a1+1, h);
-        n := (w + 7) DIV 8 * h;
-        INC(a1, 2);
-        WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a1, b); INC(a1) END;
-      END;
-      INC(j)
-    END;
-    INC(i)
-  END
-*)
   
 END PCFLoadRange;
 
