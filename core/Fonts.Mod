@@ -234,16 +234,16 @@ END PCFGetTable;
 
 
 PROCEDURE PCFLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
-TYPE RunRec = RECORD beg, end: INTEGER END;
-VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: INTEGER;
-    beg, end, i, j, k, n, a, a1: INTEGER;
+
+VAR beg, end, i, j, k, n, a, a1: INTEGER;
     R: Files.Rider; 
     b, b0, b1, b2, b3, dx, x, y, w, h: BYTE; 
     tt: tocTable; 
     tm, bofs, fc, lc, fr, lr, df, cx, cc, ml, mr, mw, ma, md, mh, pw: INTEGER;
-    run: ARRAY 32 OF RunRec;
+   
 
 BEGIN
+  
   a := FindSpace(F.block, 256, 4);
   SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
   tt := PCFGetTable(f);
@@ -258,46 +258,48 @@ BEGIN
 
   FOR i := 0 TO 63 DO
 
-	tm:=( beg + i ) - fc;
-        IF (tm > -1) THEN
+	tm:=( beg + i ) - fc;                                            
+        IF (tm > -1) THEN                                         
           IF tm < cc - 1 THEN
             Files.Set(R,f,tt.BDFENCODINGS.offset+14+(tm*2));
-            ReadBeInt16(R,tm)
+            ReadBeInt16(R,tm) ;                                            
 	  ELSE
 	    tm := df
           END
         ELSE
           tm := df
-        END;
+        END; 
+	IF tm = 65535 THEN tm:=df END;      
 
-        Files.Set(R, f, tt.BITMAPS.offset+4);  ReadBeInt32(R,n);
-        Files.Set(R, f, tt.BITMAPS.offset+8+(4*tm)); ReadBeInt32(R, bofs);
-        (* Files.Set(R, f, METRICS.offset);  ReadBeInt32(R,m);  nn:= ReadBeInt16(R,nn); *)
-        Files.Set(R, f, tt.METRICS.offset+6+(5*tm));
-        Files.ReadByte(R, b); ml:=b-128;
-        Files.ReadByte(R, b); mr:=b-128;
-        Files.ReadByte(R, b); mw:=b-128;
-        Files.ReadByte(R, b); ma:=b-128;
-        Files.ReadByte(R, b); md:=b-128;
+                                                             
+
+        Files.Set(R, f, tt.BITMAPS.offset+4);  ReadBeInt32(R,n);           
+        Files.Set(R, f, tt.BITMAPS.offset+8+(4*tm)); ReadBeInt32(R, bofs); 
+        Files.Set(R, f, tt.METRICS.offset+6+(5*tm));                       
+        Files.ReadByte(R, b); ml:=b-128;                                   
+        Files.ReadByte(R, b); mr:=b-128;                                   
+        Files.ReadByte(R, b); mw:=b-128;                                   
+        Files.ReadByte(R, b); ma:=b-128;                                   
+        Files.ReadByte(R, b); md:=b-128;                                   
 
         mh:=md+ma;
         IF mw < 9 THEN
           pw := 1
-        ELSE IF mw < 17 THEN
+        ELSIF mw < 17 THEN
           pw:= 2
-        ELSE IF mw < 33 THEN
+        ELSIF mw < 33 THEN
           pw:= 4
-        ELSE IF mw < 65 THEN
+        ELSIF mw < 65 THEN
           pw:= 8
-        ELSE IF mw < 97 THEN
+        ELSIF mw < 97 THEN
           pw:= 12
         ELSE
           pw := 16
-        END END END END END;
+        END;
 
 
         dx := mw+1; x := 0; y := 0; w := mw; h := mh;
-        (* pw := (w + 7) DIV 8 *)
+      
         a1 := FindSpace(F.block, (pw * h) + 5, 1); 
         b0 := 0FFH; 
 
@@ -310,10 +312,10 @@ BEGIN
 
 	j:=h-1;
 	WHILE j # 0 DO
-          Files.ReadByte(R, b0);
-          Files.ReadByte(R, b1);
-          Files.ReadByte(R, b2);
-          Files.ReadByte(R, b3);
+          Files.ReadByte(R, b0);                                         
+          Files.ReadByte(R, b1);                                         
+          Files.ReadByte(R, b2);                                         
+          Files.ReadByte(R, b3);                                         
 	  b:=0H;
 	  IF pw = 1 THEN
 	      b:=Reverse(b0);
@@ -337,6 +339,7 @@ BEGIN
 	END; 
  
         SYSTEM.PUT(a + (i * 4), a1 + 3);
+        
   END
 
   
