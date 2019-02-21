@@ -86,7 +86,7 @@ func main() {
         memPtr := flag.Int("m", 0, "Megabytes of RAM, 0 for default of 1.5MB")
         corecount := flag.Int("c", 1, "Number of cores")
         verbosity := flag.Int("v", 0, "Verbosity level")
-        geometry := flag.String("g", "1024x768x1", "Geometry (<width>x<height>x<bpp>)")
+        geometry := flag.String("g", "1024x768x1m", "Geometry (<width>x<height>x<bpp>m|c)")
 	haltPtr := flag.Bool("halt", false, "Begin in halt state")	
         hidpiPtr := flag.Bool("hidpi", false, "high dpi")
 
