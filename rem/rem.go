@@ -146,9 +146,9 @@ func main() {
 
 
         if mb.FrameDevice == "console" {
-	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry, &mb.DisplayStart, *hidpiPtr )
+	  cdisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, &mb.Fbd, verbose, readyChan, *geometry, &mb.DisplayStart, *hidpiPtr )
 	}else if mb.FrameDevice == "opengl" {
-	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, verbose, readyChan, *geometry, &mb.DisplayStart, *hidpiPtr )
+	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, &mb.Fbd, verbose, readyChan, *geometry, &mb.DisplayStart, *hidpiPtr )
         }else if mb.FrameDevice == "headless" {
           readyChan <- [2]uint32{1024,768}
           for {}

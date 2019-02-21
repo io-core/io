@@ -25,7 +25,7 @@ import (
 
 
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, hidpi bool ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh, fbd *uint32, verbose bool, readyChan chan [2]uint32, hidpi bool ) {
 
 	fmt.Println("Console not supported on Windows")
 	os.Exit(0)

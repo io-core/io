@@ -59,6 +59,7 @@ type BOARD struct {
   Key_cnt uint32
   Fbw uint32
   Fbh uint32
+  Fbd uint32
   Fbchg bool
   DiskImage string
   FrameDevice string

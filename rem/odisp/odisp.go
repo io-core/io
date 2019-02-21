@@ -83,7 +83,7 @@ func createWindow(w,h int,b,hidpi bool) *glfw.Window {
 
 var mptr, kcptr  *uint32
 var kbptr *[16]byte
-var ofbw, ofbh uint32
+var ofbw, ofbh, ofbd uint32
 var ofd bool
 var mbl int
 var mbm int
@@ -238,7 +238,7 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
      }
 }
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh *uint32, verbose bool, readyChan chan [2]uint32, geometry string, gbase *uint32, hidpi bool ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh, fbd *uint32, verbose bool, readyChan chan [2]uint32, geometry string, gbase *uint32, hidpi bool ) {
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad
@@ -257,23 +257,36 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
         defer glfw.Terminate()
 	wmax:=1024
 	hmax:=768
+	bitdepth:=1
+	monochrome:=true
 	hasborder:=true
 	if geometry == "-" {
           wmax=1920
           hmax=1200
+	  bitdepth=1
+	  monochrome=true
 	  hasborder=false
  	}else{
 	  e:=strings.Split(geometry,"x")
 	  if len(e)==3 {
 	    wmax, _ = strconv.Atoi(e[0])
             hmax, _ = strconv.Atoi(e[1])
+	    bitdepth, _= strconv.Atoi(e[2][:len(e[2])-1])
+	    if e[2][len(e[2])-1:] == "m" {
+	      monochrome = true
+	    }else{
+	      monochrome = false
+	    }
             hasborder=true
 	  }
 	} 
 
 	window := createWindow(wmax,hmax,false,hidpi)
+	
 	*fbw = ofbw
 	*fbh = ofbh
+        ofbd = uint32(bitdepth)
+	*fbd = uint32(bitdepth)
 	readyChan <- [2]uint32{ofbw,ofbh}
 	window.Destroy()
 	if runtime.GOOS == "darwin" {
@@ -332,13 +345,30 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
         gl.ClearColor(1.0, 1.0, 1.0, 1.0)
 
         fmt.Println("Launching Graphics Update Handler")
+        fmt.Println("bit depth:",bitdepth,"monochrome:",monochrome)
         go func() {
           for {
                 v := <- vChan
 		if verbose { fmt.Println("video msg:",v)}
                 address:=v[0]
                 value:=v[1]
-                for pi:=0;pi<32;pi++{
+		if bitdepth==8 && monochrome {
+                    for pi:=0;pi<4;pi++{
+			t:=(value >> uint32(pi*8)) & 255
+                        pxcr:=uint8(t)
+                        pxcg:=uint8(t)
+                        pxcb:=uint8(t)
+                        fbo:=((address)-(*gbase))/4
+                        fby:=fbo/(*fbw/4)
+                        fbx:=((fbo*4)%*fbw)+uint32(pi)
+                           fb.Pix[0+ ((fby)*(*fbw)+fbx)*4]=pxcr
+                           fb.Pix[1+ ((fby)*(*fbw)+fbx)*4]=pxcg
+                           fb.Pix[2+ ((fby)*(*fbw)+fbx)*4]=pxcb
+                           fb.Pix[3+ ((fby)*(*fbw)+fbx)*4]=255
+		    }
+		}else{
+
+                    for pi:=0;pi<32;pi++{
                         pxcr:=uint8(238)
                         pxcg:=uint8(223)
                         pxcb:=uint8(204)
@@ -358,7 +388,8 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
                            fb.Pix[3+ ((fby)*(*fbw)+fbx)*4]=255
 
                         }
-                }
+                    }
+		}
           }
         }()
 
