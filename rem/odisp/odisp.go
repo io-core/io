@@ -19,6 +19,8 @@ import (
 	"fmt"
         "runtime"
         "image"
+	"strings"
+	"strconv"
 
         "github.com/go-gl/gl/v3.2-core/gl"
         "github.com/go-gl/glfw/v3.2/glfw"
@@ -260,7 +262,14 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
           wmax=1920
           hmax=1200
 	  hasborder=false
- 	} 
+ 	}else{
+	  e:=strings.Split(geometry,"x")
+	  if len(e)==3 {
+	    wmax, _ = strconv.Atoi(e[0])
+            hmax, _ = strconv.Atoi(e[1])
+            hasborder=true
+	  }
+	} 
 
 	window := createWindow(wmax,hmax,false,hidpi)
 	*fbw = ofbw
