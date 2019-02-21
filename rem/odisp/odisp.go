@@ -238,7 +238,7 @@ func kbtn(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods g
      }
 }
 
-func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh, fbd *uint32, verbose bool, readyChan chan [2]uint32, geometry string, gbase *uint32, hidpi bool ) {
+func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fbw, fbh, fbd *uint32, verbose bool, readyChan chan [3]uint32, geometry string, gbase *uint32, hidpi bool ) {
 
      //   *fbw=1536 // 1600 max thinkpad
      //   *fbh=768  // 900 max thinkpad
@@ -287,7 +287,7 @@ func Initfb( vChan chan [2]uint32, mouse *uint32, key_buf *[16]byte, key_cnt, fb
 	*fbh = ofbh
         ofbd = uint32(bitdepth)
 	*fbd = uint32(bitdepth)
-	readyChan <- [2]uint32{ofbw,ofbh}
+	readyChan <- [3]uint32{ofbw,ofbh,ofbd}
 	window.Destroy()
 	if runtime.GOOS == "darwin" {
           window = createWindow(int(ofbw),int(ofbh),true,hidpi)

@@ -119,7 +119,7 @@ func main() {
 
         vChan = make(chan [2]uint32 )
         piChan = make(chan [2]uint32 )
-	readyChan := make(chan [2]uint32 )
+	readyChan := make(chan [3]uint32 )
 
 	mb.Opendisk()	
         frfs.ServeRFS( mountpoint, mb.Disk.File, mb.Disk.Offset )
@@ -127,8 +127,8 @@ func main() {
 	go func(){
 	
 		rc := <- readyChan
-		fmt.Println("video x",rc[0],"y",rc[1])
-		mb.Reset( uint32(rc[0]), uint32(rc[1]), vChan, piChan, verbose )
+		fmt.Println("video x",rc[0],"y",rc[1],"d",rc[2])
+		mb.Reset( uint32(rc[0]), uint32(rc[1]), uint32(rc[2]), vChan, piChan, verbose )
 		for i:=0;i<*corecount;i++{ cores[i].Reset(i,verbose) }
 		
 		step:=0
@@ -150,7 +150,7 @@ func main() {
 	}else if mb.FrameDevice == "opengl" {
 	  odisp.Initfb( vChan, &mb.Mouse, &mb.Key_buf, &mb.Key_cnt, &mb.Fbw, &mb.Fbh, &mb.Fbd, verbose, readyChan, *geometry, &mb.DisplayStart, *hidpiPtr )
         }else if mb.FrameDevice == "headless" {
-          readyChan <- [2]uint32{1024,768}
+          readyChan <- [3]uint32{1024,768,1}
           for {}
 	}
 	

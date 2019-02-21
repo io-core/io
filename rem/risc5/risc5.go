@@ -292,7 +292,7 @@ func (risc *CORE) Step(mb *board.BOARD,verbose bool) {
     ir = mb.ROM[risc.PC - board.ROMStart/4]
   default: 
     fmt.Printf("Branched into the void (PC=0x%08X, I=%d), resetting...\n", risc.PC,risc.icount)
-    mb.Reset(mb.Fbw,mb.Fbh,mb.Vchan,mb.PIchan,verbose)
+    mb.Reset(mb.Fbw,mb.Fbh,mb.Fbd,mb.Vchan,mb.PIchan,verbose)
     risc.Reset(int(risc.Cid),verbose)
     return
   }

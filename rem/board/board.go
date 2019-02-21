@@ -120,7 +120,7 @@ func (board *BOARD) Opendisk(){
 
 var verbose bool
 
-func (board *BOARD) Reset(fbw, fbh uint32, vc chan [2]uint32, pic chan [2]uint32, v bool) {
+func (board *BOARD) Reset(fbw, fbh, fbd uint32, vc chan [2]uint32, pic chan [2]uint32, v bool) {
         verbose = v
 	board.Vchan = vc
 	board.PIchan = pic
