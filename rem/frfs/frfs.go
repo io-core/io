@@ -456,16 +456,29 @@ func (f *RFS_F) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {      
 
 // 32-bit oberon file system  141.2 GiB Max Volume          // 64-bit oberon filesystem   2 ZiB Max Volume
 const RFS_FnLength    = 32                                  // 127 + a zero byte = 128
+const EFS_FnLength    = 128
 const RFS_SecTabSize  = 64                                  // 64 -- 64-bit integers mod 29
+const EFS_SecTabSize  = 64
 const RFS_ExTabSize   = 12  //64+12*256 = 3MB max file size // 64 + 12*512 + 16*512*512 + 16*512*512*512 = 16 TiB max file size
+const EFS_E1TabSize   = 12
+const EFS_E2TabSize   = 16
+const EFS_E3TabSize   = 16
 const RFS_SectorSize  = 1024                                // 4096
+const EFS_SectorSize  = 4096
 const RFS_IndexSize   = 256    //SectorSize / 4             // 512  -- SectorSize / 8
+const EFS_IndexSize   = 512
 const RFS_HeaderSize  = 352                                 // ??
+const EFS_HeaderSize  = 0
 const RFS_DirRootAdr  = 29                                  // 29
+const EFS_DirRootAdr  = 29
 const RFS_DirPgSize   = 24                                  // 24
+const EFS_DirPgSize   = 24
 const RFS_N = 12               //DirPgSize / 2              // 12
-const RFS_DirMark    = 0x9B1EA38D                           // 0x9B1EA38E
-const RFS_HeaderMark = 0x9BA71D86                           // 0x9BA71D87
+cosnt EFS_N = 12
+const RFS_DirMark    = 0x9B1EA38D
+const EFS_DirMark    = 0x9B1EA38E
+const RFS_HeaderMark = 0x9BA71D86
+const EFS_HeaderMark = 0x9BA71D87
 //  RFS_MERKLEHASH                                          // SHA256 hash of: filenames + hashes of file contents of all files in directory
 const RFS_FillerSize = 52                                   // ??
 
