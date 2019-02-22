@@ -13,7 +13,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
         handle*: Handler
       END ;
 
-  VAR Base*, Width*, Height*, Depth*, Span, black*, white*, bgcolor*, fgcolor*: INTEGER;
+  VAR Base*, Width*, Height*, Depth*, Span, Pack, black*, white*, bgcolor*, fgcolor*: INTEGER;
     arrow*, star*, hook*, updown*, block*, cross*, grey*: INTEGER;
     (*a pattern is an array of bytes; the first is its width (< 32), the second its height, the rest the raster*)
 
@@ -25,9 +25,14 @@ MODULE Display;  (*NW 5.11.2013, others...*)
   (* raster ops *)
 
   PROCEDURE Dot*(col, x, y, mode: INTEGER);
-    VAR a: INTEGER; u, s: SET;
-  BEGIN a := Base + (x DIV 32)*4 + y*Span;
-    s := {x MOD 32}; SYSTEM.GET(a, u);
+    VAR a, v, b: INTEGER; u, s: SET;
+  BEGIN a := Base + (x DIV Pack)*4 + y*Span;
+    SYSTEM.GET(a, u);
+    IF Depth = 1 THEN
+      s := {x MOD 32}
+    ELSE
+      s := {(x MOD Pack)*Depth .. (((x+1) MOD Pack)*Depth)-1};
+    END;
     IF mode = paint THEN SYSTEM.PUT(a, u + s)
     ELSIF mode = invert THEN SYSTEM.PUT(a, u / s)
     ELSE (*mode = replace*)
@@ -37,10 +42,12 @@ MODULE Display;  (*NW 5.11.2013, others...*)
 
   PROCEDURE ReplConst*(col, x, y, w, h, mode: INTEGER);
     VAR al, ar, a0, a1, i: INTEGER; left, right, mid, pix, pixl, pixr: SET;
-  BEGIN al := Base + y*Span;
-    ar := ((x+w-1) DIV 32)*4 + al; al := (x DIV 32)*4 + al;
+  BEGIN 
+    al := Base + y*Span;
+    ar := ((x+w-1) DIV Pack)*4 + al; 
+    al := (x DIV Pack)*4 + al;
     IF ar = al THEN
-      mid := {(x MOD 32) .. ((x+w-1) MOD 32)};
+      mid := {(x MOD Pack)*Depth .. ((((x+w) MOD Pack))*Depth)-1};
       a1 := al;
       FOR i := 1 TO h DO
         SYSTEM.GET(a1, pix);
@@ -51,7 +58,8 @@ MODULE Display;  (*NW 5.11.2013, others...*)
         INC(a1, Span)
       END
     ELSE
-      left := {(x MOD 32) .. 31}; right := {0 .. ((x+w-1) MOD 32)};
+      left  := {(x MOD Pack)*Depth .. 31};
+      right := {0 .. (((x+w-1) MOD Pack))*Depth};
       a0 := al;
       FOR i := 1 TO h DO
         SYSTEM.GET(a0, pixl); SYSTEM.GET(ar, pixr);
@@ -191,7 +199,8 @@ MODULE Display;  (*NW 5.11.2013, others...*)
   VAR magic: INTEGER;
   BEGIN
     black := 0;
-    white :=1;
+    white := 1;
+    Pack  := 32;
     SYSTEM.GET(Base, magic);
     IF magic = 53697A65H THEN
       SYSTEM.GET(Base + 4, Width);
@@ -208,6 +217,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
       SYSTEM.GET(Base + 8, Height);
       SYSTEM.GET(Base + 12, Depth);
       Span := Depth * Width DIV 8;
+      Pack := 32 DIV Depth;
       white := 255;
     ELSE
       Width := 1024; Height := 768; Span := 128; Depth := 1
