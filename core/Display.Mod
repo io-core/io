@@ -14,7 +14,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
         handle*: Handler
       END ;
 
-  VAR Base*, Width*, Height*, Span: INTEGER;
+  VAR Base*, Width*, Height*, Depth*, Span: INTEGER;
     arrow*, star*, hook*, updown*, block*, cross*, grey*: INTEGER;
     (*a pattern is an array of bytes; the first is its width (< 32), the second its height, the rest the raster*)
 
@@ -195,13 +195,20 @@ MODULE Display;  (*NW 5.11.2013, others...*)
     IF magic = 53697A65H THEN
       SYSTEM.GET(Base + 4, Width);
       SYSTEM.GET(Base + 8, Height);
+      Depth := 1;
       Span := 128;
     ELSIF magic = 53697A66H THEN
       SYSTEM.GET(Base + 4, Width);
       SYSTEM.GET(Base + 8, Height);
+      Depth := 1;
       Span := Width DIV 8
+    ELSIF magic = 53697A67H THEN
+      SYSTEM.GET(Base + 4, Width);
+      SYSTEM.GET(Base + 8, Height);
+      SYSTEM.GET(Base + 12, Depth);
+      Span := Depth * Width DIV 8
     ELSE
-      Width := 1024; Height := 768; Span := 128
+      Width := 1024; Height := 768; Span := 128; Depth := 1
     END;
   END InitResolution;
 
