@@ -3,8 +3,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
 
   IMPORT SYSTEM;
 
-  CONST black* = 0; white* = 1;  (*black = background*)
-    replace* = 0; paint* = 1; invert* = 2;  (*modes*)
+  CONST replace* = 0; paint* = 1; invert* = 2;  (*modes*)
 
   TYPE Frame* = POINTER TO FrameDesc;
     FrameMsg* = RECORD END ;
@@ -14,7 +13,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
         handle*: Handler
       END ;
 
-  VAR Base*, Width*, Height*, Depth*, Span: INTEGER;
+  VAR Base*, Width*, Height*, Depth*, span, black*, white*, bgcolor*, fgcolor*: INTEGER;
     arrow*, star*, hook*, updown*, block*, cross*, grey*: INTEGER;
     (*a pattern is an array of bytes; the first is its width (< 32), the second its height, the rest the raster*)
 
@@ -191,6 +190,8 @@ MODULE Display;  (*NW 5.11.2013, others...*)
   PROCEDURE InitResolution;
   VAR magic: INTEGER;
   BEGIN
+    black := 0;
+    white :=1;
     SYSTEM.GET(Base, magic);
     IF magic = 53697A65H THEN
       SYSTEM.GET(Base + 4, Width);
@@ -207,9 +208,12 @@ MODULE Display;  (*NW 5.11.2013, others...*)
       SYSTEM.GET(Base + 8, Height);
       SYSTEM.GET(Base + 12, Depth);
       Span := Depth * Width DIV 8
+      white := 255;
     ELSE
       Width := 1024; Height := 768; Span := 128; Depth := 1
     END;
+    bgcolor := black;
+    fgcolor := white;
   END InitResolution;
 
 BEGIN SYSTEM.GET(12,Base); INC(Base,16); InitResolution;
