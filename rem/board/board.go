@@ -153,15 +153,20 @@ func (board *BOARD) Reset(fbw, fbh, fbd uint32, vc chan [2]uint32, pic chan [2]u
 		board.RAM[board.DisplayStart/4+1] = fbw
 		board.RAM[board.DisplayStart/4+2] = fbh
 	}else{
-		newMlim:=(board.Mlim*4) - (fbh * (fbw / 8)) - 272
+		newMlim:=(board.Mlim*4) - (fbd * fbh * (fbw / 8)) - 272
                 board.ROM[340] = 0x6e000000 + ((board.Mlim)>>15)
                 board.ROM[372] = 0x61000000 + (newMlim >> 16)
                 board.ROM[373] = 0x41160000 + (newMlim & 0xFFFF)
                 board.RAM[376] = 0x61000000 + ((board.Mlim)>>15)
 		board.DisplayStart=newMlim+16
-                board.RAM[((newMlim+16)/4)] = 0x53697A66  // magic value 'SIZE'+1
+		if fbd == 1 {
+                  board.RAM[((newMlim+16)/4)] = 0x53697A66  // magic value 'SIZE'+1
+		}else{
+                  board.RAM[((newMlim+16)/4)] = 0x53697A67  // magic value 'SIZE'+2
+		}
                 board.RAM[((newMlim+16)/4)+1] = fbw
                 board.RAM[((newMlim+16)/4)+2] = fbh
+                board.RAM[((newMlim+16)/4)+3] = fbd
 	}
 	board.StartTime=uint32(time.Now().UnixNano() / int64(time.Millisecond))
         if verbose {fmt.Printf("%s"," board reset ")}
