@@ -81,11 +81,12 @@ MODULE Display;  (*NW 5.11.2013, others...*)
     END
   END ReplConst;
 
+
   PROCEDURE CopyPattern*(col, patadr, x, y, mode: INTEGER);  (*only for modes = paint, invert*)
-    VAR a0, pwd, i: INTEGER;
-      w, h, pbt: BYTE; pix: SET;
+    VAR a0, a1, pwd, i, j: INTEGER;
+      w, h, pbt: BYTE; b0,b1,b2,b3,b4,b5,b6,b7,pix: SET;
   BEGIN SYSTEM.GET(patadr, w); SYSTEM.GET(patadr+1, h); INC(patadr, 2);
-    a0 := Base + (x DIV 32)*4 + y*Span;
+    a0 := Base + (x DIV Pack)*4 + y*Span;
     FOR i := 1 TO h DO
       (*build pattern line; w < 32*)
       SYSTEM.GET(patadr, pbt); INC(patadr); pwd := pbt;
@@ -94,14 +95,34 @@ MODULE Display;  (*NW 5.11.2013, others...*)
           IF w > 24 THEN SYSTEM.GET(patadr, pbt); INC(patadr); pwd := pbt*1000000H + pwd END
         END
       END ;
-      SYSTEM.GET(a0, pix);
-      IF mode = invert THEN SYSTEM.PUT(a0, SYSTEM.VAL(SET, LSL(pwd, x MOD 32)) / pix)
-      ELSE SYSTEM.PUT(a0, SYSTEM.VAL(SET, LSL(pwd, x MOD 32)) + pix)
+      IF Depth = 1 THEN
+        SYSTEM.GET(a0, pix);
+        IF mode = invert THEN SYSTEM.PUT(a0, SYSTEM.VAL(SET, LSL(pwd, x MOD 32)) / pix)
+        ELSE SYSTEM.PUT(a0, SYSTEM.VAL(SET, LSL(pwd, x MOD 32)) + pix)
+        END;
+      ELSE
+	
+	FOR j:= 0 TO 31 DO
+          b0:=SYSTEM.VAL(SET,pwd);
+	  pbt := 255;
+	  IF mode=invert THEN
+            IF j IN b0 THEN 
+               SYSTEM.GET(a0+j+(x MOD Pack),pbt); 
+	       IF pbt = 255 THEN pbt := 0 ELSE pbt := 255 END;
+               SYSTEM.PUT(a0+j+(x MOD Pack),pbt) 
+            END
+	  ELSE
+	    IF j IN b0 THEN SYSTEM.PUT(a0+j+(x MOD Pack),pbt) END
+	  END
+	END
       END ;
       IF (x MOD 32) + w > 32 THEN (*spill over*)
-        SYSTEM.GET(a0+4, pix);
-        IF mode = invert THEN SYSTEM.PUT(a0+4, SYSTEM.VAL(SET, ASR(pwd, -(x MOD 32))) / pix)
-        ELSE SYSTEM.PUT(a0+4, SYSTEM.VAL(SET, ASR(pwd, -(x MOD 32))) + pix)
+        IF Depth = 1 THEN
+          SYSTEM.GET(a0+4, pix);
+
+          IF mode = invert THEN SYSTEM.PUT(a0+4, SYSTEM.VAL(SET, ASR(pwd, -(x MOD 32))) / pix)
+          ELSE                  SYSTEM.PUT(a0+4, SYSTEM.VAL(SET, ASR(pwd, -(x MOD 32))) + pix)
+          END
         END
       END;
       INC(a0, Span)
