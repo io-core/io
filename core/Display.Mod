@@ -136,8 +136,8 @@ MODULE Display;  (*NW 5.11.2013, others...*)
       src, dst, spill: SET;
       m0, m1, m2, m3: SET;
   BEGIN
-    u0 := sx DIV 32; u1 := sx MOD 32; u2 := (sx+w) DIV 32; u3 := (sx+w) MOD 32;
-    v0 := dx DIV 32; v1 := dx MOD 32; v2 := (dx+w) DIV 32; v3 := (dx+w) MOD 32;
+    u0 := sx DIV Pack; u1 := sx MOD Pack; u2 := (sx+w) DIV Pack; u3 := (sx+w) MOD Pack;
+    v0 := dx DIV Pack; v1 := dx MOD Pack; v2 := (dx+w) DIV Pack; v3 := (dx+w) MOD Pack;
     sa := Base + u0*4 + sy*Span; da := Base + v0*4 + dy*Span;
     d := da - sa; n := u1 - v1;   (*displacement in words and bits*)
     len := (u2 - u0) * 4;
