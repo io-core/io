@@ -83,8 +83,8 @@ MODULE Display;  (*NW 5.11.2013, others...*)
 
 
   PROCEDURE CopyPattern*(col, patadr, x, y, mode: INTEGER);  (*only for modes = paint, invert*)
-    VAR a0, a1, pwd, i, j: INTEGER;
-      w, h, pbt: BYTE; b0,b1,b2,b3,b4,b5,b6,b7,pix: SET;
+    VAR a0, pwd, i, j: INTEGER;
+      w, h, pbt: BYTE; b0,pix: SET;
   BEGIN SYSTEM.GET(patadr, w); SYSTEM.GET(patadr+1, h); INC(patadr, 2);
     a0 := Base + (x DIV Pack)*4 + y*Span;
     FOR i := 1 TO h DO
