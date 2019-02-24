@@ -59,7 +59,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
       END
     ELSE
       left  := {(x MOD Pack)*Depth .. 31};
-      right := {0 .. (((x+w-1) MOD Pack))*Depth};
+      right := {0 .. ((((x+w) MOD Pack))*Depth)-1};
       a0 := al;
       FOR i := 1 TO h DO
         SYSTEM.GET(a0, pixl); SYSTEM.GET(ar, pixr);
