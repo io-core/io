@@ -129,25 +129,25 @@ MODULE Display;  (*NW 5.11.2013, others...*)
     END
   END CopyPattern;
 
-  PROCEDURE CopyBlock*(sx, sy, w, h, dx, dy, mode: INTEGER); (*only for mode = replace*)
+  PROCEDURE CopyImage*(sx, sy, sw, sh, sdepth, sspan, dx, dy, ddepth, dspan, mode: INTEGER); (*only for mode = replace*)
     VAR sa, da, sa0, sa1, d, len: INTEGER;
       u0, u1, u2, u3, v0, v1, v2, v3, n: INTEGER;
       end, step: INTEGER;
       src, dst, spill: SET;
       m0, m1, m2, m3: SET;
   BEGIN
-    u0 := sx DIV Pack; u1 := sx MOD Pack; u2 := (sx+w) DIV Pack; u3 := (sx+w) MOD Pack;
-    v0 := dx DIV Pack; v1 := dx MOD Pack; v2 := (dx+w) DIV Pack; v3 := (dx+w) MOD Pack;
+    u0 := sx DIV Pack; u1 := sx MOD Pack; u2 := (sx+sw) DIV Pack; u3 := (sx+sw) MOD Pack;
+    v0 := dx DIV Pack; v1 := dx MOD Pack; v2 := (dx+sw) DIV Pack; v3 := (dx+sw) MOD Pack;
     sa := Base + u0*4 + sy*Span; da := Base + v0*4 + dy*Span;
     d := da - sa; n := u1 - v1;   (*displacement in words and bits*)
     len := (u2 - u0) * 4;
     m0 := {v1 .. 31}; m2 := {v3 .. 31}; m3 := m0 / m2;
-    IF d >= 0 THEN (*copy up, scan down*) sa0 := sa + (h-1)*Span; end := sa-Span; step := -Span
-    ELSE (*copy down, scan up*) sa0 := sa; end := sa + h*Span; step := Span
+    IF d >= 0 THEN (*copy up, scan down*) sa0 := sa + (sh-1)*Span; end := sa-Span; step := -Span
+    ELSE (*copy down, scan up*) sa0 := sa; end := sa + sh*Span; step := Span
     END ;
     WHILE sa0 # end DO
       IF n >= 0 THEN (*shift right*) m1 := {n .. 31};
-        IF v1 + w >= 32 THEN
+        IF v1 + sw >= 32 THEN
           SYSTEM.GET(sa0+len, src); src := ROR(src, n);
           SYSTEM.GET(sa0+len+d, dst);
           SYSTEM.PUT(sa0+len+d, (dst * m2) + (src - m2));
@@ -167,7 +167,7 @@ MODULE Display;  (*NW 5.11.2013, others...*)
       ELSE (*shift left*) m1 := {-n .. 31};
         SYSTEM.GET(sa0, src); src := ROR(src, n);
         SYSTEM.GET(sa0+d, dst);
-        IF v1 + w < 32 THEN
+        IF v1 + sw < 32 THEN
           SYSTEM.PUT(sa0+d, (dst - m3) + (src * m3))
         ELSE SYSTEM.PUT(sa0+d, (dst - m0) + (src * m0));
           spill := src - m1;
@@ -183,7 +183,14 @@ MODULE Display;  (*NW 5.11.2013, others...*)
       END ;
       INC(sa0, step)
     END
+  END CopyImage;
+
+  PROCEDURE CopyBlock*(sx, sy, w, h, dx, dy, mode: INTEGER);
+  BEGIN
+    CopyImage(sx, sy, w, h, Depth, Span, dx, dy, Depth, Span, mode)
   END CopyBlock;
+
+
 
   PROCEDURE ReplPattern*(col, patadr, x, y, w, h, mode: INTEGER);
   (* pattern width = 32, fixed; pattern starts at patadr+4, for mode = invert only *)
