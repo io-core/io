@@ -30,7 +30,10 @@ MODULE Images; (*CP 2.2019*)
       notify*: Notifier
     END;
 
-
+    Msg* = RECORD END ;
+    WidMsg* = RECORD (Msg) w*: INTEGER END ;
+    ColorMsg* = RECORD (Msg) col*: INTEGER END ;
+    FontMsg* = RECORD (Msg) fnt*: Fonts.Font END ;
 
     bmpHeaderEntry = RECORD
         a: INTEGER;
