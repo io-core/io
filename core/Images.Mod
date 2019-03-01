@@ -55,7 +55,7 @@ MODULE Images; (*CP 2.2019*)
 
     
 VAR 
-  Default: Image;
+  
   res*: INTEGER;
 
 
@@ -117,53 +117,5 @@ VAR
     END
   END Open;
 
-
-
-
-
-
-
-
-
-
-
-
-
-PROCEDURE GetImage*(img: Image; VAR dx, x, y, w, h, patadr: INTEGER);
-  VAR pa, i1, i2, i3: INTEGER;  dxb, xb, yb, wb, hb: BYTE;
-BEGIN
- 
-END GetImage;
-
-PROCEDURE This*(name: ARRAY OF CHAR): Image;
-  VAR I: Image;
-    f: Files.File; R: Files.Rider;
-    b: BYTE;
-    i: INTEGER;
 BEGIN 
-  
-    I:=NIL  
-    f := Files.Old(name);
-    IF f # NIL THEN
-      Files.Set(R, f, 0); 
-      Files.ReadByte(R, b); i:=b;
-      Files.ReadByte(R, b); i:=i+(b*100H);
-
-      IF i = BmpFileId THEN
-	I := Default
-      ELSIF i = JpgFileId THEN
-	I := Default
-      ELSIF i = PngFileId THEN
-	I := Default
-      ELSE (*image file not understood*) 
-	I := Default
-      END
-    ELSE (*image file not available*) 
-      I := NIL
-    END;
-  
-  RETURN I
-END This;
-
-BEGIN Default := This("earth.bmp")
 END Images.
