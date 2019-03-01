@@ -71,26 +71,26 @@ VAR
 
 
   PROCEDURE LoadBmpLayer(VAR R: Files.Rider; VAR flyr: Layer);
-    VAR lyr: Layer;
-  BEGIN lyr := NIL; Files.ReadByte(R, cno);
+    VAR lyr: Layer; b: BYTE;
+  BEGIN lyr := NIL; Files.ReadByte(R, b);
     flyr := lyr
   END LoadBmpLayer;
 
   PROCEDURE LoadJpgLayer(VAR R: Files.Rider; VAR flyr: Layer);
-    VAR lyr: Layer;
-  BEGIN lyr := NIL; Files.ReadByte(R, cno);
+    VAR lyr: Layer; b: BYTE;
+  BEGIN lyr := NIL; Files.ReadByte(R, b);
     flyr := lyr
   END LoadJpgLayer;
 
   PROCEDURE LoadPngLayer(VAR R: Files.Rider; VAR flyr: Layer);
-    VAR lyr: Layer;
-  BEGIN lyr := NIL; Files.ReadByte(R, cno);
+    VAR lyr: Layer; b: BYTE;
+  BEGIN lyr := NIL; Files.ReadByte(R, b);
     flyr := lyr
   END LoadPngLayer;
 
   PROCEDURE LoadPctLayer(VAR R: Files.Rider; VAR flyr: Layer);
-    VAR lyr: Layer;
-  BEGIN lyr := NIL; Files.ReadByte(R, cno);
+    VAR lyr: Layer; b: BYTE;
+  BEGIN lyr := NIL; Files.ReadByte(R, b);
     flyr := lyr
   END LoadPctLayer;
 
@@ -98,7 +98,7 @@ VAR
     VAR tag: CHAR;
           b: BYTE;
           i: INTEGER;
-      F: Files.File; R: Files.Rider; C: Context;
+      F: Files.File; R: Files.Rider; 
   BEGIN I.first := NIL; I.sel := NIL; I.changed := FALSE; F := Files.Old(name);
     IF F # NIL THEN
       Files.Set(R, F, 0);
