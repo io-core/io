@@ -63,7 +63,7 @@ MODULE ImageFrames; (*CP 2.2019*)
 
   VAR Crosshair*: Oberon.Marker;
     tack*, dotted*, dotted1*: INTEGER;  (*patterns*)
-    newcap: Graphics.Caption;
+    (* newcap: Graphics.Caption; *)
     TBuf: Texts.Buffer;
     DW, DH, CL: INTEGER;
     W: Texts.Writer;
