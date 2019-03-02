@@ -34,7 +34,7 @@ MODULE ImageFrames; (*CP 2.2019*)
     UpdateMsg = RECORD (Display.FrameMsg)
         id: INTEGER;
         image: Images.Image;
-        lyr: Images.Layer
+        layer: Images.Layer
       END ;
 
     ChangedMsg = RECORD (Display.FrameMsg)
@@ -94,7 +94,7 @@ MODULE ImageFrames; (*CP 2.2019*)
         INC(y, 16)
       END
     END ;
-    M.f := F; M.x := F.x; M.y := F.y; M.col := 0; M.mode := 0; Graphics.Draw(F.image, M);
+    M.f := F; M.x := F.x; M.y := F.y; M.col := 0; M.mode := 0; Images.Draw(F.image, M);
     IF F.image.changed THEN SetChangeMark(F, 1) END
   END Restore;
 
@@ -144,19 +144,19 @@ MODULE ImageFrames; (*CP 2.2019*)
   BEGIN UM.id := drawdel; UM.image := F.image; Viewers.Broadcast(UM); Mark(F, 1)
   END Erase;
 
-  PROCEDURE DrawLayer*(F: Frame; lyr: Image.Layer);
+  PROCEDURE DrawLayer*(F: Frame; L: Images.Layer);
     VAR UM: UpdateMsg;
-  BEGIN UM.id := drawobj; UM.image := F.image; UM.obj := obj; Viewers.Broadcast(UM)
-  END DrawObj;
+  BEGIN UM.id := drawlayer; UM.image := F.image; UM.layer := L; Viewers.Broadcast(UM)
+  END DrawLayer;
 
-  PROCEDURE EraseLayer*(F: Frame; lyr: Image.Layer);
+  PROCEDURE EraseLayer*(F: Frame; L: Images.Layer);
     VAR UM: UpdateMsg;
-  BEGIN UM.id := drawobjd; UM.image := F.image; UM.obj := obj; Viewers.Broadcast(UM)
-  END EraseObj;
+  BEGIN UM.id := drawlayerd; UM.image := F.image; UM.layer := L; Viewers.Broadcast(UM)
+  END EraseLayer;
 
-  PROCEDURE Change*(F: Frame; VAR msg: Image.Msg);
+  PROCEDURE Change*(F: Frame; VAR msg: Images.Msg);
   BEGIN
-    IF F # NIL THEN Erase(F); Image.Change(F.image, msg); Draw(F) END
+    IF F # NIL THEN Erase(F); Images.Change(F.image, msg); Draw(F) END
   END Change;
 
   PROCEDURE FlipMark(x, y: INTEGER);
@@ -167,7 +167,7 @@ MODULE ImageFrames; (*CP 2.2019*)
 
   PROCEDURE Defocus*(F: Frame);
     VAR m: Location;
-  BEGIN newcap := NIL;
+  BEGIN (* newcap := NIL; *)
     IF F.marked THEN
       FlipMark(F.mark.x, F.mark.y); m := F.mark.next;
       WHILE m # NIL DO FlipMark(m.x, m.y); m := m.next END ;
@@ -180,7 +180,7 @@ MODULE ImageFrames; (*CP 2.2019*)
   BEGIN
     IF F # NIL THEN
       UM.id := drawnorm; UM.image := F.image; Viewers.Broadcast(UM);
-      Image.Deselect(F.image)
+      Images.Deselect(F.image)
     END
   END Deselect;
 
@@ -344,9 +344,9 @@ MODULE ImageFrames; (*CP 2.2019*)
       | UpdateMsg:
           IF M.graph = G.graph THEN
             dM.f := G; dM.x := G.x; dM.y := G.y; dM.col := 0;
-            IF M.id = drawobj THEN dM.mode := 0; M.obj.do.draw(M.obj, dM)
-            ELSIF M.id = drawobjs THEN dM.mode := 1; M.obj.do.draw(M.obj, dM)
-            ELSIF M.id = drawobjd THEN dM.mode := 3; M.obj.do.draw(M.obj, dM)
+            IF M.id = drawlayer THEN dM.mode := 0; M.obj.do.draw(M.obj, dM)
+            ELSIF M.id = drawlayers THEN dM.mode := 1; M.obj.do.draw(M.obj, dM)
+            ELSIF M.id = drawlayerd THEN dM.mode := 3; M.obj.do.draw(M.obj, dM)
             ELSIF M.id = drawsel THEN  dM.mode := 0; Graphics.DrawSel(G.graph, dM)
             ELSIF M.id = drawnorm THEN dM.mode := 2; Graphics.DrawSel(G.graph, dM)
             ELSIF M.id = drawdel THEN dM.mode := 3; Graphics.DrawSel(G.graph, dM)
@@ -401,11 +401,13 @@ MODULE ImageFrames; (*CP 2.2019*)
     Display.ReplPattern(col, patadr, x, y, w, h, mode)
   END ReplPattern;
 
-  PROCEDURE DrawLine(obj: Graphics.Object; VAR M: Graphics.Msg);
-    (*M.mode = 0: draw according to state,
+  PROCEDURE DrawLine(obj: Images.Layer; VAR M: Images.Msg);
+(*
+       M.mode = 0: draw according to state,
         = 1: normal -> selected,
         = 2: selected -> normal,
-        = 3: erase*)
+        = 3: erase
+*)
     VAR x, y, w, h, col: INTEGER; f: Frame;
   BEGIN
     CASE M OF DrawMsg:
@@ -421,12 +423,13 @@ MODULE ImageFrames; (*CP 2.2019*)
     END
   END DrawLine;
 
-  PROCEDURE DrawCaption(obj: Graphics.Object; VAR M: Graphics.Msg);
+  PROCEDURE DrawCaption(obj: Images.Layer; VAR M: Images.Msg);
     VAR x, y, dx, x0, x1, y0, y1, w, h, w1, h1, col, codepoint: INTEGER;
       f: Frame;
       pat: INTEGER; fnt: Fonts.Font;
       R: Texts.Reader;
   BEGIN
+(*
     CASE M OF DrawMsg:
       x := obj.x + M.x; y := obj.y + M.y; w := obj.w; h := obj.h; f := M.f;
       IF (f.X <= x) & (x <= f.X1) & (f.Y <= y) & (y+h <= f.Y1) THEN
@@ -448,13 +451,15 @@ MODULE ImageFrames; (*CP 2.2019*)
         END
       END
     END
+*)
   END DrawCaption;
 
 
-  PROCEDURE DrawMacro(obj: Graphics.Object; VAR M: Graphics.Msg);
+  PROCEDURE DrawMacro(obj: Images.Layer; VAR M: Images.Msg);
     VAR x, y, w, h: INTEGER;
       f: Frame; M1: DrawMsg;
   BEGIN
+(*
     CASE M OF DrawMsg:
       x := obj.x + M.x; y := obj.y + M.y; w := obj.w; h := obj.h; f := M.f;
       IF (x+w > f.X) & (x < f.X1) & (y+h > f.Y) & (y < f.Y1) THEN
@@ -467,7 +472,9 @@ MODULE ImageFrames; (*CP 2.2019*)
         END
       END
     END
+*)
   END DrawMacro;
+
 
   (*---------------------------------------------------------------*)
 
