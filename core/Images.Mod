@@ -1,6 +1,6 @@
 MODULE Images; (*CP 2.2019*)
 
-  IMPORT SYSTEM, Files, Bitmaps;
+  IMPORT SYSTEM, Files, Fonts, Bitmaps;
 
   CONST BmpFileId = 04D42H;
         JpgFileId = 0D8FFH;
@@ -35,6 +35,7 @@ MODULE Images; (*CP 2.2019*)
     Msg* = RECORD END ;
     WidMsg* = RECORD (Msg) w*: INTEGER END ;
     ColorMsg* = RECORD (Msg) col*: INTEGER END ;
+    FontMsg* = RECORD (Msg) fnt*: Fonts.Font END ;
     
 
     bmpHeaderEntry = RECORD
@@ -73,6 +74,7 @@ MODULE Images; (*CP 2.2019*)
 VAR 
   
   res*: INTEGER;
+  width: INTEGER;
   new: Layer;
   LineMethod*, CapMethod*, MacMethod* : Method;
 
@@ -167,6 +169,9 @@ VAR
   END WriteFile;
 
 
+  PROCEDURE SetWidth*(w: INTEGER);
+  BEGIN width := w
+  END SetWidth;
 
 
   PROCEDURE LoadBmpLayer(VAR R: Files.Rider; VAR flyr: Layer);
@@ -215,6 +220,27 @@ VAR
     ELSE res := 2
     END
   END Open;
+
+
+
+  PROCEDURE Delete*(I: Image);
+    VAR L, pred: Layer;
+  BEGIN I.sel := NIL; I.changed := TRUE; L := I.first;
+    WHILE (L # NIL) & L.selected DO L := L.next END ;
+    I.first := L;
+    IF L # NIL THEN
+      pred := L; L := L.next;
+      WHILE L # NIL DO
+        IF L.selected THEN pred.next := L.next ELSE pred := L END ;
+        L := L.next
+      END
+    END
+  END Delete;
+
+
+
+
+
 
   PROCEDURE InstallDrawMethods*(drawLine, drawCaption, drawMacro: PROCEDURE (L: Layer; VAR msg: Msg));
   BEGIN LineMethod.draw := drawLine; CapMethod.draw := drawCaption; MacMethod.draw := drawMacro
