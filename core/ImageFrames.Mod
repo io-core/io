@@ -185,15 +185,15 @@ MODULE ImageFrames; (*CP 2.2019*)
   END Deselect;
 
   PROCEDURE Edit(F: Frame; x0, y0: INTEGER; k0: SET);
-(*    VAR obj: Graphics.Object;
+    VAR L: Images.Layer;
       x1, y1, w, h, t: INTEGER;
       beg, end, time: LONGINT;
       k1, k2: SET;
       mark, newmark: Location;
       T: Texts.Text;
       Fd: Frame;
-      G: Graphics.Graph;  *)
-  BEGIN (* k1 := k0; G := F.graph;
+      I: Images.Image;  
+  BEGIN  k1 := k0; I := F.image;
     REPEAT Input.Mouse(k2, x1, y1); k1 := k1 + k2;
       DEC(x1, (x1-F.x) MOD 4); DEC(y1, (y1-F.y) MOD 4);
       Oberon.DrawMouse(Crosshair, x1, y1)
@@ -209,20 +209,22 @@ MODULE ImageFrames; (*CP 2.2019*)
             F.mark.x := x1; F.mark.y := y1; F.marked := TRUE; FlipMark(x1, y1)
           END
         ELSE (*draw line*) Deselect(F);
+(*
           IF w < h THEN
             IF y1 < y0 THEN y0 := y1 END ;
-            NewLine(F, G, x0, y0, Graphics.width, h)
+            NewLine(F, I, x0, y0, Images.width, h)
           ELSE
             IF x1 < x0 THEN x0 := x1 END ;
-            NewLine(F, G, x0, y0, w, Graphics.width)
+            NewLine(F, I, x0, y0, w, Images.width)
           END ;
+*)
           Draw(F)
         END
       ELSIF k1 = {2, 1} THEN (*copy text selection to mark*)
-        Deselect(F); Oberon.GetSelection(T, beg, end, time);
+        Deselect(F); (* Oberon.GetSelection(T, beg, end, time);
         IF time >= 0 THEN
           DrawObj(F, CaptionCopy(F, x1, y1, T, beg, end)); Mark(F, 1)
-        END
+        END *)
       ELSIF k1 = {2, 0} THEN
         IF F.marked THEN (*set secondary mark*)
             NEW(newmark); newmark.x := x1; newmark.y := y1; newmark.next := NIL;
@@ -235,38 +237,45 @@ MODULE ImageFrames; (*CP 2.2019*)
       END
     ELSIF k0 = {1} THEN (*middle key*)
       IF k1 = {1} THEN (*move*)
+(*
         IF (x0 # x1) OR (y0 # y1) THEN
           Fd := This(x1, y1); Erase(F);
-          IF Fd = F THEN Graphics.Move(G, x1-x0, y1-y0)
-          ELSIF (Fd # NIL) & (Fd.graph = G) THEN
-            Graphics.Move(G, (x1-Fd.x-x0+F.x) DIV 4 * 4, (y1-Fd.y-y0+F.y) DIV 4 * 4)
+          IF Fd = F THEN Images.Move(I, x1-x0, y1-y0)
+          ELSIF (Fd # NIL) & (Fd.image = I) THEN
+            Images.Move(I, (x1-Fd.x-x0+F.x) DIV 4 * 4, (y1-Fd.y-y0+F.y) DIV 4 * 4)
           END ;
           Draw(F); Mark(F, 1)
         END
+
+*)
       ELSIF k1 = {1, 2} THEN (*copy*)
+(*
         Fd := This(x1, y1);
         IF Fd # NIL THEN DrawNorm(F);
-          IF Fd = F THEN Graphics.Copy(G, G, x1-x0, y1-y0)
+          IF Fd = F THEN Images.Copy(I, I, x1-x0, y1-y0)
           ELSE Deselect(Fd);
-            Graphics.Copy(G, Fd.graph, (x1-Fd.x-x0+F.x) DIV 4 * 4, (y1-Fd.y-y0+F.y) DIV 4 * 4)
+            Images.Copy(I, Fd.image, (x1-Fd.x-x0+F.x) DIV 4 * 4, (y1-Fd.y-y0+F.y) DIV 4 * 4)
           END ;
           Draw(Fd); Mark(F, 1)
         END
-      ELSIF k1 = {1, 0} THEN (*shift graph*)
-        INC(F.Xg, x1-x0); INC(F.Yg, y1-y0); Restore(F)
+*)
+      ELSIF k1 = {1, 0} THEN (*shift image*)
+(*        INC(F.Xg, x1-x0); INC(F.Yg, y1-y0); Restore(F) *)
       END
     ELSIF k0 = {0} THEN (*right key: select*)
+(*
       newcap := NIL;
       IF k1 = {0} THEN Deselect(F) END ;
       IF (ABS(x0-x1) < 7) & (ABS(y0-y1) < 7) THEN
-        obj := Graphics.ThisObj(G, x1 - F.x, y1 - F.y);
-        IF obj # NIL THEN Graphics.SelectObj(G, obj); DrawObj(F, obj) END
+        L := Images.ThisObj(I, x1 - F.x, y1 - F.y);
+        IF L # NIL THEN Images.SelectObj(I, L); DrawObj(F, L) END
       ELSE
         IF x1 < x0 THEN t := x0; x0 := x1; x1 := t END ;
         IF y1 < y0 THEN t := y0; y0 := y1; y1 := t END ;
-        Graphics.SelectArea(G, x0 - F.x, y0 - F.y, x1 - F.x, y1 - F.y); Draw(F)
+        Images.SelectArea(I, x0 - F.x, y0 - F.y, x1 - F.x, y1 - F.y); Draw(F)
       END
-    END  *)
+*)
+    END  
   END Edit;
 
 
@@ -309,7 +318,7 @@ MODULE ImageFrames; (*CP 2.2019*)
     END *)
   END DeleteChar;
 
-  PROCEDURE GetSelection(F: Frame; VAR text: Texts.Text; VAR beg, end, time: LONGINT);
+  PROCEDURE GetSelection(F: Frame; VAR text: Texts.Text; VAR beg, end: (*, time:*) LONGINT);
  (*   VAR obj: Graphics.Object; *)
   BEGIN (* obj := F.graph.sel;
     IF (obj # NIL) & (F.graph.time >= time) THEN
@@ -319,62 +328,64 @@ MODULE ImageFrames; (*CP 2.2019*)
     END *)
   END GetSelection;
 
-  PROCEDURE Handle*(G: Display.Frame; VAR M: Display.FrameMsg);
+  PROCEDURE Handle*(F: Display.Frame; VAR M: Display.FrameMsg);
     VAR x, y, h: INTEGER;
       DM: DispMsg; dM: DrawMsg;
-      G1: Frame;
-  BEGIN  (*
-    CASE G OF Frame:
+      F1: Frame;
+  BEGIN  
+    CASE F OF Frame:
       CASE M OF
       Oberon.InputMsg:
         IF M.id = Oberon.track THEN
-          x := M.X - (M.X - G.x) MOD 4; y := M.Y - (M.Y - G.y) MOD 4;
-          IF M.keys # {} THEN Edit(G, x, y, M.keys) ELSE Oberon.DrawMouse(Crosshair, x, y) END
+          x := M.X - (M.X - F.x) MOD 4; y := M.Y - (M.Y - F.y) MOD 4;
+          IF M.keys # {} THEN Edit(F, x, y, M.keys) ELSE Oberon.DrawMouse(Crosshair, x, y) END
         ELSIF M.id = Oberon.consume THEN
           IF M.codepoint = 7FH THEN (*DEL*)
-            Erase(G); Graphics.Delete(G.graph); Mark(G, 1)
+            Erase(F); Images.Delete(F.image); Mark(F, 1)
+          (*
           ELSIF (M.codepoint >= 20H) THEN
-            IF newcap # NIL THEN InsertChar(G, M.codepoint); Mark(G, 1)
-            ELSIF G.marked THEN
-              Defocus(G); Deselect(G); NewCaption(G, M.col, M.fnt); InsertChar(G, M.codepoint)
+            IF newcap # NIL THEN InsertChar(F, M.codepoint); Mark(F, 1)
+            ELSIF F.marked THEN
+              Defocus(F); Deselect(F); NewCaption(F, M.col, M.fnt); InsertChar(F, M.codepoint)
             END
-          ELSIF (M.codepoint = ORD(08X)) & (newcap # NIL) THEN DeleteChar(G); Mark(G, 1)
+          ELSIF (M.codepoint = ORD(08X)) & (newcap # NIL) THEN DeleteChar(F); Mark(F, 1)
+          *)
           END
         END
       | UpdateMsg:
-          IF M.graph = G.graph THEN
-            dM.f := G; dM.x := G.x; dM.y := G.y; dM.col := 0;
-            IF M.id = drawlayer THEN dM.mode := 0; M.obj.do.draw(M.obj, dM)
-            ELSIF M.id = drawlayers THEN dM.mode := 1; M.obj.do.draw(M.obj, dM)
-            ELSIF M.id = drawlayerd THEN dM.mode := 3; M.obj.do.draw(M.obj, dM)
-            ELSIF M.id = drawsel THEN  dM.mode := 0; Graphics.DrawSel(G.graph, dM)
-            ELSIF M.id = drawnorm THEN dM.mode := 2; Graphics.DrawSel(G.graph, dM)
-            ELSIF M.id = drawdel THEN dM.mode := 3; Graphics.DrawSel(G.graph, dM)
+          IF M.image = F.image THEN
+            dM.f := F; dM.x := F.x; dM.y := F.y; dM.col := 0;
+            IF M.id = drawlayer THEN dM.mode := 0; M.layer.do.draw(M.layer, dM)
+            ELSIF M.id = drawlayers THEN dM.mode := 1; M.layer.do.draw(M.layer, dM)
+            ELSIF M.id = drawlayerd THEN dM.mode := 3; M.layer.do.draw(M.layer, dM)
+            ELSIF M.id = drawsel THEN  dM.mode := 0; Images.DrawSel(F.image, dM)
+            ELSIF M.id = drawnorm THEN dM.mode := 2; Images.DrawSel(F.image, dM)
+            ELSIF M.id = drawdel THEN dM.mode := 3; Images.DrawSel(F.image, dM)
             END
           END
       | ChangedMsg:
-          IF M.graph = G.graph THEN SetChangeMark(G, M.mode) END
+          IF M.image = F.image THEN SetChangeMark(F, M.mode) END
       | SelQuery:
-          IF (G.graph.sel # NIL) & (M.time < G.graph.time) THEN M.f := G(Frame); M.time := G.graph.time END
-      | FocusQuery: IF G.marked THEN M.f := G END
-      | PosQuery: IF (G.X <= M.x) & (M.x < G.X1) & (G.Y <= M.y) & (M.y < G.Y1) THEN M.f := G END
+          IF (F.image.sel # NIL) (* & (M.time < F.image.time) *) THEN M.f := F(Frame) (* ; M.time := F.image.time *) END
+      | FocusQuery: IF F.marked THEN M.f := F END
+      | PosQuery: IF (F.X <= M.x) & (M.x < F.X1) & (F.Y <= M.y) & (M.y < F.Y1) THEN M.f := F END
       | DispMsg:
         DM := M;
-        x := G.x + newcap.x + newcap.w; y := G.y + newcap.y;
-        IF (DM.graph = G.graph) & (x >= G.X) & (x + DM.w < G.X1) & (y >= G.Y) & (y < G.Y1) THEN
+        x := F.x (*+ newcap.x + newcap.w *); y := F.y (*+ newcap.y*) ;
+        IF (DM.image = F.image) & (x >= F.X) & (x + DM.w < F.X1) & (y >= F.Y) & (y < F.Y1) THEN
           Display.CopyPattern(Oberon.CurCol, DM.pat, x + DM.x1, y + DM.y1, 2);
-          Display.ReplConst(Display.white, x, y, DM.w, newcap.h, 2)
+          (*Display.ReplConst(Display.white, x, y, DM.w, newcap.h, 2)*)
         END
       | Oberon.ControlMsg:
           IF M.id = Oberon.neutralize THEN
-            Oberon.RemoveMarks(G.X, G.Y, G.W, G.H); Defocus(G); DrawNorm(G); Graphics.Deselect(G.graph)
-          ELSIF M.id = Oberon.defocus THEN Defocus(G)
+            Oberon.RemoveMarks(F.X, F.Y, F.W, F.H); Defocus(F); DrawNorm(F); Images.Deselect(F.image)
+          ELSIF M.id = Oberon.defocus THEN Defocus(F)
           END
-      | Oberon.SelectionMsg: GetSelection(G, M.text, M.beg, M.end, M.time)
-      | Oberon.CopyMsg: Oberon.RemoveMarks(G.X, G.Y, G.W, G.H); Defocus(G); NEW(G1); G1^ := G^; M.F := G1
-      | MenuViewers.ModifyMsg: G.Y := M.Y; G.H := M.H; Restore(G)
+      | Oberon.SelectionMsg: GetSelection(F, M.text, M.beg, M.end (*, M.time *))
+      | Oberon.CopyMsg: Oberon.RemoveMarks(F.X, F.Y, F.W, F.H); Defocus(F); NEW(F1); F1^ := F^; M.F := F1
+      | MenuViewers.ModifyMsg: F.Y := M.Y; F.H := M.H; Restore(F)
       END
-    END  *)
+    END  
   END Handle;
 
   PROCEDURE Store*(F: Frame; name: ARRAY OF CHAR);
@@ -478,10 +489,10 @@ MODULE ImageFrames; (*CP 2.2019*)
 
   (*---------------------------------------------------------------*)
 
-  PROCEDURE Open*(G: Frame; image: Images.Image);
-  BEGIN G.image := image; G.Xg := 0; G.Yg := 0; G.x := G.X; G.y := G.Y;
-    G.col := Display.black; G.marked := FALSE;
-    G.mark.next := NIL; G.ticked := TRUE; G.handle := Handle
+  PROCEDURE Open*(F: Frame; I: Images.Image);
+  BEGIN F.image := I; F.Xg := 0; F.Yg := 0; F.x := F.X; F.y := F.Y;
+    F.col := Display.black; F.marked := FALSE;
+    F.mark.next := NIL; F.ticked := TRUE; F.handle := Handle
   END Open;
 
 BEGIN DW := Display.Width - 8; DH := Display.Height - 8; CL := 0;
@@ -490,6 +501,6 @@ BEGIN DW := Display.Width - 8; DH := Display.Height - 8; CL := 0;
   dotted := SYSTEM.ADR($2004 0000 1111 1111 0000 0000 0000 0000 0000 0000$);
   dotted1 := SYSTEM.ADR($2004 0000 1111 1111 0000 0000 4444 4444 0000 0000$);
   Crosshair.Fade := FlipCross; Crosshair.Draw := FlipCross;
-  Images.InstallDrawMethods(DrawLine, DrawCaption, DrawMacro)
+(*  Images.InstallDrawMethods(DrawLine, DrawCaption, DrawMacro) *)
 END ImageFrames.
 

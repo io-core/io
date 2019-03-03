@@ -26,7 +26,7 @@ MODULE Paint; (*CP 3.2019*)
       IF t >= 0 THEN Texts.OpenScanner(S, text, beg); Texts.Scan(S) END
     END ;
     IF S.class = Texts.Name THEN
-      NEW(I); Images.Open(G, S.s);
+      NEW(I); Images.Open(I, S.s);
       NEW(F); ImageFrames.Open(F, I);
       Oberon.AllocateUserViewer(Oberon.Par.vwr.X, X, Y);
       V := MenuViewers.New(TextFrames.NewMenu(S.s, Menu), F, TextFrames.menuH, X, Y)
@@ -153,5 +153,5 @@ MODULE Paint; (*CP 3.2019*)
 *)
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Paint - CP 1.3.2019");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
-END Draw.
+END Paint.
 

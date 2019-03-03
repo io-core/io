@@ -21,6 +21,18 @@ MODULE Images; (*CP 2.2019*)
       do*: Method;
       next: Layer
     END;
+(*
+    Effect* = POINTER TO EffectDesc;
+    EffectDesc* = RECORD
+    END;
+
+    Application* = POINTER TO ApplictionDesc;
+    ApplicationDesc* = RECORD
+      E: Effect;
+      S1,S2: Layer
+    END;
+
+*)
 
     Image* = POINTER TO ImageDesc;
     Notifier* = PROCEDURE (I: Image; op: INTEGER; beg, end: LONGINT);
@@ -72,14 +84,14 @@ MODULE Images; (*CP 2.2019*)
 
     
 VAR 
-  
+ 
   res*: INTEGER;
   width: INTEGER;
-  new: Layer;
+  new*: Layer; 
   LineMethod*, CapMethod*, MacMethod* : Method;
 
-  PROCEDURE New*(l: Layer);
-  BEGIN new := l
+  PROCEDURE New*(L: Layer);
+  BEGIN   new := L 
   END New;
 
   PROCEDURE Add*(I: Image; L: Layer);
