@@ -1,0 +1,3 @@
+package github.com/io-core/io/core/Files v1.0.0
+
+require ( github.com/io-core/io/core/Kernel v1.0.0 )
