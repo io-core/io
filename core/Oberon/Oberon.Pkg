@@ -1,8 +1,16 @@
-package github.com/io-core/io/core/Oberon v1.0.0
+package github.com/io-core/io/core/Oberon v5.1.0
 
-require (
-        github.com/io-core/io/core/Kernel v1.0.0
-	github.com/io-core/io/core/Files v1.0.0
-        github.com/io-core/io/core/Modules v1.0.0
-        github.com/io-core/io/core/Edit v1.0.0
+requires (
+        github.com/io-core/io/core/Kernel v5.1.0
+	github.com/io-core/io/core/Files v5.1.0
+        github.com/io-core/io/core/Modules v5.1.0
+        github.com/io-core/io/core/Edit v5.1.0
+)
+
+provides (
+        Input.Mod
+	Display.Mod
+        Viewers.Mod      
+	MenuViewers.Mod       
+	Oberon.Mod      
 )

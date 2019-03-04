@@ -1,2 +1,4 @@
-package github.com/io-core/io/core/Kernel v1.0.0
+package github.com/io-core/io/core/Kernel v5.1.0
+requires ( )
+provides ( Kernel.Mod )
 
