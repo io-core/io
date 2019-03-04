@@ -1,10 +1,10 @@
-package github.com/io-core/io/core/Paint v1.0.0
+package [io-core]/Paint v1.0.0
 
 requires (
-        github.com/io-core/io/core/Files v5.1.0
-        github.com/io-core/io/core/Modules v5.1.0
-        github.com/io-core/io/core/Oberon v5.1.0
-        github.com/io-core/io/core/Edit v5.1.0
+        [io-core]/Files v5.1.0
+        [io-core]/Modules v5.1.0
+        [io-core]/Oberon v5.1.0
+        [io-core]/Edit v5.1.0
 )
 
 provides (
