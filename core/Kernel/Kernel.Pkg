@@ -1,4 +1,4 @@
-package [io-core]/Kernel v5.1.0
+package [core]/Kernel v5.0.0
 requires ( )
 provides ( Kernel.Mod )
 

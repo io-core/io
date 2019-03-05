@@ -1,11 +1,13 @@
-package [io-core]/System v5.1.0
+package [core]/System v5.1.0
 
 requires (
-        [io-core]/Kernel v5.1.0
-        [io-core]/Files v5.1.0
-        [io-core]/Modules v5.1.0
-        [io-core]/Oberon v5.1.0
-        [io-core]/Edit v5.1.0
+        [core]/Kernel v5.0.0
+        [core]/Files v5.1.0
+        [core]/Modules v5.1.0
+        [core]/Oberon v5.1.0
+        [core]/Edit v5.1.0
+        [core]/Draw v5.1.0
+        [core]/Paint v1.0.0
 )
 
 provides (

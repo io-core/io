@@ -1,4 +1,4 @@
-MODULE Tools;   (*NW 22.2.2014*)
+MODULE Tools;   (*NW 22.2.2014 CP 2.2017*)
   IMPORT SYSTEM, Kernel, Files, Modules, Input, Texts, Viewers, MenuViewers, TextFrames, Oberon;
   VAR T: Texts.Text; V: MenuViewers.Viewer; W: Texts.Writer;
 
@@ -65,7 +65,7 @@ MODULE Tools;   (*NW 22.2.2014*)
       Texts.WriteString(W, S.s); F := Files.Old(S.s);
       IF F # NIL THEN
         n := 0; Files.Set(R, F, 0); Files.ReadInt(R, x);
-        WHILE ~R.eof DO
+        WHILE (~R.eof) & (n < 262144) DO
           IF n MOD 20H = 0 THEN Texts.WriteLn(W); Texts.WriteHex(W, n); Texts.Write(W, 9X) END ;
           Texts.WriteHex(W, x); INC(n, 4); Files.ReadInt(R, x)
         END ;

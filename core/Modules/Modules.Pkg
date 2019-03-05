@@ -1,6 +1,6 @@
-package [io-core]/Modules v5.1.0
+package [core]/Modules v5.1.0
 
-requires ( [io-core]/Files v5.1.0 )
+requires ( [core]/Files v5.1.0 )
 
 provides ( Modules.Mod )
 

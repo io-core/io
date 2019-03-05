@@ -1,10 +1,10 @@
-package [io-core]/Oberon v5.1.0
+package [core]/Oberon v5.1.0
 
 requires (
-        [io-core]/Kernel v5.1.0
-	[io-core]/Files v5.1.0
-        [io-core]/Modules v5.1.0
-        [io-core]/Edit v5.1.0
+        [core]/Kernel v5.0.0
+	[core]/Files v5.1.0
+        [core]/Modules v5.1.0
+        [core]/Edit v5.1.0
 )
 
 provides (
