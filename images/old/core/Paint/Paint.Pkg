@@ -1,15 +1,12 @@
-package [io-core]/Paint v1.0.0
-
-requires (
-        [io-core]/Files v5.1.0
-        [io-core]/Modules v5.1.0
-        [io-core]/Oberon v5.1.0
-        [io-core]/Edit v5.1.0
-)
-
-provides (
-	Bitmaps.Mod
-	ImageFrames.Mod
-	Images.Mod
-	Paint.Mod
-)
+k,v1,v2
+package,Paint,v1.0.0
+from,github.com/io-core,
+license,PROJECTOBERON,Charles Perkins
+r,[core]/Modules,v5.1.0
+r,[core]/Oberon,v5.1.0
+r,[core]/Edit,v5.1.0
+r,[core]/Files,v5.1.0
+p,Images.Mod,aea4dde4c6b0698d760d9ba2314d35ecddb75fc156bded76f0e407fa9ddcce3d
+p,Paint.Mod,5d3036a19f9c47747002dc9f13e671f74c00cf7636bbfe728bfdcfbf8275f3a8
+p,Bitmaps.Mod,e07b238fa91dac9f6a5ffa914cd69cfa770e83cebadd1fe47d87b14c518f511d
+p,ImageFrames.Mod,77f9bcf1f8cdb2fdff55891590a56e60e12d19f1a466d15282be9d4e2c2fe711

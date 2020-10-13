@@ -1,0 +1,8 @@
+k,v1,v2
+package,Log,v0.1.1
+from,github.com/io-core,
+license,MIT,The io-core Authors
+r,github.com/io-core/io/core/Oberon,v5.1.0
+r,github.com/io-core/io/core/Edit,v5.1.0
+r,github.com/io-core/io/core/Files,v5.1.0
+r,github.com/io-core/io/core/Modules,v5.1.0
