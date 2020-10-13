@@ -1,0 +1,7 @@
+setting,value
+workspace-module-line-ending,nl
+workspace-packages-dirstyle,flat
+repo,io-core:github.com/io-core
+repo,io-orig:github.com/io-orig/System
+meta-repo,orig:io-orig
+meta-repo,core:io-core

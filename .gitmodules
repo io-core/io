@@ -1,0 +1,45 @@
+[submodule "root/doc"]
+	path = root/doc
+	url = https://github.com/io-core/doc
+[submodule "root/src/github.com/io-core/Attest"]
+	path = root/src/github.com/io-core/Attest
+	url = https://github.com/io-core/Attest
+[submodule "root/src/github.com/io-core/Build"]
+	path = root/src/github.com/io-core/Build
+	url = https://github.com/io-core/Build
+[submodule "root/src/github.com/io-core/Crypto"]
+	path = root/src/github.com/io-core/Crypto
+	url = https://github.com/io-core/Crypto
+[submodule "root/src/github.com/io-core/Draw"]
+	path = root/src/github.com/io-core/Draw
+	url = https://github.com/io-core/Draw
+[submodule "root/src/github.com/io-core/Edit"]
+	path = root/src/github.com/io-core/Edit
+	url = https://github.com/io-core/Edit
+[submodule "root/src/github.com/io-core/Files"]
+	path = root/src/github.com/io-core/Files
+	url = https://github.com/io-core/Files
+[submodule "root/src/github.com/io-core/Index"]
+	path = root/src/github.com/io-core/Index
+	url = https://github.com/io-core/Index
+[submodule "root/src/github.com/io-core/Kernel"]
+	path = root/src/github.com/io-core/Kernel
+	url = https://github.com/io-core/Kernel
+[submodule "root/src/github.com/io-core/Mod"]
+	path = root/src/github.com/io-core/Mod
+	url = https://github.com/io-core/Mod
+[submodule "root/src/github.com/io-core/Modules"]
+	path = root/src/github.com/io-core/Modules
+	url = https://github.com/io-core/Modules
+[submodule "root/src/github.com/io-core/Oberon"]
+	path = root/src/github.com/io-core/Oberon
+	url = https://github.com/io-core/Oberon
+[submodule "root/src/github.com/io-core/Paint"]
+	path = root/src/github.com/io-core/Paint
+	url = https://github.com/io-core/Paint
+[submodule "root/src/github.com/io-core/Script"]
+	path = root/src/github.com/io-core/Script
+	url = https://github.com/io-core/Script
+[submodule "root/src/github.com/io-core/System"]
+	path = root/src/github.com/io-core/System
+	url = https://github.com/io-core/System
