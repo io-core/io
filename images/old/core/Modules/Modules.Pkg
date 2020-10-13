@@ -1,6 +1,0 @@
-k,v1,v2
-package,Modules,v5.1.0
-from,github.com/io-core,
-license,PROJECTOBERON,The Oberon Authors
-r,[core]/Files,v5.1.0
-p,Modules.Mod,7fc3ae873735c4271d5f541ab0c93d2dd42c76f9acdbd3b6715b010c87fc183c

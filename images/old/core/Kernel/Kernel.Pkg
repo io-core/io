@@ -1,5 +1,0 @@
-k,v1,v2
-package,Kernel,v5.0.0
-from,github.com/io-core,
-license,PROJECTOBERON,The Oberon Authors
-p,Kernel.Mod,be29dc255a8b7ad5e2ce63c47612ff61f3f11c029145ee72d8d6890bf87e3260

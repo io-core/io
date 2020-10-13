@@ -1,2 +1,0 @@
-#!/bin/bash
-diff <(cat $1.Mod| tr -d '\r' ) <(cat ../../core/$1.Mod)

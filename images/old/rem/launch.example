@@ -1,1 +1,0 @@
-./rem -i IO.img -c 1 -d opengl -g - -f - -v 0 -m 8

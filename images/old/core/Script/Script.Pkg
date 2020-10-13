@@ -1,5 +1,0 @@
-k,v1,v2
-package,Script,v0.1.0
-from,github.com/io-core,
-license,MIT,2019 Charles Perkins
-r,[core]/System,v5.0.0
