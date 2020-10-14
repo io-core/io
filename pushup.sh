@@ -2,14 +2,14 @@
 pushd .
 cd root/doc
 echo "at `pwd`"
-bash synchronize.sh
+bash pushup.sh
 popd
 git add root/doc
 for i in `ls -d root/src/github.com/io-core/*/`; do
        pushd .	
        cd $i
        echo "at `pwd`"
-       bash synchronize.sh
+       bash pushup.sh
        popd
        git add $i
 done
