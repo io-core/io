@@ -8,11 +8,18 @@ Integrated Oberon
 ---              | ---                   | ---
 [**About IO**](https://github.com/io-core/doc/blob/main/README.md) | [**Report Issues**](https://github.com/io-core/doc/blob/main/README.md#how-to-report-issues) | [**Contribute To IO**](https://github.com/io-core/doc/blob/main/README.md)
 
+Latest trimmed [disk image]() for emulators
 
+Latest full [disk image]() for FPGAs
 
 Go to the [Wiki](https://github.com/io-core/io/wiki) for more community content.
 
 
 Fork this repo, make pull requests! Help integrate modern capabilities into Oberon, a classic
 operating system and language.
+
+This repo uses submodules, to get the whole thing:
+```
+git clone --recursive https://github.com/io-core/io
+```
 
