@@ -24,5 +24,5 @@ git clone --recursive https://github.com/io-core/io
 ```
 After cloning the submodules may not be checked out to 'main' so after the above command you should:
 ```
-cd io; bash fixmain.sh
+cd io; bash makemain.sh
 ```
