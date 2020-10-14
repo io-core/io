@@ -8,6 +8,7 @@ Visit the [documentation](https://github.com/io-core/doc/blob/main/README.md) fo
 * detailed information about Integrated Oberon
 * how to get it and how to use it
 * to browse the 'odoc' documentation generated from the source code of:
+
    * The core
    * The Standard Libraries
    * The Experimental Libraries
