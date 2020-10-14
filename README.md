@@ -4,19 +4,11 @@ Integrated Oberon
 <img align="right" src="https://github.com/charlesap/io/blob/main/images/cowhead.png"> Integrated Oberon builds on the RISC Oberon reboot of the classic operating system and language.
 <hr>
 
-[Get It]()       | [Run It]()        | [Browse It]()
----              | ---               | ---
-[**About It**]() | [**Report It**]() | [**Contribute To It**]()
+[Get IO](https://github.com/io-core/doc/blob/main/README.md#how-to-get-integrated-oberon) | [Run IO](https://github.com/io-core/doc/blob/main/intro/Intro.md) | [Browse IO](https://github.com/io-core/doc/blob/main/README.md#documentation)
+---              | ---                   | ---
+[**About IO**](https://github.com/io-core/doc/blob/main/README.md) | [**Report Issues**](https://github.com/io-core/doc/blob/main/README.md) | [**Contribute To IO**](https://github.com/io-core/doc/blob/main/README.md)
 
 
-Visit the [documentation](https://github.com/io-core/doc/blob/main/README.md) for 
-* detailed information about Integrated Oberon
-* how to get it and how to use it
-* to browse the 'odoc' documentation generated from the source code of:
-
-   * The core
-   * The Standard Libraries
-   * The Experimental Libraries
 
 Go to the [Wiki](https://github.com/io-core/io/wiki) for more community content.
 
