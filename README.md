@@ -4,6 +4,11 @@ Integrated Oberon
 <img align="right" src="https://github.com/charlesap/io/blob/main/images/cowhead.png"> Integrated Oberon builds on the RISC Oberon reboot of the classic operating system and language.
 <hr>
 
+[Get It]()       | [Run It]()        | [Browse It]()
+---              | ---               | ---
+[**About It**]() | [**Report It**]() | [**Contribute To It**]()
+
+
 Visit the [documentation](https://github.com/io-core/doc/blob/main/README.md) for 
 * detailed information about Integrated Oberon
 * how to get it and how to use it
