@@ -2,6 +2,7 @@
 pushd .
 cd root/doc
 echo "at `pwd`"
+bash gendocs.sh
 bash pushup.sh
 popd
 git add root/doc
