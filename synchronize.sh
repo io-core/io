@@ -14,6 +14,7 @@ for i in `ls -d root/src/github.com/io-core/*/`; do
        git add $i
 done
 git add images/io.img
-#git add root/src/github.com/io-core/*
+git add root/src/Packages.Wrk
+git add root/src/github.com/io-core/Packages.Wrk
 git commit -m 'sync local to master'
 git push origin main
