@@ -14,6 +14,12 @@ for i in `ls -d root/src/github.com/io-core/*/`; do
        popd
        git add $i
 done
+pushd .
+cd root/src/github.com/io-orig/System/
+echo "at `pwd`"
+bash gendocs.sh
+bash pushup.sh
+popd
 git add images/io.img
 git add root/src/Packages.Wrk
 git add root/src/github.com/io-core/Packages.Wrk
