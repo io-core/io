@@ -10,7 +10,7 @@ Integrated Oberon
 
 Latest trimmed disk [image](https://github.com/io-core/io/blob/main/images/io.img) for emulators
 
-Latest full disk [image](https://github.com/io-core/io/blob/main/images/io-full.img) for FPGAs
+Latest full disk [image](https://github.com/io-core/io/blob/main/images/io-full.img.zip) for FPGAs
 
 Go to the [Wiki](https://github.com/io-core/io/wiki) for more community content.
 
