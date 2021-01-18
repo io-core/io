@@ -43,3 +43,6 @@
 [submodule "root/src/github.com/io-core/System"]
 	path = root/src/github.com/io-core/System
 	url = https://github.com/io-core/System
+[submodule "root/src/github.com/io-core/Bootloaders"]
+	path = root/src/github.com/io-core/Bootloaders
+	url = https://github.com/io-core/Bootloaders
