@@ -52,3 +52,33 @@
 	url = https://github.com/io-core/System
 [submodule "root/src/github.com/io-core/Test/"]
         url = root/src/github.com/io-core/Test/
+[submodule "root/src/github.com/io-core/Test"]
+	path = root/src/github.com/io-core/Test
+	url = https://github.com/io-core/Test
+[submodule "root/src/github.com/io-core/Prolog"]
+	path = root/src/github.com/io-core/Prolog
+	url = https://github.com/io-core/Prolog
+[submodule "root/src/github.com/io-core/Pascal"]
+	path = root/src/github.com/io-core/Pascal
+	url = https://github.com/io-core/Pascal
+[submodule "root/src/github.com/io-core/Go"]
+	path = root/src/github.com/io-core/Go
+	url = https://github.com/io-core/Go
+[submodule "root/src/github.com/io-core/Examples"]
+	path = root/src/github.com/io-core/Examples
+	url = https://github.com/io-core/Examples
+[submodule "root/src/github.com/io-core/Draft"]
+	path = root/src/github.com/io-core/Draft
+	url = https://github.com/io-core/Draft
+[submodule "root/src/github.com/io-core/C"]
+	path = root/src/github.com/io-core/C
+	url = https://github.com/io-core/C
+[submodule "root/src/github.com/io-core/BASIC"]
+	path = root/src/github.com/io-core/BASIC
+	url = https://github.com/io-core/BASIC
+[submodule "root/src/github.com/io-core/Assist"]
+	path = root/src/github.com/io-core/Assist
+	url = https://github.com/io-core/Assist
+[submodule "root/src/github.com/io-core/ArgParse"]
+	path = root/src/github.com/io-core/ArgParse
+	url = https://github.com/io-core/ArgParse
