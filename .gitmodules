@@ -1,48 +1,54 @@
+[submodule "root/src/github.com/io-core/ArgParse/"]
+        url = root/src/github.com/io-core/ArgParse/
+[submodule "root/src/github.com/io-core/Assist/"]
+        url = root/src/github.com/io-core/Assist/
 [submodule "root/src/github.com/io-core/Attest"]
-	path = root/src/github.com/io-core/Attest
 	url = https://github.com/io-core/Attest
+[submodule "root/src/github.com/io-core/BASIC/"]
+        url = root/src/github.com/io-core/BASIC/
+[submodule "root/src/github.com/io-core/Boot"]
+	url = https://github.com/io-core/Boot
 [submodule "root/src/github.com/io-core/Build"]
-	path = root/src/github.com/io-core/Build
 	url = https://github.com/io-core/Build
+[submodule "root/src/github.com/io-core/C/"]
+        url = root/src/github.com/io-core/C/
 [submodule "root/src/github.com/io-core/Crypto"]
-	path = root/src/github.com/io-core/Crypto
 	url = https://github.com/io-core/Crypto
+[submodule "root/src/github.com/io-core/Doc"]
+	url = https://github.com/io-core/Doc
+[submodule "root/src/github.com/io-core/Draft/"]
+        url = root/src/github.com/io-core/Draft/
 [submodule "root/src/github.com/io-core/Draw"]
-	path = root/src/github.com/io-core/Draw
 	url = https://github.com/io-core/Draw
 [submodule "root/src/github.com/io-core/Edit"]
-	path = root/src/github.com/io-core/Edit
 	url = https://github.com/io-core/Edit
+[submodule "root/src/github.com/io-core/Examples/"]
+        url = root/src/github.com/io-core/Examples/
+[submodule "root/src/github.com/io-core/Experiments/"]
+        url = root/src/github.com/io-core/Experiments/
 [submodule "root/src/github.com/io-core/Files"]
-	path = root/src/github.com/io-core/Files
 	url = https://github.com/io-core/Files
+[submodule "root/src/github.com/io-core/Go/"]
+        url = root/src/github.com/io-core/Go/
 [submodule "root/src/github.com/io-core/Index"]
-	path = root/src/github.com/io-core/Index
 	url = https://github.com/io-core/Index
 [submodule "root/src/github.com/io-core/Kernel"]
-	path = root/src/github.com/io-core/Kernel
 	url = https://github.com/io-core/Kernel
 [submodule "root/src/github.com/io-core/Mod"]
-	path = root/src/github.com/io-core/Mod
 	url = https://github.com/io-core/Mod
 [submodule "root/src/github.com/io-core/Modules"]
-	path = root/src/github.com/io-core/Modules
 	url = https://github.com/io-core/Modules
 [submodule "root/src/github.com/io-core/Oberon"]
-	path = root/src/github.com/io-core/Oberon
 	url = https://github.com/io-core/Oberon
 [submodule "root/src/github.com/io-core/Paint"]
-	path = root/src/github.com/io-core/Paint
 	url = https://github.com/io-core/Paint
+[submodule "root/src/github.com/io-core/Pascal/"]
+        url = root/src/github.com/io-core/Pascal/
+[submodule "root/src/github.com/io-core/Prolog/"]
+        url = root/src/github.com/io-core/Prolog/
 [submodule "root/src/github.com/io-core/Script"]
-	path = root/src/github.com/io-core/Script
 	url = https://github.com/io-core/Script
 [submodule "root/src/github.com/io-core/System"]
-	path = root/src/github.com/io-core/System
 	url = https://github.com/io-core/System
-[submodule "root/src/github.com/io-core/Boot"]
-	path = root/src/github.com/io-core/Boot
-	url = https://github.com/io-core/Boot
-[submodule "root/src/github.com/io-core/Doc"]
-	path = root/src/github.com/io-core/Doc
-	url = https://github.com/io-core/Doc
+[submodule "root/src/github.com/io-core/Test/"]
+        url = root/src/github.com/io-core/Test/

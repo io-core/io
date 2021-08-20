@@ -1,6 +1,0 @@
-k,v1,v2
-package,Pascal,v1.0.20210816
-from,github.com/io-core,whenever
-license,MIT,CP
-doc,suplib, compile Pascal programs.
-p,PXP.Mod,

@@ -1,7 +1,0 @@
-k,v1,v2
-package,Net,v5.0.20190301
-from,github.com/io-core,
-license,PROJECTOBERON,NW
-doc,core,provides the IO networking subsystem and some utilities.
-r,[core]/Files,v5.0.0
-p,Discuss.Mod,

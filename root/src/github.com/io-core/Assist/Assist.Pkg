@@ -1,7 +1,0 @@
-k,v1,v2
-package,Assist,v5.0.20210221
-from,github.com/io-core,whenever
-license,MIT,CP
-doc,stdlib, provide ui help.
-p,Assist.Mod,
-p,Hello.Mod,
