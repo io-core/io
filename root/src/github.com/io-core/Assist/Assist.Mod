@@ -1,40 +1,24 @@
-(* begin-documentation-node
-###########################
-  Usage
-###########################
+(* begin-package-description
+### _Package Overview:_
+The Assist package manages:
+* contributions
+### _Package Use:_
 
-Startup and Shutdown
-====================
+Explanation...
 
-Navigating the UI
-=================
-
-Commands
-========
-
-Working with documents
-======================
-
-Applications
-============
-
-File exchange and networking
-============================
-
-https://github.com/io-core/Assist/blob/main/Hello.Mod
-
-end-documentation-node *)
+### _Modules in this package:_
+end-package-description *)
 
 (* begin-module-short-description
 provides help functionality in the UI.
 end-module-short-description *)
 
 (* begin-module-use-description
-Module Hello handles:
+Module Assist handles:
 * Nothing yet. Placeholder.
 
 end-module-use-description *)
-MODULE Hello; 
+MODULE Assist; 
   IMPORT SYSTEM;
 
   CONST 
@@ -57,4 +41,4 @@ MODULE Hello;
 
 
 
-END Hello.
+END Assist.

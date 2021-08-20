@@ -1,6 +1,3 @@
-[submodule "root/doc"]
-	path = root/doc
-	url = https://github.com/io-core/doc
 [submodule "root/src/github.com/io-core/Attest"]
 	path = root/src/github.com/io-core/Attest
 	url = https://github.com/io-core/Attest

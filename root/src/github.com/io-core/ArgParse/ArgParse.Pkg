@@ -1,0 +1,7 @@
+k,v1,v2
+package,ArgParse,v1.0.20190331
+from,github.com/io-core,
+license,MIT,CP
+doc,stdlib,provides argument parsing for Oberon.
+r,[core]/Build,v5.0.0
+p,ArgParse.Mod,

@@ -1,0 +1,71 @@
+Browsable Pascal Grammar
+CC-BY
+Grammar extracted by Vadim Zaytsev, see the Grammar Zoo entry for details: pascal/pascal/bruneliere/extracted
+Source used for this grammar: Hugo Brunelière, Pascal 0.1, Pascal.ecore, 2005/08/10
+
+Summary
+Total 29 production rules with 31 top alternatives and 152 symbols.
+Vocabulary: 34 = 17 nonterminals + 0 terminals + 17 labels + 0 markers.
+Total 17 nonterminal symbols: 17 defined (Program, Variable, Type, Parameter, Instruction, Calculation, Control, Assignment, Block, Conditional, Loop, Procedure, Function, For, While, Repeat, String), 0 root (—), 0 top (—), 0 bottom (—).
+Total 17 labels: [name] 4, [variables] 3, [types], [procedures], [program] 3, [procedure] 2, [type], [procedure_parameter], [block] 3, [instructions], [loop], [conditional], [blocks], [block_loop] 4, [parameters], [block_procedure], [returnType].
+Syntax
+Program ::=
+	[name]::String [variables]::Variable+ [types]::Type+ [procedures]::Procedure+
+Variable ::=
+	Parameter
+Variable ::=
+	[name]::String [program]::Program [procedure]::Procedure [type]::Type
+Type ::=
+	[name]::String [program]::Program [variables]::Variable+
+Parameter ::=
+	[procedure_parameter]::Procedure
+Instruction ::=
+	Calculation
+Instruction ::=
+	Control
+Instruction ::=
+	Assignment
+Instruction ::=
+	Block
+Instruction ::=
+	[block]::Block
+Calculation ::=
+	[block]::Block
+Control ::=
+	Conditional
+Control ::=
+	Loop
+Control ::=
+	Procedure
+Control ::=
+	Conditional
+	Loop
+	Procedure
+Assignment ::=
+	[block]::Block
+Block ::=
+	[instructions]::Instruction+ [procedure]::Procedure [loop]::Loop [conditional]::Conditional
+Conditional ::=
+	[blocks]::Block
+Loop ::=
+	For
+Loop ::=
+	While
+Loop ::=
+	Repeat
+Loop ::=
+	[block_loop]::Block
+Procedure ::=
+	Function
+Procedure ::=
+	[name]::String [program]::Program [variables]::Variable+ [parameters]::Parameter+ [block_procedure]::Block
+Function ::=
+	[returnType]::Type
+For ::=
+	[block_loop]::Block
+While ::=
+	[block_loop]::Block
+Repeat ::=
+	[block_loop]::Block
+String ::=
+	string

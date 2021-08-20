@@ -1,0 +1,6 @@
+k,v1,v2
+package,Go,v1.0.20210413
+from,github.com/io-core,whenever
+license,MIT,CP
+doc,suplib, compile Go programs.
+p,GXP.Mod,

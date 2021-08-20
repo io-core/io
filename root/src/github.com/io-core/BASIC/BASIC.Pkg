@@ -1,0 +1,7 @@
+k,v1,v2
+package,BASIC,v1.0.20210221
+from,github.com/io-core,whenever
+license,MIT,CP
+doc,suplib, compile BASIC programs.
+p,BASIC.Mod,
+p,BXP.Mod,
