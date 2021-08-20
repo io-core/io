@@ -1,0 +1,6 @@
+k,v1,v2
+package,Draft,v1.0.20210225
+from,github.com/io-core,whenever
+license,MIT,CP
+doc,suplib, edit novels and screenplays.
+p,Draft.Mod,
