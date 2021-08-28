@@ -16,8 +16,8 @@
 	url = https://github.com/io-core/Crypto
 [submodule "root/src/github.com/io-core/Doc"]
 	url = https://github.com/io-core/Doc
-[submodule "root/src/github.com/io-core/Draft/"]
-        url = root/src/github.com/io-core/Draft/
+[submodule "root/src/github.com/charlesap/Draft/"]
+        url = root/src/github.com/charlesap/Draft/
 [submodule "root/src/github.com/io-core/Draw"]
 	url = https://github.com/io-core/Draw
 [submodule "root/src/github.com/io-core/Edit"]
