@@ -6,8 +6,10 @@
         url = root/src/github.com/io-core/BASIC/
 [submodule "root/src/github.com/io-core/Boot"]
 	url = https://github.com/io-core/Boot
+	path = root/src/github.com/io-core/Boot
 [submodule "root/src/github.com/io-core/Build"]
 	url = https://github.com/io-core/Build
+	path = root/src/github.com/io-core/Build
 [submodule "root/src/github.com/io-core/C/"]
         url = root/src/github.com/io-core/C/
 [submodule "root/src/github.com/io-core/Crypto"]
