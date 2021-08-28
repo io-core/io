@@ -14,12 +14,16 @@
         url = root/src/github.com/io-core/C/
 [submodule "root/src/github.com/io-core/Crypto"]
 	url = https://github.com/io-core/Crypto
+	path = root/src/github.com/io-core/Crypto
 [submodule "root/src/github.com/io-core/Doc"]
 	url = https://github.com/io-core/Doc
+	path = root/src/github.com/io-core/Doc
 [submodule "root/src/github.com/io-core/Draw"]
 	url = https://github.com/io-core/Draw
+	path = root/src/github.com/io-core/Draw
 [submodule "root/src/github.com/io-core/Edit"]
 	url = https://github.com/io-core/Edit
+	path = root/src/github.com/io-core/Edit
 [submodule "root/src/github.com/io-core/Examples/"]
         url = root/src/github.com/io-core/Examples/
 [submodule "root/src/github.com/io-core/Experiments/"]
