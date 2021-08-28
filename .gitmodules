@@ -30,20 +30,27 @@
         url = root/src/github.com/io-core/Experiments/
 [submodule "root/src/github.com/io-core/Files"]
 	url = https://github.com/io-core/Files
+	path = root/src/github.com/io-core/Files
 [submodule "root/src/github.com/io-core/Go/"]
         url = root/src/github.com/io-core/Go/
 [submodule "root/src/github.com/io-core/Index"]
 	url = https://github.com/io-core/Index
+	path = root/src/github.com/io-core/Index
 [submodule "root/src/github.com/io-core/Kernel"]
 	url = https://github.com/io-core/Kernel
+	path = root/src/github.com/io-core/Kernel
 [submodule "root/src/github.com/io-core/Mod"]
 	url = https://github.com/io-core/Mod
+	path = root/src/github.com/io-core/Mod
 [submodule "root/src/github.com/io-core/Modules"]
 	url = https://github.com/io-core/Modules
+	path = root/src/github.com/io-core/Modules
 [submodule "root/src/github.com/io-core/Oberon"]
 	url = https://github.com/io-core/Oberon
+	path = root/src/github.com/io-core/Oberon
 [submodule "root/src/github.com/io-core/Paint"]
 	url = https://github.com/io-core/Paint
+	path = root/src/github.com/io-core/Paint
 [submodule "root/src/github.com/io-core/Pascal/"]
         url = root/src/github.com/io-core/Pascal/
 [submodule "root/src/github.com/io-core/Prolog/"]
