@@ -2,8 +2,6 @@
         url = root/src/github.com/io-core/ArgParse/
 [submodule "root/src/github.com/io-core/Assist/"]
         url = root/src/github.com/io-core/Assist/
-[submodule "root/src/github.com/io-core/Attest"]
-	url = https://github.com/io-core/Attest
 [submodule "root/src/github.com/io-core/BASIC/"]
         url = root/src/github.com/io-core/BASIC/
 [submodule "root/src/github.com/io-core/Boot"]
@@ -16,8 +14,6 @@
 	url = https://github.com/io-core/Crypto
 [submodule "root/src/github.com/io-core/Doc"]
 	url = https://github.com/io-core/Doc
-[submodule "root/src/github.com/charlesap/Draft/"]
-        url = root/src/github.com/charlesap/Draft/
 [submodule "root/src/github.com/io-core/Draw"]
 	url = https://github.com/io-core/Draw
 [submodule "root/src/github.com/io-core/Edit"]
@@ -67,9 +63,6 @@
 [submodule "root/src/github.com/io-core/Examples"]
 	path = root/src/github.com/io-core/Examples
 	url = https://github.com/io-core/Examples
-[submodule "root/src/github.com/io-core/Draft"]
-	path = root/src/github.com/io-core/Draft
-	url = https://github.com/io-core/Draft
 [submodule "root/src/github.com/io-core/C"]
 	path = root/src/github.com/io-core/C
 	url = https://github.com/io-core/C
@@ -85,3 +78,6 @@
 [submodule "root/src/github.com/charlesap/Draft"]
 	path = root/src/github.com/charlesap/Draft
 	url = https://github.com/charlesap/Draft
+[submodule "root/src/github.com/io-core/Attest"]
+	path = root/src/github.com/io-core/Attest
+	url = https://github.com/io-core/Attest
