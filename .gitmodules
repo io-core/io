@@ -57,8 +57,10 @@
         url = root/src/github.com/io-core/Prolog/
 [submodule "root/src/github.com/io-core/Script"]
 	url = https://github.com/io-core/Script
+	path = root/src/github.com/io-core/Script
 [submodule "root/src/github.com/io-core/System"]
 	url = https://github.com/io-core/System
+	path = root/src/github.com/io-core/System
 [submodule "root/src/github.com/io-core/Test/"]
         url = root/src/github.com/io-core/Test/
 [submodule "root/src/github.com/io-core/Test"]
