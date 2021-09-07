@@ -96,3 +96,6 @@
 [submodule "root/src/github.com/io-core/Attest"]
 	path = root/src/github.com/io-core/Attest
 	url = https://github.com/io-core/Attest
+[submodule "root/src/github.com/io-core/Nodes"]
+	path = root/src/github.com/io-core/Nodes
+	url = https://github.com/io-core/Nodes
