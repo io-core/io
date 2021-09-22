@@ -1,0 +1,27 @@
+/* brainiac.c */                                           ║#  Brainiac.py                                           ║(* Brainiac.Mod *)                                       ║!  brainiac.f
+                                                           ║                                                         ║MODULE Brainiac                                          ║PROGRAM Brainiac
+                                                           ║                                                         ║                                                         ║
+#include <stdio.h>                                         ║                                                         ║IMPORT Stdio                                             ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║CONST                                                    ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║TYPE                                                     ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║VAR                                                      ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+void main(void){                                           ║if __name__ == "__main__":                               ║BEGIN                                                    ║
+  printf("Brainiac");                                      ║  Print("Brainiac")                                      ║  Stdio.Print("Brainiac");                               ║  print *,'Brainiac'             
+                                                           ║                                                         ║                                                         ║
+}                                                          ║                                                         ║END Brainiac.                                            ║END PROGRAM Brainiac
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
+                                                           ║                                                         ║                                                         ║
